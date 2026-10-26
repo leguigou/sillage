@@ -22,7 +22,9 @@
 function Read-SillageServices {
     param([string]$Path)
     if(-not(Test-Path -LiteralPath $Path)){return}
-    $parsed=ConvertFrom-Json -InputObject (Get-Content -Raw -LiteralPath $Path)
+    $sillageJsonParameters=@{InputObject=(Get-Content -Raw -LiteralPath $Path)}
+    if((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')){$sillageJsonParameters.DateKind='String'}
+    $parsed=ConvertFrom-Json @sillageJsonParameters
     foreach($record in $parsed){
         if(-not $record.Id -or -not $record.Started -or -not $record.Executable -or -not $record.Marker -or $record.Id -is [array]){throw 'Registre de processus invalide. Conserver le fichier pour inspection.'}
         Write-Output $record

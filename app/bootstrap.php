@@ -67,11 +67,11 @@ set_exception_handler(function (Throwable $error): void {
         mkdir(ROOT . '/storage', 0700, true);
     }
     error_log('[' . gmdate('c') . '] ' . $error . PHP_EOL, 3, ROOT . '/storage/error.log');
-    http_response_code(500);
     if (PHP_SAPI === 'cli') {
         fwrite(STDERR, $error->getMessage() . PHP_EOL);
         exit(1);
     }
+    http_response_code(500);
     $message =
         env('APP_ENV') === 'local'
             ? $error->getMessage()

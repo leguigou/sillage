@@ -3,11 +3,17 @@ declare(strict_types=1);
 namespace App\Core;
 final class Security
 {
-    public static function start(): void
+    private static function key(): string
     {
-        if (strlen(env('APP_KEY')) !== 64 || !ctype_xdigit(env('APP_KEY'))) {
+        $hex = env('APP_KEY');
+        if (strlen($hex) !== 64 || !ctype_xdigit($hex)) {
             throw new \RuntimeException('Configurez APP_KEY (64 caractères hexadécimaux).');
         }
+        return hex2bin($hex);
+    }
+    public static function start(): void
+    {
+        self::key();
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_name('sillage_session');
@@ -99,14 +105,7 @@ final class Security
     {
         $iv = random_bytes(12);
         $tag = '';
-        $cipher = openssl_encrypt(
-            $plain,
-            'aes-256-gcm',
-            hex2bin(env('APP_KEY')),
-            OPENSSL_RAW_DATA,
-            $iv,
-            $tag,
-        );
+        $cipher = openssl_encrypt($plain, 'aes-256-gcm', self::key(), OPENSSL_RAW_DATA, $iv, $tag);
         if ($cipher === false) {
             throw new \RuntimeException('Chiffrement indisponible.');
         }
@@ -121,7 +120,7 @@ final class Security
         $v = openssl_decrypt(
             substr($raw, 28),
             'aes-256-gcm',
-            hex2bin(env('APP_KEY')),
+            self::key(),
             OPENSSL_RAW_DATA,
             substr($raw, 0, 12),
             substr($raw, 12, 16),

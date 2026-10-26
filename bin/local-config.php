@@ -5,6 +5,17 @@ if (PHP_SAPI !== 'cli') {
 }
 $root = dirname(__DIR__);
 if (is_file($root . '/.env')) {
+    require $root . '/app/bootstrap.php';
+    if (
+        env('APP_ENV') !== 'local' ||
+        !in_array(env('DB_HOST'), ['127.0.0.1', 'localhost'], true) ||
+        env('DB_PORT') !== '3338' ||
+        !in_array(parse_url(env('APP_URL'), PHP_URL_HOST), ['127.0.0.1', 'localhost'], true)
+    ) {
+        throw new RuntimeException(
+            'Le lanceur portable accepte uniquement une configuration locale sur le port MySQL 3338. Configuration existante conservée, aucune migration effectuée.',
+        );
+    }
     echo "Configuration existante conservée.\n";
     exit();
 }

@@ -58,7 +58,7 @@ if (-not (Get-NetTCPConnection -State Listen -LocalPort 3338 -ErrorAction Silent
     $sillageMysqlArgs = @('--no-defaults', "--basedir=$sillageUnixRoot/.runtime/mysql-8.4.13-winx64", "--datadir=$sillageUnixRoot/.runtime/mysql-data", '--bind-address=127.0.0.1','--port=3338','--mysqlx=0','--console')
     if (Test-Path -LiteralPath "$sillageRuntime/bootstrap.sql") { $sillageMysqlArgs += "--init-file=$sillageUnixRoot/.runtime/bootstrap.sql" }
     $sillageProcess = Start-Process -FilePath $sillageMysql -ArgumentList $sillageMysqlArgs -WorkingDirectory $sillageRoot -WindowStyle Hidden -PassThru -RedirectStandardError "$sillageRuntime/mysql-error.log" -RedirectStandardOutput "$sillageRuntime/mysql-output.log"
-    $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable=$sillageMysql; Marker='--port=3338'}
+    $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable=$sillageProcess.Path; Marker='--port=3338'}
 }
 $sillageReady = $false
 for ($sillageAttempt=0; $sillageAttempt -lt 30; $sillageAttempt++) {
@@ -79,7 +79,7 @@ if (-not (Get-NetTCPConnection -State Listen -LocalPort 8088 -ErrorAction Silent
     & "$sillageRuntime/Apache24/bin/httpd.exe" -t -f "$sillageRuntime/apache-local.conf"
     if ($LASTEXITCODE -ne 0) { throw 'Configuration Apache invalide.' }
     $sillageProcess = Start-Process -FilePath "$sillageRuntime/Apache24/bin/httpd.exe" -ArgumentList @('-f',"$sillageRuntime/apache-local.conf") -WindowStyle Hidden -PassThru -WorkingDirectory $sillageRoot
-    $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable="$sillageRuntime/Apache24/bin/httpd.exe"; Marker='apache-local.conf'}
+    $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable=$sillageProcess.Path; Marker='apache-local.conf'}
 }
 if ($sillageServices.Count -gt 0) {
     $sillageExisting=@(Read-SillageServices -Path "$sillageRuntime/services.json")

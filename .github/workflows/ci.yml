@@ -25,7 +25,7 @@ jobs:
           --health-retries=30
     env:
       APP_ENV: local
-      APP_KEY: 1111111111111111111111111111111111111111111111111111111111111111
+      APP_KEY: 'a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1'
       APP_URL: http://127.0.0.1:8089
       DB_HOST: mysql
       DB_PORT: 3306
