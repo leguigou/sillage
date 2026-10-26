@@ -1,0 +1,11 @@
+.env
+.runtime/
+storage/*
+!storage/.gitkeep
+!storage/.htaccess
+vendor/
+.DS_Store
+*.zip
+deploy/current.env
+__pycache__/
+*.pyc

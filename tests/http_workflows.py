@@ -1,0 +1,118 @@
+"""End-to-end HTTP checks against the isolated sillage_test Apache host."""
+import http.cookiejar, urllib.request, urllib.parse, urllib.error, re, json, uuid, os, pathlib, hashlib, hmac
+BASE=os.environ.get('SILLAGE_TEST_URL','http://127.0.0.1:8089')
+if not BASE.endswith(':8089') and os.environ.get('CI')!='true': raise RuntimeError('Use isolated test server on 8089')
+jar=http.cookiejar.CookieJar(); client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar)); passed=0
+def call(path,data=None,json_accept=False):
+    encoded=urllib.parse.urlencode(data,doseq=True).encode() if data is not None else None
+    try:
+        with client.open(urllib.request.Request(BASE+path,data=encoded,headers={'Accept':'application/json' if json_accept else 'text/html'}),timeout=20) as response: return response.status,response.read().decode('utf-8'),response.url
+    except urllib.error.HTTPError as error: return error.code,error.read().decode('utf-8'),error.url
+def token(html):
+    found=re.search(r'name="_csrf" value="([a-f0-9]+)"',html)
+    if not found: raise AssertionError('CSRF token missing')
+    return found.group(1)
+def upload(path,fields,field,filename,content,mime):
+    boundary='sillage-'+uuid.uuid4().hex; parts=[]
+    for key,value in fields.items(): parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+key+'"\r\n\r\n'+str(value)+'\r\n').encode())
+    parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+field+'"; filename="'+filename+'"\r\nContent-Type: '+mime+'\r\n\r\n').encode()+content+b'\r\n')
+    parts.append(('--'+boundary+'--\r\n').encode())
+    request=urllib.request.Request(BASE+path,data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary})
+    try:
+        with client.open(request,timeout=20) as response: return response.status,response.read().decode(),response.url
+    except urllib.error.HTTPError as error: return error.code,error.read().decode(),error.url
+def signed_webhook(path,data,valid=True):
+    body=json.dumps(data).encode(); signature='sha256='+hmac.new(b'test-webhook-secret' if valid else b'wrong-secret',body,hashlib.sha256).hexdigest()
+    request=urllib.request.Request(BASE+path,data=body,headers={'Content-Type':'application/json','Accept':'application/json','X-Hub-Signature-256':signature})
+    try:
+        with client.open(request,timeout=20) as response: return response.status,response.read().decode()
+    except urllib.error.HTTPError as error: return error.code,error.read().decode()
+def check(ok,name):
+    global passed
+    if not ok: raise AssertionError(name)
+    passed+=1; print('OK',name)
+def get_token(path='/'):
+    status,html,_=call(path); check(status==200,'GET '+path.split('?')[0]); return token(html),html
+status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'private page requires login')
+check(call('/login',{'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
+csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
+check(status==200 and 'Bonjour, QA' in html,'verified administrator signs in'); csrf=token(html); pid=re.search(r'name="project_id" value="(\d+)"',html).group(1)
+for path in ['/list','/board','/timeline','/charts','/forms','/development','/settings','/all','/import']:
+    status,body,_=call(path); check(status==200 and 'Sillage — Une pause' not in body,'render '+path)
+check(call('/.env')[0] in (403,404,422),'environment not public'); check(call('/storage/mail')[0] in (404,422),'mail storage not public')
+marker='HTTP-'+uuid.uuid4().hex[:8]
+status,body,url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':marker,'description':'<script>alert(1)</script>','status':'todo','type':'task','priority':'high','labels':'qa, test'})
+check(status==200 and '/tickets/' in url,'ticket creation'); ticket_id=url.rsplit('/',1)[1]; check('&lt;script&gt;' in body,'content escaped'); version=re.search(r'name="version" value="(\d+)"',body).group(1)
+status,body,_=call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'status','value':'progress','version':version},True); check(status==200 and json.loads(body)['ticket']['status']=='progress','quick edit persisted')
+check(call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'status','value':'done','version':version},True)[0]==422,'stale write rejected')
+status,body,_=call('/tickets/'+ticket_id); latest=re.search(r'name="version" value="(\d+)"',body).group(1)
+status,body,_=call('/tickets/'+ticket_id+'/schedule',{'_csrf':csrf,'start_date':'2026-10-26','due_date':'2026-11-04','version':latest},True)
+check(status==200 and json.loads(body)['ticket']['due_date']=='2026-11-04','timeline dates persisted together'); latest=json.loads(body)['ticket']['version']
+check(call('/tickets/'+ticket_id+'/schedule',{'_csrf':csrf,'start_date':'2026-12-10','due_date':'2026-12-01','version':latest},True)[0]==422,'timeline invalid date range rejected')
+status,body,_=call('/tickets/'+ticket_id+'/move',{'_csrf':csrf,'status':'review','version':latest},True);check(status==200 and json.loads(body)['ticket']['status']=='review','board transition persisted');latest=json.loads(body)['ticket']['version']
+status,body,_=call('/tickets/'+ticket_id+'/move',{'_csrf':csrf,'status':'progress','version':latest},True);check(status==200 and json.loads(body)['ticket']['status']=='progress','board transition restored')
+status,body,_=call('/list?jql='+urllib.parse.quote('status = progress AND title ~ "'+marker+'"')); check(status==200 and marker in body,'query filtering')
+status,body,_=call('/export?project='+pid+'&q='+marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'filtered JSON export')
+status,body,_=call('/export?project='+pid+'&q='+marker+'&format=csv'); check(status==200 and marker in body,'CSV export')
+status,body,_=call('/tickets/'+ticket_id+'/comments',{'_csrf':csrf,'body':'Précision de test'}); check(status==200 and 'Précision de test' in body,'comment persisted')
+status,body,_=call('/bulk',{'_csrf':csrf,'ids[]':[ticket_id],'field':'flagged','value':'1'});check(status==200,'bulk edit applied')
+status,body,_=call('/views',{'_csrf':csrf,'project_id':pid,'name':'Vue '+marker,'settings':json.dumps({'q':marker,'hide_done':1})});check(status==200 and 'Vue '+marker in body,'personal saved view persisted')
+status,body,_=upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf},'file','note.txt',b'A safe local test attachment','text/plain')
+attachment=re.search(r'href="/attachments/(\d+)"',body); check(status==200 and attachment is not None,'private attachment uploaded')
+check(call('/attachments/'+attachment.group(1))[1]=='A safe local test attachment','attachment downloaded through authenticated controller')
+status,body,_=upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf,'_return':'/tickets/'+ticket_id},'file','page.html',b'<html><body>Test only</body></html>','text/html')
+check(status==200 and 'Type de fichier non autorisé' in body,'active HTML attachment rejected')
+csv_marker='CSV-'+marker
+csv_content=('title,description,type,status,priority,start_date,due_date,labels\n'+csv_marker+',Import QA,task,todo,medium,2026-10-26,2026-11-04,import\n').encode()
+status,body,_=upload('/import/preview',{'_csrf':csrf,'project_id':pid},'csv','tickets.csv',csv_content,'text/csv')
+nonce=re.search(r'name="nonce" value="([a-f0-9]+)"',body); check(status==200 and nonce is not None and csv_marker in body,'CSV preview and mapping')
+mapping={'_csrf':csrf,'nonce':nonce.group(1),'_return':'/import'}
+mapping.update({'map['+field+']':field for field in ['title','description','type','status','priority','start_date','due_date','labels']})
+status,body,_=call('/import',mapping); check(status==200 and '1 tickets importés' in body,'CSV import committed')
+status,body,_=call('/export?project='+pid+'&q='+csv_marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'imported ticket stored in MySQL')
+check('aperçu a expiré' in call('/import',mapping)[1],'CSV import preview cannot be replayed')
+status,body,_=call('/development'); connection=re.search(r'action="/connections/(\d+)/sync"',body)
+check(connection is not None,'isolated webhook fixture available')
+ticket_key=json.loads(call('/export?project='+pid+'&q='+marker+'&format=json')[1])[0]['key']
+payload={'repository':{'full_name':'qa/repo'},'ref':'refs/heads/'+ticket_key+'-qa','commits':[{'id':marker,'message':ticket_key+' '+marker,'url':'https://github.com/qa/repo/commit/'+marker,'timestamp':'2026-10-26T12:00:00Z'}]}
+hook='/webhooks/'+connection.group(1)
+check(signed_webhook(hook,payload,False)[0]==401,'invalid webhook signature rejected')
+check(signed_webhook(hook,payload)[0]==200,'signed webhook ingested')
+check(signed_webhook(hook,payload)[0]==200,'duplicate delivery accepted idempotently')
+check(call('/development')[1].count(ticket_key+' '+marker)==1,'duplicate commit not duplicated')
+status,body,_=call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Formulaire '+marker,'description':'Collecte isolée','ticket_type':'bug','fields[]':['title','description','priority'],'required[]':['description']})
+link=re.search(r'(http://127\.0\.0\.1:8089/f/[a-f0-9]{64})',body); check(status==200 and link is not None,'one-time public form link')
+public_path=link.group(1).replace(BASE,''); public_client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+with public_client.open(BASE+public_path) as response: public_html=response.read().decode()
+payload=urllib.parse.urlencode({'_csrf':token(public_html),'email':'external@example.org','title':'Demande externe '+marker,'description':'Besoin externe','priority':'medium'}).encode()
+with public_client.open(urllib.request.Request(BASE+public_path,data=payload)) as response: public_html=response.read().decode(); check('Votre demande a bien rejoint notre équipe' in public_html,'anonymous form submission')
+check('qa.admin@cabesto.com' not in public_html,'external page hides members'); check('Demande externe '+marker in call('/list?q='+marker)[1],'external ticket visible internally')
+check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(call('/tickets/'+ticket_id+'/archive',{'_csrf':csrf})[0]==200,'archive action'); check('href="/tickets/'+ticket_id+'"' not in call('/list?q='+marker)[1],'archived ticket excluded')
+call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@cabesto.com','password':'Tests-Sillage-2026!'})
+check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot create tickets'); check(call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot publish forms')
+call('/logout',{'_csrf':csrf})
+auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@cabesto.com'
+csrf,_=get_token('/register')
+status,body,_=call('/register',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!','name':'Test Validation'})
+check(status==200 and 'Votre compte est créé' in body,'registration initiates email verification')
+csrf=token(body)
+status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!'})
+check(url.endswith('/login') and 'Validez votre adresse' in body,'unverified account cannot sign in')
+mail_dir=pathlib.Path(__file__).resolve().parents[1]/'storage'/'mail'
+def mail_link(purpose):
+    for path in sorted(mail_dir.glob('*.txt'),reverse=True):
+        text=path.read_text(encoding='utf-8')
+        if 'To: '+auth_email in text:
+            found=re.search(re.escape(BASE)+r'/'+purpose+r'\?token=[a-f0-9]{64}',text)
+            if found: return found.group(0).replace(BASE,'')
+    raise AssertionError('Local test mail missing')
+verify_link=mail_link('verify'); status,body,url=call(verify_link); check(status==200 and 'Adresse confirmée' in body,'email token activates account')
+check(call(verify_link)[0]==422,'verification token is single use')
+csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!'})
+check(status==200 and 'Bonjour, Test' in body,'new verified account can sign in')
+csrf=token(body); call('/logout',{'_csrf':csrf}); csrf,_=get_token('/forgot'); status,body,_=call('/forgot',{'_csrf':csrf,'email':auth_email}); check(status==200,'password reset request accepted')
+reset_link=mail_link('reset'); csrf,reset_html=get_token(reset_link); reset_token=re.search(r'name="token" value="([a-f0-9]+)"',reset_html).group(1)
+status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Nouveau-Sillage-2026!'}); check(status==200 and 'Mot de passe modifié' in body,'password reset succeeds')
+csrf=token(body); status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Encore-Sillage-2026!'},True); check(status==422,'reset token is single use')
+csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'}); check(status==200 and not url.endswith('/login'),'new password works')
+print('\n',passed,'HTTP checks passed against isolated test database.')

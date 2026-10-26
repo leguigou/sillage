@@ -1,0 +1,198 @@
+<?php
+declare(strict_types=1);
+namespace App\Models;
+use App\Core\{DB, Security};
+final class Ticket
+{
+    public const STATUSES = [
+        'todo' => 'À faire',
+        'progress' => 'En cours',
+        'review' => 'En revue',
+        'done' => 'Terminé',
+    ];
+    public const TYPES = [
+        'task' => 'Tâche',
+        'story' => 'Story',
+        'bug' => 'Bug',
+        'subtask' => 'Sous-tâche',
+        'epic' => 'Epic',
+    ];
+    public const PRIORITIES = [
+        'highest' => 'Critique',
+        'high' => 'Haute',
+        'medium' => 'Moyenne',
+        'low' => 'Basse',
+        'lowest' => 'Très basse',
+    ];
+    public static function find(int $id): array
+    {
+        $t = DB::one(
+            'SELECT t.*,p.project_key,p.name project_name,a.name assignee_name,u.name reporter_name FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id WHERE t.id=?',
+            [$id],
+        );
+        if (!$t) {
+            throw new \InvalidArgumentException('Ticket introuvable.');
+        }
+        $t['key'] = $t['project_key'] . '-' . $t['number'];
+        $t['labels_array'] = json_decode($t['labels'], true);
+        return $t;
+    }
+    public static function activity(int $project, ?int $ticket, ?int $user, string $message): void
+    {
+        DB::run('INSERT INTO activity(project_id,ticket_id,user_id,message) VALUES(?,?,?,?)', [
+            $project,
+            $ticket,
+            $user,
+            mb_substr($message, 0, 500),
+        ]);
+    }
+    public static function validate(array $input, int $project, ?int $self = null): array
+    {
+        $title = trim((string) ($input['title'] ?? ''));
+        $desc = trim((string) ($input['description'] ?? ''));
+        if ($title === '' || mb_strlen($title) > 240) {
+            throw new \InvalidArgumentException('Le résumé est requis (240 caractères maximum).');
+        }
+        if (strlen($desc) > 100000) {
+            throw new \InvalidArgumentException('La description est trop longue.');
+        }
+        $type = (string) ($input['type'] ?? 'task');
+        $status = (string) ($input['status'] ?? 'todo');
+        $priority = (string) ($input['priority'] ?? 'medium');
+        if (!isset(self::TYPES[$type], self::STATUSES[$status], self::PRIORITIES[$priority])) {
+            throw new \InvalidArgumentException('Type, état ou priorité invalide.');
+        }
+        $assignee = filter_var($input['assignee_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+        if (
+            $assignee &&
+            !DB::one('SELECT id FROM users WHERE id=? AND active=1 AND verified_at IS NOT NULL', [
+                $assignee,
+            ])
+        ) {
+            throw new \InvalidArgumentException('Personne assignée introuvable.');
+        }
+        $parent = filter_var($input['parent_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+        if ($parent) {
+            if ($self === $parent) {
+                throw new \InvalidArgumentException(
+                    'Un ticket ne peut pas être son propre parent.',
+                );
+            }
+            $p = DB::one(
+                'SELECT id,type,parent_id FROM tickets WHERE id=? AND project_id=? AND archived=0',
+                [$parent, $project],
+            );
+            if (!$p) {
+                throw new \InvalidArgumentException('Le parent doit appartenir au même projet.');
+            }
+            $seen = [];
+            $cursor = $p;
+            while ($cursor) {
+                if ($self === (int) $cursor['id'] || isset($seen[$cursor['id']])) {
+                    throw new \InvalidArgumentException('Cette hiérarchie créerait une boucle.');
+                }
+                $seen[$cursor['id']] = true;
+                $cursor = $cursor['parent_id']
+                    ? DB::one('SELECT id,parent_id FROM tickets WHERE id=?', [$cursor['parent_id']])
+                    : null;
+            }
+        }
+        if ($type === 'subtask' && !$parent) {
+            throw new \InvalidArgumentException('Une sous-tâche doit avoir un parent.');
+        }
+        $start = Security::date($input['start_date'] ?? null);
+        $due = Security::date($input['due_date'] ?? null);
+        if ($start && $due && $start > $due) {
+            throw new \InvalidArgumentException(
+                'L’échéance doit être postérieure à la date de début.',
+            );
+        }
+        $labels = is_array($input['labels'] ?? null)
+            ? $input['labels']
+            : explode(',', (string) ($input['labels'] ?? ''));
+        $labels = array_values(array_unique(array_filter(array_map('trim', $labels))));
+        if (
+            count($labels) > 12 ||
+            array_filter($labels, fn($l) => !is_string($l) || mb_strlen($l) > 40)
+        ) {
+            throw new \InvalidArgumentException('12 étiquettes maximum, de 40 caractères chacune.');
+        }
+        return [
+            'title' => $title,
+            'description' => $desc,
+            'type' => $type,
+            'status' => $status,
+            'priority' => $priority,
+            'assignee_id' => $assignee,
+            'parent_id' => $parent,
+            'labels' => json_encode($labels, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'start_date' => $start,
+            'due_date' => $due,
+            'flagged' => !empty($input['flagged']) ? 1 : 0,
+        ];
+    }
+    public static function create(
+        int $project,
+        array $input,
+        ?int $reporter,
+        ?string $external = null,
+    ): int {
+        $data = self::validate($input, $project);
+        return DB::transaction(function () use ($project, $data, $reporter, $external) {
+            $p = DB::one('SELECT * FROM projects WHERE id=? FOR UPDATE', [$project]);
+            if (!$p) {
+                throw new \InvalidArgumentException('Projet introuvable.');
+            }
+            DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
+            $id = DB::insert(
+                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [
+                    $project,
+                    $p['next_number'],
+                    ...array_values($data),
+                    $reporter,
+                    $external,
+                    $p['next_number'] * 100,
+                    $data['status'] === 'done' ? gmdate('Y-m-d H:i:s') : null,
+                ],
+            );
+            self::activity(
+                $project,
+                $id,
+                $reporter,
+                $external ? 'Demande reçue via un formulaire externe' : 'a créé le ticket',
+            );
+            return $id;
+        });
+    }
+    public static function update(int $id, array $input, int $actor, int $version): void
+    {
+        DB::transaction(function () use ($id, $input, $actor, $version) {
+            $old = self::find($id);
+            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
+            $old = self::find($id);
+            $data = self::validate($input, (int) $old['project_id'], $id);
+            $completed =
+                $data['status'] === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
+            $set = implode(',', array_map(fn($k) => "$k=?", array_keys($data)));
+            $s = DB::run(
+                "UPDATE tickets SET $set,completed_at=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=? AND version=?",
+                [...array_values($data), $completed, $id, $version],
+            );
+            if ($s->rowCount() !== 1) {
+                throw new \InvalidArgumentException(
+                    'Ce ticket a changé depuis son ouverture. Rechargez-le avant de réessayer.',
+                );
+            }
+            self::activity(
+                (int) $old['project_id'],
+                $id,
+                $actor,
+                'a mis à jour le ticket' .
+                    ($old['status'] !== $data['status']
+                        ? ' · ' . self::STATUSES[$data['status']]
+                        : ''),
+            );
+        });
+    }
+}

@@ -1,0 +1,37 @@
+ServerRoot "{{ROOT}}/.runtime/Apache24"
+Listen 127.0.0.1:8088
+ServerName 127.0.0.1:8088
+PidFile "{{ROOT}}/.runtime/apache.pid"
+LoadModule authz_core_module modules/mod_authz_core.so
+LoadModule authz_host_module modules/mod_authz_host.so
+LoadModule dir_module modules/mod_dir.so
+LoadModule mime_module modules/mod_mime.so
+LoadModule log_config_module modules/mod_log_config.so
+LoadModule rewrite_module modules/mod_rewrite.so
+LoadModule env_module modules/mod_env.so
+LoadModule php_module "{{PHP}}/php8apache2_4.dll"
+PHPIniDir "{{ROOT}}/.runtime/php-config"
+DocumentRoot "{{ROOT}}/public"
+DirectoryIndex index.php
+TypesConfig conf/mime.types
+ErrorLog "{{ROOT}}/.runtime/apache-error.log"
+LogLevel warn
+CustomLog "{{ROOT}}/.runtime/apache-access.log" common
+<Directory />
+ AllowOverride None
+ Require all denied
+</Directory>
+<Directory "{{ROOT}}/public">
+ Options -Indexes -MultiViews
+ AllowOverride None
+ Require local
+ RewriteEngine On
+ RewriteCond %{REQUEST_FILENAME} !-f
+ RewriteRule ^ index.php [QSA,L]
+ <FilesMatch "\.php$">
+  SetHandler application/x-httpd-php
+ </FilesMatch>
+ <FilesMatch "^\.">
+  Require all denied
+ </FilesMatch>
+</Directory>

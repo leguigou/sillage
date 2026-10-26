@@ -1,0 +1,39 @@
+name: Déployer Sillage
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sillage-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Préparer SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Transférer et activer la version
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          RELEASE: ${{ github.sha }}
+        run: |
+          test -n "$DEPLOY_HOST" && test -n "$DEPLOY_USER"
+          test "${#RELEASE}" -eq 40
+          TARGET="${DEPLOY_USER}@${DEPLOY_HOST}"
+          ssh "$TARGET" "mkdir -p /var/www/sillage/releases/$RELEASE"
+          rsync -az --exclude='.git' --exclude='.env' --exclude='.runtime' --exclude='storage' --exclude='tests/__pycache__' ./ "$TARGET:/var/www/sillage/releases/$RELEASE/"
+          ssh "$TARGET" "bash /var/www/sillage/releases/$RELEASE/deploy/activate.sh $RELEASE"

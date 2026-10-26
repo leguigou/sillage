@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    ports:
+      - '127.0.0.1:8088:80'
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_URL: ${APP_URL:-http://127.0.0.1:8088}
+      APP_KEY: ${APP_KEY:?Configure APP_KEY in .env}
+      ALLOWED_DOMAIN: cabesto.com
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-sillage}
+      DB_USERNAME: ${DB_USERNAME:-sillage}
+      DB_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD in .env}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
+      MAIL_FROM: ${MAIL_FROM:-sillage@cabesto.com}
+      SESSION_SECURE: ${SESSION_SECURE:-false}
+      UPLOAD_MAX_MB: 10
+    volumes:
+      - sillage_storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-sillage}
+      MYSQL_USER: ${DB_USERNAME:-sillage}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - sillage_mysql:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+volumes:
+  sillage_mysql:
+  sillage_storage:
