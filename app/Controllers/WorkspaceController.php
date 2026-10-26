@@ -55,6 +55,24 @@ final class WorkspaceController
             $section === 'list' || $all ? ($page - 1) * $limit : 0,
         );
         $members = Project::members();
+        $accounts =
+            $section === 'settings' && $user['role'] === 'admin'
+                ? DB::all(
+                    'SELECT id,name,email,role,active,verified_at FROM users ORDER BY name,id',
+                )
+                : [];
+        $teams = $section === 'settings' ? DB::all('SELECT * FROM teams ORDER BY name,id') : [];
+        $teamMembers = [];
+        if ($section === 'settings') {
+            foreach (
+                DB::all(
+                    'SELECT m.team_id,u.id,u.name,u.email,u.active,u.verified_at FROM team_members m JOIN users u ON u.id=m.user_id ORDER BY u.name,u.id',
+                )
+                as $member
+            ) {
+                $teamMembers[$member['team_id']][] = $member;
+            }
+        }
         $activity = DB::all(
             'SELECT h.*,u.name,t.number,p.project_key FROM activity h LEFT JOIN users u ON u.id=h.user_id LEFT JOIN tickets t ON t.id=h.ticket_id JOIN projects p ON p.id=h.project_id WHERE h.project_id=? ORDER BY h.id DESC LIMIT 16',
             [$project['id']],
@@ -107,6 +125,9 @@ final class WorkspaceController
                 'project',
                 'tickets',
                 'members',
+                'accounts',
+                'teams',
+                'teamMembers',
                 'stats',
                 'activity',
                 'kpis',

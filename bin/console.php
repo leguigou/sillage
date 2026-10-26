@@ -47,14 +47,7 @@ if ($command === 'user:role') {
     if (!$u) {
         throw new RuntimeException('Compte introuvable.');
     }
-    if (
-        $u['role'] === 'admin' &&
-        $role !== 'admin' &&
-        (int) DB::one("SELECT COUNT(*) n FROM users WHERE role='admin' AND active=1")['n'] <= 1
-    ) {
-        throw new RuntimeException('Conservez un administrateur.');
-    }
-    DB::run('UPDATE users SET role=? WHERE id=?', [$role, $u['id']]);
+    App\Models\User::manage((int) $u['id'], $role, (bool) $u['active'], 0);
     echo "Rôle mis à jour.\n";
     exit();
 }

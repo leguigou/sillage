@@ -85,7 +85,16 @@ final class TicketController
         if (
             !in_array(
                 $field,
-                ['status', 'title', 'priority', 'assignee_id', 'due_date', 'start_date', 'flagged'],
+                [
+                    'status',
+                    'title',
+                    'priority',
+                    'assignee_id',
+                    'due_date',
+                    'start_date',
+                    'flagged',
+                    'estimated_hours',
+                ],
                 true,
             )
         ) {

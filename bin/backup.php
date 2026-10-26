@@ -4,6 +4,7 @@ if (PHP_SAPI !== 'cli') {
     exit();
 }
 require dirname(__DIR__) . '/app/bootstrap.php';
+$sslCA = App\Core\DB::sslCA();
 $directory = $argv[1] ?? ROOT . '/storage/backups';
 if (!is_dir($directory) && !mkdir($directory, 0700, true)) {
     throw new RuntimeException('Dossier de sauvegarde inaccessible.');
@@ -24,7 +25,8 @@ file_put_contents(
         $quote(env('DB_USERNAME')) .
         "\npassword=" .
         $quote(env('DB_PASSWORD')) .
-        "\n",
+        "\n" .
+        ($sslCA !== '' ? "ssl-mode=VERIFY_IDENTITY\nssl-ca=" . $quote($sslCA) . "\n" : ''),
 );
 $binary = env(
     'MYSQLDUMP_PATH',

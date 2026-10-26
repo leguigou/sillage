@@ -9,6 +9,7 @@ use App\Controllers\{
     TransferController,
     FormController,
     DevelopmentController,
+    TeamController,
 };
 $r = new Router();
 $auth = new AuthController();
@@ -18,6 +19,11 @@ $files = new AttachmentController();
 $transfer = new TransferController();
 $forms = new FormController();
 $dev = new DevelopmentController();
+$teams = new TeamController();
+$r->add('POST', '/teams', [$teams, 'save'])
+    ->add('POST', '/teams/{id}/members', [$teams, 'membership'])
+    ->add('POST', '/teams/{id}/delete', [$teams, 'delete'])
+    ->add('POST', '/users/{id}', [$teams, 'user']);
 $r->add('GET', '/login', fn() => $auth->page())->add('POST', '/login', [$auth, 'login']);
 $r->add('GET', '/register', fn() => $auth->page('register'))->add('POST', '/register', [
     $auth,

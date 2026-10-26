@@ -3215,3 +3215,82 @@ label small {
 .timeline-task small.dependency-hint {
   color: var(--accent);
 }
+/* Team administration and task estimates. */
+.team-section {
+  margin-top: 24px;
+  scroll-margin-top: 24px;
+}
+.team-create {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 24px 0 12px;
+  flex-wrap: wrap;
+}
+.team-create label {
+  flex: 1;
+  min-width: 200px;
+}
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+.team-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 0;
+}
+.team-card .member-row {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.team-card .member-row > div {
+  flex: 1;
+  min-width: 150px;
+  overflow-wrap: anywhere;
+}
+.team-card details {
+  margin-top: 20px;
+}
+.access-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.access-row > div {
+  flex: 1;
+  min-width: 190px;
+  overflow-wrap: anywhere;
+}
+.access-row small {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.access-row label {
+  min-width: 145px;
+}
+.cell-hours {
+  width: 90px;
+  min-width: 75px;
+  padding: 6px;
+  background: transparent;
+  border-color: transparent;
+}
+.cell-hours:hover,
+.cell-hours:focus {
+  border-color: var(--line);
+}
+
+.settings-shortcuts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}

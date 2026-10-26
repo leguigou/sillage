@@ -6,7 +6,7 @@ if (!getenv('DB_DATABASE') && is_file(dirname(__DIR__) . '/.runtime/test-env.jso
         as $k => $v
     ) {
         putenv($k . '=' . $v);
-    };
+    }
 }
 require dirname(__DIR__) . '/app/bootstrap.php';
 use App\Core\{DB, Security, Migrator};
@@ -131,6 +131,85 @@ try {
     rejects(
         fn() => Ticket::create($other, ['title' => 'Parent étranger', 'parent_id' => $one], $uid),
         'parent étranger refusé',
+    );
+    check(Ticket::find($one)['estimated_hours'] === null, 'estimation absente distincte de zéro');
+    $estimate = Ticket::create($p, ['title' => 'Estimation', 'estimated_hours' => '2,50'], $uid);
+    check(
+        Ticket::find($estimate)['estimated_hours'] === '2.50',
+        'heures décimales françaises persistées',
+    );
+    foreach (['-1', '1.234', '1e3', '1000000', 'abc'] as $invalid) {
+        rejects(
+            fn() => Ticket::validate(['title' => 'Test', 'estimated_hours' => $invalid], $p),
+            'estimation invalide refusée : ' . $invalid,
+        );
+    }
+    check(
+        Ticket::validate(['title' => 'Test', 'estimated_hours' => '0'], $p)['estimated_hours'] ===
+            '0',
+        'zéro heure accepté',
+    );
+    check(
+        Ticket::validate(['title' => 'Test', 'estimated_hours' => '999999.99'], $p)[
+            'estimated_hours'
+        ] === '999999.99',
+        'borne du format décimal acceptée',
+    );
+    DB::run('DELETE FROM tickets WHERE id=?', [$estimate]);
+    $team = App\Models\Team::save(null, 'Équipe unitaire');
+    App\Models\Team::membership($team, $uid, true);
+    App\Models\Team::membership($team, $uid, true);
+    check(
+        (int) DB::one('SELECT COUNT(*) n FROM team_members WHERE team_id=?', [$team])['n'] === 1,
+        'ajout de membre idempotent',
+    );
+    App\Models\Team::save($team, 'Équipe renommée');
+    check(App\Models\Team::find($team)['name'] === 'Équipe renommée', 'équipe renommée');
+    rejects(fn() => App\Models\Team::save(null, 'Équipe renommée'), 'nom équipe en double refusé');
+    $member = DB::insert(
+        "INSERT INTO users(email,name,password_hash,verified_at) VALUES('unit.member@cabesto.com','Membre',?,UTC_TIMESTAMP())",
+        [$hash],
+    );
+    App\Models\User::manage($member, 'viewer', false, $uid);
+    $managed = DB::one('SELECT * FROM users WHERE id=?', [$member]);
+    check(
+        $managed['role'] === 'viewer' && !$managed['active'] && $managed['auth_version'] === 2,
+        'rôle et désactivation invalident les sessions',
+    );
+    App\Models\User::manage($member, 'viewer', false, $uid);
+    check(
+        DB::one('SELECT auth_version FROM users WHERE id=?', [$member])['auth_version'] === 2,
+        'accès inchangés sans fermeture supplémentaire',
+    );
+    rejects(fn() => App\Models\Team::membership($team, $member, true), 'membre désactivé refusé');
+    App\Models\User::manage($member, 'member', true, $uid);
+    App\Models\Team::membership($team, $member, true);
+    DB::run('UPDATE users SET verified_at=NULL WHERE id=?', [$member]);
+    rejects(
+        fn() => App\Models\Team::membership($team, $member, true),
+        'adresse non vérifiée refusée',
+    );
+    App\Models\Team::membership($team, $member, false);
+    check(
+        !DB::one('SELECT user_id FROM team_members WHERE team_id=? AND user_id=?', [
+            $team,
+            $member,
+        ]),
+        'retrait de membre',
+    );
+    rejects(
+        fn() => App\Models\User::manage($uid, 'viewer', true, $uid),
+        'auto-rétrogradation administrateur refusée',
+    );
+    DB::run("UPDATE users SET role='member' WHERE id<>?", [$uid]);
+    rejects(
+        fn() => App\Models\User::manage($uid, 'member', true, 0),
+        'dernier administrateur protégé',
+    );
+    DB::run('DELETE FROM teams WHERE id=?', [$team]);
+    check(
+        !DB::one('SELECT user_id FROM team_members WHERE team_id=?', [$team]),
+        'suppression équipe nettoie uniquement les adhésions',
     );
     $old = Ticket::find($one);
     rejects(

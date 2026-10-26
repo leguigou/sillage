@@ -41,10 +41,16 @@ for path in ['/list','/board','/timeline','/charts','/forms','/development','/se
     status,body,_=call(path); check(status==200 and 'Sillage — Une pause' not in body,'render '+path)
 check(call('/.env')[0] in (403,404,422),'environment not public'); check(call('/storage/mail')[0] in (404,422),'mail storage not public')
 marker='HTTP-'+uuid.uuid4().hex[:8]
-status,body,url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':marker,'description':'<script>alert(1)</script>','status':'todo','type':'task','priority':'high','labels':'qa, test'})
+status,body,url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':marker,'description':'<script>alert(1)</script>','status':'todo','type':'task','priority':'high','labels':'qa, test','estimated_hours':'7,5'})
 check(status==200 and '/tickets/' in url,'ticket creation'); ticket_id=url.rsplit('/',1)[1]; check('&lt;script&gt;' in body,'content escaped'); version=re.search(r'name="version" value="(\d+)"',body).group(1)
 status,body,_=call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'status','value':'progress','version':version},True); check(status==200 and json.loads(body)['ticket']['status']=='progress','quick edit persisted')
 check(call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'status','value':'done','version':version},True)[0]==422,'stale write rejected')
+check(json.loads(body)['ticket']['estimated_hours']=='7.50','quick edits preserve task estimate')
+estimate_version=json.loads(body)['ticket']['version']
+check(call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'estimated_hours','value':'-2','version':estimate_version},True)[0]==422,'negative estimate refused over HTTP')
+status,body,_=call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'estimated_hours','value':'3,25','version':estimate_version},True)
+check(status==200 and json.loads(body)['ticket']['estimated_hours']=='3.25','task estimate edited directly')
+
 status,body,_=call('/tickets/'+ticket_id); latest=re.search(r'name="version" value="(\d+)"',body).group(1)
 status,body,_=call('/tickets/'+ticket_id+'/schedule',{'_csrf':csrf,'start_date':'2026-10-26','due_date':'2026-11-04','version':latest},True)
 check(status==200 and json.loads(body)['ticket']['due_date']=='2026-11-04','timeline dates persisted together'); latest=json.loads(body)['ticket']['version']
@@ -52,7 +58,7 @@ check(call('/tickets/'+ticket_id+'/schedule',{'_csrf':csrf,'start_date':'2026-12
 status,body,_=call('/tickets/'+ticket_id+'/move',{'_csrf':csrf,'status':'review','version':latest},True);check(status==200 and json.loads(body)['ticket']['status']=='review','board transition persisted');latest=json.loads(body)['ticket']['version']
 status,body,_=call('/tickets/'+ticket_id+'/move',{'_csrf':csrf,'status':'progress','version':latest},True);check(status==200 and json.loads(body)['ticket']['status']=='progress','board transition restored')
 status,body,_=call('/list?jql='+urllib.parse.quote('status = progress AND title ~ "'+marker+'"')); check(status==200 and marker in body,'query filtering')
-status,body,_=call('/export?project='+pid+'&q='+marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'filtered JSON export')
+status,body,_=call('/export?project='+pid+'&q='+marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'filtered JSON export'); check(json.loads(body)[0]['estimated_hours']=='3.25','estimate exported as exact decimal')
 status,body,_=call('/export?project='+pid+'&q='+marker+'&format=csv'); check(status==200 and marker in body,'CSV export')
 status,body,_=call('/tickets/'+ticket_id+'/comments',{'_csrf':csrf,'body':'Précision de test'}); check(status==200 and 'Précision de test' in body,'comment persisted')
 status,body,_=call('/bulk',{'_csrf':csrf,'ids[]':[ticket_id],'field':'flagged','value':'1'});check(status==200,'bulk edit applied')
@@ -63,13 +69,13 @@ check(call('/attachments/'+attachment.group(1))[1]=='A safe local test attachmen
 status,body,_=upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf,'_return':'/tickets/'+ticket_id},'file','page.html',b'<html><body>Test only</body></html>','text/html')
 check(status==200 and 'Type de fichier non autorisé' in body,'active HTML attachment rejected')
 csv_marker='CSV-'+marker
-csv_content=('title,description,type,status,priority,start_date,due_date,labels\n'+csv_marker+',Import QA,task,todo,medium,2026-10-26,2026-11-04,import\n').encode()
+csv_content=('title,description,type,status,priority,start_date,due_date,estimated_hours,labels\n'+csv_marker+',Import QA,task,todo,medium,2026-10-26,2026-11-04,4.75,import\n').encode()
 status,body,_=upload('/import/preview',{'_csrf':csrf,'project_id':pid},'csv','tickets.csv',csv_content,'text/csv')
 nonce=re.search(r'name="nonce" value="([a-f0-9]+)"',body); check(status==200 and nonce is not None and csv_marker in body,'CSV preview and mapping')
 mapping={'_csrf':csrf,'nonce':nonce.group(1),'_return':'/import'}
-mapping.update({'map['+field+']':field for field in ['title','description','type','status','priority','start_date','due_date','labels']})
+mapping.update({'map['+field+']':field for field in ['title','description','type','status','priority','start_date','due_date','estimated_hours','labels']})
 status,body,_=call('/import',mapping); check(status==200 and '1 tickets importés' in body,'CSV import committed')
-status,body,_=call('/export?project='+pid+'&q='+csv_marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'imported ticket stored in MySQL')
+status,body,_=call('/export?project='+pid+'&q='+csv_marker+'&format=json'); check(status==200 and len(json.loads(body))==1,'imported ticket stored in MySQL'); check(json.loads(body)[0]['estimated_hours']=='4.75','CSV estimate persisted')
 check('aperçu a expiré' in call('/import',mapping)[1],'CSV import preview cannot be replayed')
 status,body,_=call('/development'); connection=re.search(r'action="/connections/(\d+)/sync"',body)
 check(connection is not None,'isolated webhook fixture available')
@@ -90,6 +96,8 @@ check('qa.admin@cabesto.com' not in public_html,'external page hides members'); 
 check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(call('/tickets/'+ticket_id+'/archive',{'_csrf':csrf})[0]==200,'archive action'); check('href="/tickets/'+ticket_id+'"' not in call('/list?q='+marker)[1],'archived ticket excluded')
 call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@cabesto.com','password':'Tests-Sillage-2026!'})
 check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot create tickets'); check(call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot publish forms')
+check(call('/teams',{'_csrf':csrf,'name':'Forbidden team'})[0]==403,'viewer cannot manage teams')
+check(call('/users/1',{'_csrf':csrf,'role':'admin','active':'1'})[0]==403,'viewer cannot manage accounts')
 call('/logout',{'_csrf':csrf})
 auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@cabesto.com'
 csrf,_=get_token('/register')
@@ -115,4 +123,38 @@ reset_link=mail_link('reset'); csrf,reset_html=get_token(reset_link); reset_toke
 status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Nouveau-Sillage-2026!'}); check(status==200 and 'Mot de passe modifié' in body,'password reset succeeds')
 csrf=token(body); status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Encore-Sillage-2026!'},True); check(status==422,'reset token is single use')
 csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'}); check(status==200 and not url.endswith('/login'),'new password works')
+
+member_client=client
+client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
+csrf=token(body)
+status,settings,_=call('/settings')
+# Match each account form independently to avoid selecting an earlier person's id.
+account_rows=re.findall(r'<form[^>]+data-account-id="(\d+)"[^>]*>(.*?)</form>',settings,re.S)
+account_id=next(i for i,row in account_rows if auth_email in row)
+own_id=next(i for i,row in account_rows if 'qa.admin@cabesto.com' in row)
+check(call('/teams',{'name':'No CSRF'})[0]==403,'team management requires CSRF')
+check(call('/users/'+own_id,{'_csrf':csrf,'role':'member','active':'1'},True)[0]==422,'administrator cannot remove own access')
+status,body,_=call('/teams',{'_csrf':csrf,'name':'Équipe '+marker})
+team_id=next(i for i,row in re.findall(r'<article[^>]+data-team-id="(\d+)"[^>]*>(.*?)</article>',body,re.S) if 'Équipe '+marker in row)
+check(status==200,'team created through administration')
+check(call('/teams/'+team_id+'/members',{'_csrf':csrf,'action':'add','user_id':account_id})[0]==200,'verified account added to team')
+status,body,_=call('/teams',{'_csrf':csrf,'team_id':team_id,'name':'Renommée '+marker})
+check(status==200 and 'Renommée '+marker in body,'team renamed through administration')
+status,body,_=call('/users/'+account_id,{'_csrf':csrf,'role':'viewer','active':'1'})
+check(status==200,'account role changed through administration')
+admin_client=client; client=member_client
+check(call('/settings')[2].endswith('/login'),'role change invalidates existing member session')
+client=admin_client
+check(call('/users/'+account_id,{'_csrf':csrf,'role':'viewer','active':'0'})[0]==200,'account disabled through administration')
+check(call('/teams/'+team_id+'/members',{'_csrf':csrf,'action':'add','user_id':account_id},True)[0]==422,'disabled account cannot join team')
+client=member_client; member_csrf,_=get_token('/login')
+check(call('/login',{'_csrf':member_csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'})[2].endswith('/login'),'disabled account cannot sign in')
+client=admin_client
+check(call('/users/'+account_id,{'_csrf':csrf,'role':'member','active':'1'})[0]==200,'account reactivated')
+check(call('/teams/'+team_id+'/members',{'_csrf':csrf,'action':'remove','user_id':account_id})[0]==200,'member removed from team')
+status,body,_=call('/teams/'+team_id+'/delete',{'_csrf':csrf})
+check(status==200 and 'data-team-id="'+team_id+'"' not in body,'team deleted and account preserved')
+client=member_client; member_csrf,_=get_token('/login')
+check(not call('/login',{'_csrf':member_csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'})[2].endswith('/login'),'reactivated member signs in after team deletion')
 print('\n',passed,'HTTP checks passed against isolated test database.')

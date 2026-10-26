@@ -1,4 +1,4 @@
-﻿param([switch]$OpenBrowser)
+﻿param([switch]$OpenBrowser, [switch]$ExternalDatabase)
 $ErrorActionPreference = 'Stop'
 $sillageRoot = Split-Path -Parent $PSScriptRoot
 $sillageRuntime = Join-Path $sillageRoot '.runtime'
@@ -13,7 +13,7 @@ function Get-VerifiedArchive($Url, $Destination, $Algorithm, $Expected) {
 try { $sillagePhp = (Get-Command php.exe -ErrorAction Stop).Source } catch { throw 'PHP 8.3+ Thread Safe doit être installé et disponible sur PATH (pdo_mysql, mbstring, curl, openssl, fileinfo).' }
 $sillagePhpDir = Split-Path -Parent $sillagePhp
 if (-not (Test-Path -LiteralPath (Join-Path $sillagePhpDir 'php8apache2_4.dll'))) { throw 'Utilisez une version PHP Windows Thread Safe avec php8apache2_4.dll.' }
-if (-not (Test-Path -LiteralPath "$sillageRuntime/mysql-8.4.13-winx64/bin/mysqld.exe")) {
+if (-not $ExternalDatabase -and -not (Test-Path -LiteralPath "$sillageRuntime/mysql-8.4.13-winx64/bin/mysqld.exe")) {
     Write-Host 'Téléchargement de MySQL Community 8.4.13 (archive officielle)…'
     Get-VerifiedArchive 'https://dev.mysql.com/get/Downloads/MySQL-8.4/mysql-8.4.13-winx64.zip' "$sillageRuntime/mysql.zip" 'MD5' '7B94489D5524DEA9B27097068BEA25A8'
     Expand-Archive -LiteralPath "$sillageRuntime/mysql.zip" -DestinationPath $sillageRuntime
@@ -46,32 +46,39 @@ session.use_strict_mode=1
 $sillageIniPath = "$sillageRuntime/php-config/php.ini"
 if (Test-Path -LiteralPath $sillageIniPath) { if ((Get-Content -Raw -LiteralPath $sillageIniPath) -ne $sillageIni) { Copy-Item -LiteralPath $sillageIniPath -Destination "$sillageIniPath.backup" -Force } }
 Set-Content -LiteralPath $sillageIniPath -Value $sillageIni -Encoding utf8
-& $sillagePhp -c $sillageIniPath "$sillageRoot/bin/local-config.php"
+$sillageConfigArgs = @()
+if ($ExternalDatabase) { $sillageConfigArgs += '--external' }
+& $sillagePhp -c $sillageIniPath "$sillageRoot/bin/local-config.php" @sillageConfigArgs
 if ($LASTEXITCODE -ne 0) { throw 'Échec de préparation de la configuration.' }
-$sillageMysql = "$sillageRuntime/mysql-8.4.13-winx64/bin/mysqld.exe"
-if (-not (Test-Path -LiteralPath "$sillageRuntime/mysql-data")) {
-    & $sillageMysql --no-defaults --initialize-insecure "--basedir=$sillageUnixRoot/.runtime/mysql-8.4.13-winx64" "--datadir=$sillageUnixRoot/.runtime/mysql-data" --console
-    if ($LASTEXITCODE -ne 0) { throw 'Initialisation MySQL impossible.' }
-}
 $sillageServices = @()
-if (-not (Get-NetTCPConnection -State Listen -LocalPort 3338 -ErrorAction SilentlyContinue)) {
-    $sillageMysqlArgs = @('--no-defaults', "--basedir=$sillageUnixRoot/.runtime/mysql-8.4.13-winx64", "--datadir=$sillageUnixRoot/.runtime/mysql-data", '--bind-address=127.0.0.1','--port=3338','--mysqlx=0','--console')
-    if (Test-Path -LiteralPath "$sillageRuntime/bootstrap.sql") { $sillageMysqlArgs += "--init-file=$sillageUnixRoot/.runtime/bootstrap.sql" }
-    $sillageProcess = Start-Process -FilePath $sillageMysql -ArgumentList $sillageMysqlArgs -WorkingDirectory $sillageRoot -WindowStyle Hidden -PassThru -RedirectStandardError "$sillageRuntime/mysql-error.log" -RedirectStandardOutput "$sillageRuntime/mysql-output.log"
-    $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable=$sillageProcess.Path; Marker='--port=3338'}
+if (-not $ExternalDatabase) {
+    $sillageMysql = "$sillageRuntime/mysql-8.4.13-winx64/bin/mysqld.exe"
+    if (-not (Test-Path -LiteralPath "$sillageRuntime/mysql-data")) {
+        & $sillageMysql --no-defaults --initialize-insecure "--basedir=$sillageUnixRoot/.runtime/mysql-8.4.13-winx64" "--datadir=$sillageUnixRoot/.runtime/mysql-data" --console
+        if ($LASTEXITCODE -ne 0) { throw 'Initialisation MySQL impossible.' }
+    }
+    if (-not (Get-NetTCPConnection -State Listen -LocalPort 3338 -ErrorAction SilentlyContinue)) {
+        $sillageMysqlArgs = @('--no-defaults', "--basedir=$sillageUnixRoot/.runtime/mysql-8.4.13-winx64", "--datadir=$sillageUnixRoot/.runtime/mysql-data", '--bind-address=127.0.0.1','--port=3338','--mysqlx=0','--console')
+        if (Test-Path -LiteralPath "$sillageRuntime/bootstrap.sql") { $sillageMysqlArgs += "--init-file=$sillageUnixRoot/.runtime/bootstrap.sql" }
+        $sillageProcess = Start-Process -FilePath $sillageMysql -ArgumentList $sillageMysqlArgs -WorkingDirectory $sillageRoot -WindowStyle Hidden -PassThru -RedirectStandardError "$sillageRuntime/mysql-error.log" -RedirectStandardOutput "$sillageRuntime/mysql-output.log"
+        $sillageServices += @{Id=$sillageProcess.Id; Started=$sillageProcess.StartTime.ToUniversalTime().ToString('o'); Executable=$sillageProcess.Path; Marker='--port=3338'}
+    }
+    $sillageReady = $false
+    for ($sillageAttempt=0; $sillageAttempt -lt 30; $sillageAttempt++) {
+        & $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" health 2>$null
+        if ($LASTEXITCODE -eq 0) { $sillageReady=$true; break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $sillageReady) { throw 'MySQL indisponible. Consultez .runtime/mysql-error.log et votre .env.' }
+    if (Test-Path -LiteralPath "$sillageRuntime/bootstrap.sql") { Remove-Item -LiteralPath "$sillageRuntime/bootstrap.sql" }
+    & $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" migrate
+    if ($LASTEXITCODE -ne 0) { throw 'Migration impossible. Aucun serveur web lancé.' }
+    & $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" seed
+    if ($LASTEXITCODE -ne 0) { throw 'Initialisation de la démonstration impossible.' }
+} else {
+    & $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" health
+    if ($LASTEXITCODE -ne 0) { throw 'Connexion à la base configurée dans .env impossible.' }
 }
-$sillageReady = $false
-for ($sillageAttempt=0; $sillageAttempt -lt 30; $sillageAttempt++) {
-    & $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" health 2>$null
-    if ($LASTEXITCODE -eq 0) { $sillageReady=$true; break }
-    Start-Sleep -Seconds 1
-}
-if (-not $sillageReady) { throw 'MySQL indisponible. Consultez .runtime/mysql-error.log et votre .env.' }
-if (Test-Path -LiteralPath "$sillageRuntime/bootstrap.sql") { Remove-Item -LiteralPath "$sillageRuntime/bootstrap.sql" }
-& $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" migrate
-if ($LASTEXITCODE -ne 0) { throw 'Migration impossible. Aucun serveur web lancé.' }
-& $sillagePhp -c $sillageIniPath "$sillageRoot/bin/console.php" seed
-if ($LASTEXITCODE -ne 0) { throw 'Initialisation de la démonstration impossible.' }
 if (-not (Get-NetTCPConnection -State Listen -LocalPort 8088 -ErrorAction SilentlyContinue)) {
     $sillageConfig = Get-Content -Raw -LiteralPath "$sillageRoot/deploy/apache-windows.conf.template"
     $sillageConfig=$sillageConfig.Replace('{{ROOT}}',$sillageUnixRoot).Replace('{{PHP}}',$sillageUnixPhp)

@@ -26,6 +26,13 @@ php -c .runtime/php-config/php.ini bin/console.php migrate
 
 ## Comptes et accès
 
+Dans **Paramètres → Équipes**, un administrateur crée une équipe puis choisit les personnes à ajouter.
+La personne doit d’abord s’inscrire avec son adresse `@cabesto.com` et valider son e-mail.
+Une personne peut appartenir à plusieurs équipes. Le bouton **Retirer** enlève uniquement son appartenance à l’équipe.
+Dans **Paramètres → Utilisateurs et accès**, l’administrateur change le rôle ou désactive/réactive le compte.
+Chaque changement d’accès invalide les sessions concernées. Le dernier administrateur actif et vérifié est protégé.
+Les équipes organisent les personnes ; elles ne créent pas de restriction d’accès par projet.
+
 - Inscription uniquement avec une adresse dont le domaine exact est `cabesto.com`, sans autoriser les sous-domaines ou domaines ressemblants.
 - E-mail + mot de passe ; nom prérempli depuis les parties séparées par `.`, `_`, `-` ou `+`, puis modifiable.
 - Validation de possession de l’adresse avant connexion ; lien à usage unique valable 24 heures.
@@ -36,6 +43,19 @@ php -c .runtime/php-config/php.ini bin/console.php migrate
 En local, les e-mails sont des fichiers privés dans **`storage/mail/`**. Pour valider une inscription de test, ouvrir le fichier correspondant et suivre son lien. En production, utiliser `MAIL_TRANSPORT=mail` et configurer le relais de messagerie du serveur PHP ; les e-mails de production ne sont jamais stockés dans ce dossier.
 
 ## Fonctions
+
+Les tickets possèdent un **temps total estimé en heures**, facultatif : `2,5` ou `2.5` pour deux heures et demie.
+Ce champ est disponible à la création, dans la fiche et directement dans la liste ; il peut être trié, importé et exporté.
+Il s’agit de l’estimation de la tâche, sans saisie du temps réellement passé ni addition automatique des parents et enfants.
+
+## Base MySQL externe
+
+Les paramètres `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` et le certificat facultatif `DB_SSL_CA`
+sont configurés dans **`.env`**. Aucun identifiant n’est codé en dur dans l’application.
+Pour utiliser une autre base depuis ce poste, suivre [le guide de connexion externe](docs/base-externe.md)
+puis utiliser **`DEMARRER-BASE-EXTERNE.cmd`**. Ce mode ne lance ni serveur MySQL, ni migration, ni démonstration automatiquement.
+
+## Modules disponibles
 
 | Module               | Comportement                                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

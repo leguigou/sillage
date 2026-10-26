@@ -6,6 +6,19 @@ if (PHP_SAPI !== 'cli') {
 $root = dirname(__DIR__);
 if (is_file($root . '/.env')) {
     require $root . '/app/bootstrap.php';
+    if (in_array('--external', $argv, true)) {
+        if (
+            env('APP_ENV') !== 'local' ||
+            !in_array(parse_url(env('APP_URL'), PHP_URL_HOST), ['127.0.0.1', 'localhost'], true) ||
+            (int) parse_url(env('APP_URL'), PHP_URL_PORT) !== 8088
+        ) {
+            throw new RuntimeException(
+                'Pour ce lanceur local, utilisez APP_ENV=local et APP_URL=http://127.0.0.1:8088.',
+            );
+        }
+        echo "Base configurée dans .env conservée. Aucun serveur MySQL ni migration automatique.\n";
+        exit();
+    }
     if (
         env('APP_ENV') !== 'local' ||
         !in_array(env('DB_HOST'), ['127.0.0.1', 'localhost'], true) ||
@@ -18,6 +31,9 @@ if (is_file($root . '/.env')) {
     }
     echo "Configuration existante conservée.\n";
     exit();
+}
+if (in_array('--external', $argv, true)) {
+    throw new RuntimeException('Créez d’abord votre fichier .env à partir de .env.example.');
 }
 if (!is_dir($root . '/.runtime')) {
     mkdir($root . '/.runtime', 0700, true);

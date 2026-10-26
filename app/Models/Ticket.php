@@ -117,6 +117,13 @@ final class Ticket
         ) {
             throw new \InvalidArgumentException('12 étiquettes maximum, de 40 caractères chacune.');
         }
+        $hours = trim((string) ($input['estimated_hours'] ?? ''));
+        $hours = str_replace(',', '.', $hours);
+        if ($hours !== '' && !preg_match('/^\d{1,6}(?:\.\d{1,2})?$/D', $hours)) {
+            throw new \InvalidArgumentException(
+                'Le temps estimé doit être compris entre 0 et 999 999,99 heures, avec deux décimales maximum.',
+            );
+        }
         return [
             'title' => $title,
             'description' => $desc,
@@ -129,6 +136,7 @@ final class Ticket
             'start_date' => $start,
             'due_date' => $due,
             'flagged' => !empty($input['flagged']) ? 1 : 0,
+            'estimated_hours' => $hours === '' ? null : $hours,
         ];
     }
     public static function create(
@@ -145,7 +153,7 @@ final class Ticket
             }
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
-                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 [
                     $project,
                     $p['next_number'],

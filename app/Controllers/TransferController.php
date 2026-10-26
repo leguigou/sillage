@@ -41,6 +41,7 @@ final class TransferController
                     'assignee',
                     'start_date',
                     'due_date',
+                    'estimated_hours',
                     'labels',
                 ],
                 ',',
@@ -63,6 +64,7 @@ final class TransferController
                     'assignee' => $t['assignee_name'],
                     'start_date' => $t['start_date'],
                     'due_date' => $t['due_date'],
+                    'estimated_hours' => $t['estimated_hours'],
                     'labels' => implode(', ', $t['labels_array']),
                 ];
                 if ($format === 'csv') {
@@ -74,7 +76,7 @@ final class TransferController
                     fwrite($f, json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
                     $first = false;
                 }
-            };
+            }
         }
         if ($format === 'json') {
             fwrite($f, ']');
@@ -132,6 +134,7 @@ final class TransferController
                     'priority',
                     'start_date',
                     'due_date',
+                    'estimated_hours',
                     'labels',
                 ]
                 as $field
@@ -153,7 +156,7 @@ final class TransferController
                         if (mb_strtolower($label) === mb_strtolower($data[$field])) {
                             $data[$field] = $key;
                         }
-                    };
+                    }
                 }
             }
             try {

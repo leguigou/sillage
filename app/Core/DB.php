@@ -5,9 +5,28 @@ use PDO;
 final class DB
 {
     private static ?PDO $connection = null;
+    public static function sslCA(): string
+    {
+        $path = env('DB_SSL_CA');
+        if ($path !== '' && !is_readable($path)) {
+            throw new \RuntimeException('Le certificat DB_SSL_CA est introuvable ou illisible.');
+        }
+        return $path;
+    }
     public static function connection(): PDO
     {
         if (!self::$connection) {
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 10,
+            ];
+            $sslCA = self::sslCA();
+            if ($sslCA !== '') {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCA;
+                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+            }
             self::$connection = new PDO(
                 'mysql:host=' .
                     env('DB_HOST', '127.0.0.1') .
@@ -18,11 +37,7 @@ final class DB
                     ';charset=utf8mb4',
                 env('DB_USERNAME', 'sillage'),
                 env('DB_PASSWORD'),
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ],
+                $options,
             );
             self::$connection->exec("SET time_zone = '+00:00'");
         }
