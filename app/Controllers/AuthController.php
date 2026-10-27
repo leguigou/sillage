@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controllers;
-use App\Core\{Auth, DB, Mailer, Security, View};
+use App\Core\{Auth, Company, DB, Mailer, Security, View};
 final class AuthController
 {
     public function page(string $mode = 'login'): void
@@ -23,7 +23,7 @@ final class AuthController
     public function login(): void
     {
         Security::limit('login', 10);
-        $email = Security::email((string) ($_POST['email'] ?? ''));
+        $email = Security::email((string) ($_POST['email'] ?? ''), false);
         $u = DB::one('SELECT * FROM users WHERE email=?', [$email]);
         $valid = password_verify(
             (string) ($_POST['password'] ?? ''),
@@ -82,13 +82,15 @@ final class AuthController
         Mailer::send(
             $email,
             $purpose === 'verify'
-                ? 'Bienvenue dans Sillage — validez votre adresse'
-                : 'Sillage — votre lien de réinitialisation',
+                ? Company::name() . ' — validez votre adresse dans Sillage'
+                : Company::name() . ' — votre lien de réinitialisation Sillage',
             "Bonjour,\n\nOuvrez ce lien pour " .
                 ($purpose === 'verify'
                     ? 'valider votre adresse'
                     : 'choisir un nouveau mot de passe') .
-                " :\n$link\n\nSi vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.\nL’équipe Sillage",
+                " :\n$link\n\nSi vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.\nL’équipe " .
+                Company::name() .
+                ' — Sillage',
         );
     }
     public function verify(): void
@@ -113,7 +115,7 @@ final class AuthController
     public function forgot(): void
     {
         Security::limit('forgot', 5, 3600);
-        $email = Security::email((string) ($_POST['email'] ?? ''));
+        $email = Security::email((string) ($_POST['email'] ?? ''), false);
         $u = DB::one('SELECT id,email,verified_at FROM users WHERE email=? AND active=1', [$email]);
         if ($u) {
             $this->token((int) $u['id'], $u['email'], $u['verified_at'] ? 'reset' : 'verify');

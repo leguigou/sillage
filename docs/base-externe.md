@@ -31,7 +31,7 @@ php -c .runtime/php-config/php.ini bin/console.php health
 php -c .runtime/php-config/php.ini bin/console.php migrate
 ```
 
-Lors d’une première installation, créez un administrateur avec `bin/console.php admin:create prenom.nom@cabesto.com`.
+Lors d’une première installation, configurez le nom et les domaines de votre société dans `.env`, puis créez un administrateur avec une adresse autorisée : `bin/console.php admin:create prenom.nom@votre-societe.fr`.
 Pour conserver les données existantes, transférez une sauvegarde MySQL vers la nouvelle base avant de démarrer.
 Changer `.env` ne transfère pas les données et ne copie pas les pièces jointes conservées dans `storage/uploads`.
 

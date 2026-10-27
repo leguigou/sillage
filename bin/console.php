@@ -38,7 +38,7 @@ if ($command === 'admin:create') {
     exit();
 }
 if ($command === 'user:role') {
-    $email = Security::email($argv[2] ?? '');
+    $email = Security::email($argv[2] ?? '', false);
     $role = $argv[3] ?? '';
     if (!in_array($role, ['admin', 'member', 'viewer'], true)) {
         throw new RuntimeException('Rôle attendu : admin, member, viewer.');
@@ -49,6 +49,11 @@ if ($command === 'user:role') {
     }
     App\Models\User::manage((int) $u['id'], $role, (bool) $u['active'], 0);
     echo "Rôle mis à jour.\n";
+    exit();
+}
+if ($command === 'company:check') {
+    $company = App\Core\Company::settings();
+    echo 'Société : ' . $company['name'] . PHP_EOL . App\Core\Company::signupHint() . PHP_EOL;
     exit();
 }
 if ($command === 'health') {
@@ -68,4 +73,4 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : migrate | seed | key:generate | health | mail:list | admin:create email | user:role email admin/member/viewer\n";
+echo "Sillage : migrate | seed | key:generate | health | company:check | mail:list | admin:create email | user:role email admin/member/viewer\n";

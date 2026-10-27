@@ -1,6 +1,22 @@
-# Sillage — l’espace de travail Cabesto
+# Sillage — l’espace de travail de votre société
 
-Application de ticketing en **PHP natif MVC**, sans framework, **MySQL 8.4** et **Apache 2.4**. Interface française, menu à gauche, thèmes clair et sombre. Une seule entreprise : **Cabesto**. Pas de comptes multi-sociétés ni de facturation SaaS dans cette version.
+Application de ticketing en **PHP natif MVC**, sans framework, **MySQL 8.4** et **Apache 2.4**. Interface française, menu à gauche, thèmes clair et sombre. Une installation indépendante par société, avec nom et domaines d’inscription configurables. L’installation de travail actuelle est configurée pour Cabesto. Pas de plateforme mutualisée ni de facturation SaaS dans cette version.
+
+## Personnaliser pour une société
+
+Dans `.env`, renseigner par exemple :
+
+```dotenv
+COMPANY_NAME="Atelier Horizon"
+ALLOWED_DOMAINS=atelier-horizon.fr,horizon-services.fr
+EMAIL_DOMAIN_RESTRICTION=true
+```
+
+Le nom est utilisé dans les pages de connexion, le menu, les paramètres, les formulaires externes et les e-mails.
+Les domaines sont comparés exactement lors d’une nouvelle inscription. Une liste invalide ou vide en mode restreint est refusée.
+Pour accepter toute adresse valide à l’inscription, définir explicitement `EMAIL_DOMAIN_RESTRICTION=false`.
+Les comptes existants gardent leur accès ; leur désactivation se gère dans les paramètres utilisateurs.
+Chaque société utilise une base, un stockage, une URL et une clé distincts. Voir [le guide de personnalisation](docs/personnalisation.md).
 
 ## Essayer sur cette machine
 
@@ -27,18 +43,18 @@ php -c .runtime/php-config/php.ini bin/console.php migrate
 ## Comptes et accès
 
 Dans **Paramètres → Équipes**, un administrateur crée une équipe puis choisit les personnes à ajouter.
-La personne doit d’abord s’inscrire avec son adresse `@cabesto.com` et valider son e-mail.
+La personne doit d’abord s’inscrire avec une adresse autorisée par la configuration de sa société et valider son e-mail.
 Une personne peut appartenir à plusieurs équipes. Le bouton **Retirer** enlève uniquement son appartenance à l’équipe.
 Dans **Paramètres → Utilisateurs et accès**, l’administrateur change le rôle ou désactive/réactive le compte.
 Chaque changement d’accès invalide les sessions concernées. Le dernier administrateur actif et vérifié est protégé.
 Les équipes organisent les personnes ; elles ne créent pas de restriction d’accès par projet.
 
-- Inscription uniquement avec une adresse dont le domaine exact est `cabesto.com`, sans autoriser les sous-domaines ou domaines ressemblants.
+- Inscription selon `ALLOWED_DOMAINS` et `EMAIL_DOMAIN_RESTRICTION`, sans autoriser implicitement les sous-domaines ou domaines ressemblants.
 - E-mail + mot de passe ; nom prérempli depuis les parties séparées par `.`, `_`, `-` ou `+`, puis modifiable.
 - Validation de possession de l’adresse avant connexion ; lien à usage unique valable 24 heures.
 - Réinitialisation par lien à usage unique valable une heure ; changement du mot de passe actuel depuis le profil. Le changement invalide les autres sessions.
 - Rôles **administrateur**, **membre**, **lecture seule**. Les comptes inscrits par le web deviennent membres, jamais administrateurs.
-- Tous les utilisateurs internes autorisés appartiennent à Cabesto et voient les projets de cet espace. Il n’existe pas de cloisonnement privé par projet dans cette version.
+- Tous les utilisateurs internes autorisés voient les projets de leur installation. Il n’existe pas de cloisonnement privé par projet dans cette version.
 
 En local, les e-mails sont des fichiers privés dans **`storage/mail/`**. Pour valider une inscription de test, ouvrir le fichier correspondant et suivre son lien. En production, utiliser `MAIL_TRANSPORT=mail` et configurer le relais de messagerie du serveur PHP ; les e-mails de production ne sont jamais stockés dans ce dossier.
 
@@ -59,7 +75,7 @@ puis utiliser **`DEMARRER-BASE-EXTERNE.cmd`**. Ce mode ne lance ni serveur MySQL
 
 | Module               | Comportement                                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Projets et tickets   | Plusieurs projets Cabesto, clés et numéros atomiques, tâche/story/bug/sous-tâche/Epic, résumé, description, état, priorité, assignation, parent, dates, étiquettes et blocage.                                                                                       |
+| Projets et tickets   | Plusieurs projets, clés et numéros atomiques, tâche/story/bug/sous-tâche/Epic, résumé, description, état, priorité, assignation, parent, dates, étiquettes et blocage.                                                                                               |
 | Fiche ticket         | Modification protégée contre les écritures concurrentes, commentaires, pièces jointes privées, tickets enfants et relations associé/bloque/doublon. Archivage et restauration.                                                                                       |
 | Liste                | Recherche, tri, colonnes visibles, regroupements, hiérarchie, modification directe, sélection et modification groupée.                                                                                                                                               |
 | Filtres              | Modes simple et avancé, expressions inspirées de JQL, vues personnelles enregistrées. Les expressions non prises en charge sont explicitement refusées.                                                                                                              |
@@ -141,7 +157,7 @@ Préparer un serveur Linux avec Apache 2.4 + PHP 8.3 minimum (8.5 conseillé), `
 - Dans GitHub, définir `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_PRIVATE_KEY` et `SSH_KNOWN_HOSTS` dans les secrets de l’environnement `production`. Ajouter la clé SSH publique correspondante au compte de déploiement et vérifier l’empreinte du serveur par un canal fiable.
 - Définir les règles de protection de l’environnement `production` (branche autorisée et approbateur si souhaité).
 - Lancer le workflow manuel. Il transfère une nouvelle version, conserve les secrets/fichiers partagés, effectue une sauvegarde SQL, applique les migrations, vérifie MySQL et bascule le lien `current`.
-- Pour le premier accès, l’opérateur crée un administrateur : `php bin/console.php admin:create prenom.nom@cabesto.com`. Le mot de passe initial est affiché une fois ; il doit être communiqué de manière sûre puis changé. Le premier projet est créé dans l’interface.
+- Pour le premier accès, l’opérateur crée un administrateur avec une adresse du domaine configuré : `php bin/console.php admin:create prenom.nom@votre-societe.fr`. Le mot de passe initial est affiché une fois ; il doit être communiqué de manière sûre puis changé. Le premier projet est créé dans l’interface.
 - **Ne jamais lancer `seed` en production** : la commande le refuse elle-même.
 
 Le serveur de production et son relais de messagerie n’ayant pas été fournis, aucune mise en production réelle n’a été effectuée. Les workflows sont livrés pour ce déploiement.

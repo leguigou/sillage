@@ -75,6 +75,135 @@ function rejects(callable $fn, string $name): void
     }
     throw new RuntimeException('ÉCHEC : ' . $name);
 }
+$originalCompanyEnvironment = [];
+$originalSessionUrl = getenv('APP_URL');
+$originalSessionKey = getenv('APP_KEY');
+try {
+    $sessionName = Security::sessionName();
+    putenv('APP_URL=http://127.0.0.1:8091');
+    check(Security::sessionName() !== $sessionName, 'sessions isolées entre URLs et ports');
+    putenv('APP_URL=http://127.0.0.1:8091/');
+    $otherSessionName = Security::sessionName();
+    putenv('APP_URL=http://127.0.0.1:8091');
+    check(Security::sessionName() === $otherSessionName, 'URL de session normalisée');
+    putenv('APP_KEY=' . bin2hex(random_bytes(32)));
+    check(Security::sessionName() !== $otherSessionName, 'sessions isolées par clé installation');
+} finally {
+    putenv($originalSessionUrl === false ? 'APP_URL' : 'APP_URL=' . $originalSessionUrl);
+    putenv($originalSessionKey === false ? 'APP_KEY' : 'APP_KEY=' . $originalSessionKey);
+}
+foreach (
+    ['COMPANY_NAME', 'ALLOWED_DOMAINS', 'ALLOWED_DOMAIN', 'EMAIL_DOMAIN_RESTRICTION']
+    as $key
+) {
+    $originalCompanyEnvironment[$key] = getenv($key);
+}
+function rejectsCompanyConfiguration(callable $fn, string $name): void
+{
+    try {
+        $fn();
+    } catch (RuntimeException) {
+        check(true, $name);
+        return;
+    }
+    throw new RuntimeException('ÉCHEC : ' . $name);
+}
+try {
+    putenv('COMPANY_NAME=Équipe Horizon & Associés');
+    check(
+        Security::sessionName() === $sessionName,
+        'personnalisation société sans changement de session',
+    );
+    putenv('ALLOWED_DOMAINS= ATELIER.EXAMPLE , services.example,atelier.example ');
+    putenv('EMAIL_DOMAIN_RESTRICTION=true');
+    check(
+        App\Core\Company::name() === 'Équipe Horizon & Associés' &&
+            App\Core\Company::initial() === 'É',
+        'nom de société et initiale Unicode',
+    );
+    check(
+        App\Core\Company::settings()['domains'] === ['atelier.example', 'services.example'],
+        'domaines normalisés et dédupliqués',
+    );
+    check(
+        Security::email(' Nom.Prenom@ATELIER.EXAMPLE ') === 'nom.prenom@atelier.example',
+        'premier domaine configurable accepté',
+    );
+    check(
+        Security::email('test@services.example') === 'test@services.example',
+        'second domaine configurable accepté',
+    );
+    rejects(
+        fn() => Security::email('test@sub.atelier.example'),
+        'sous-domaine non autorisé refusé',
+    );
+    rejects(
+        fn() => Security::email('test@atelier.example.evil.test'),
+        'domaine ressemblant refusé',
+    );
+    check(
+        Security::email('ancien@ancienne-societe.example', false) ===
+            'ancien@ancienne-societe.example',
+        'syntaxe des comptes existants indépendante des nouveaux domaines',
+    );
+    foreach (
+        [
+            '*.atelier.example',
+            '@atelier.example',
+            'https://atelier.example',
+            'atelier.example,',
+            'atelier.example.',
+        ]
+        as $invalid
+    ) {
+        putenv('ALLOWED_DOMAINS=' . $invalid);
+        rejectsCompanyConfiguration(
+            fn() => App\Core\Company::settings(),
+            'configuration de domaine invalide refusée : ' . $invalid,
+        );
+    }
+    putenv('ALLOWED_DOMAINS=');
+    rejectsCompanyConfiguration(
+        fn() => App\Core\Company::settings(),
+        'liste vide fermée par défaut',
+    );
+    putenv('EMAIL_DOMAIN_RESTRICTION=false');
+    check(
+        Security::email('libre@autre.example') === 'libre@autre.example',
+        'désactivation explicite de la restriction',
+    );
+    rejects(fn() => Security::email('invalide'), 'adresse invalide refusée même sans restriction');
+    putenv('EMAIL_DOMAIN_RESTRICTION=tru');
+    rejectsCompanyConfiguration(
+        fn() => App\Core\Company::settings(),
+        'option mal orthographiée ne désactive pas la restriction',
+    );
+    putenv('EMAIL_DOMAIN_RESTRICTION=true');
+    putenv('ALLOWED_DOMAINS');
+    putenv('ALLOWED_DOMAIN=historique.example');
+    check(
+        Security::email('compte@historique.example') === 'compte@historique.example',
+        'ancienne variable de domaine reconnue si utilisée seule',
+    );
+    putenv('ALLOWED_DOMAINS=nouvelle.example');
+    rejects(
+        fn() => Security::email('compte@historique.example'),
+        'liste explicite prioritaire sur ancienne variable',
+    );
+    putenv('COMPANY_NAME=');
+    rejectsCompanyConfiguration(fn() => App\Core\Company::settings(), 'nom vide refusé');
+    putenv("COMPANY_NAME=Nom\nInjecté");
+    rejectsCompanyConfiguration(fn() => App\Core\Company::settings(), 'nom multiligne refusé');
+    putenv('COMPANY_NAME=Atelier <Horizon>');
+    check(
+        e(App\Core\Company::name()) === 'Atelier &lt;Horizon&gt;',
+        'nom de société échappé au rendu',
+    );
+} finally {
+    foreach ($originalCompanyEnvironment as $key => $value) {
+        putenv($value === false ? $key : $key . '=' . $value);
+    }
+}
 check(
     Security::email(' Nom.Prenom@CABESTO.COM ') === 'nom.prenom@cabesto.com',
     'domaine exact normalisé',

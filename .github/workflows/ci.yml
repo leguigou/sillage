@@ -34,7 +34,9 @@ jobs:
       DB_PASSWORD: ci-isolated-password
       SESSION_SECURE: 'false'
       MAIL_TRANSPORT: log
-      ALLOWED_DOMAIN: cabesto.com
+      COMPANY_NAME: Entreprise de test
+      ALLOWED_DOMAINS: cabesto.com
+      EMAIL_DOMAIN_RESTRICTION: 'true'
       CI: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -55,3 +57,27 @@ jobs:
           trap 'kill "$SERVER_PID"' EXIT
           python3 -c 'import time,urllib.request; time.sleep(2); urllib.request.urlopen("http://127.0.0.1:8089/login")'
           python3 tests/http_workflows.py
+      - name: Tester une autre société avec domaines restreints
+        env:
+          COMPANY_NAME: Atelier Horizon & Associés
+          ALLOWED_DOMAINS: atelier-horizon.example,horizon-services.example
+          EMAIL_DOMAIN_RESTRICTION: 'true'
+        run: |
+          php tests/run.php fixtures
+          php -S 127.0.0.1:8089 -t "$PWD/public" "$PWD/public/router.php" > /tmp/sillage-company-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          python3 -c 'import time,urllib.request; time.sleep(2); urllib.request.urlopen("http://127.0.0.1:8089/login")'
+          python3 tests/http_company.py
+      - name: Tester une autre société sans restriction de domaine
+        env:
+          COMPANY_NAME: Atelier Horizon & Associés
+          ALLOWED_DOMAINS: ''
+          EMAIL_DOMAIN_RESTRICTION: 'false'
+        run: |
+          php tests/run.php fixtures
+          php -S 127.0.0.1:8089 -t "$PWD/public" "$PWD/public/router.php" > /tmp/sillage-company-open-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          python3 -c 'import time,urllib.request; time.sleep(2); urllib.request.urlopen("http://127.0.0.1:8089/login")'
+          python3 tests/http_company.py --open

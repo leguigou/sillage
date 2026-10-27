@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-use App\Core\{DB, Security};
+use App\Core\{Company, DB, Security};
 use App\Models\Ticket;
 if (PHP_SAPI !== 'cli' || env('APP_ENV') !== 'local') {
     throw new RuntimeException('Démonstration réservée au local.');
@@ -22,7 +22,14 @@ DB::transaction(function () use ($people, $hash, &$ids) {
     foreach ($people as $i => [$name, $email]) {
         $ids[] = DB::insert(
             'INSERT INTO users(email,name,password_hash,role,verified_at) VALUES(?,?,?,?,UTC_TIMESTAMP())',
-            [$email . '@cabesto.com', $name, $hash, $i === 0 ? 'admin' : 'member'],
+            [
+                Security::email(
+                    $email . '@' . (Company::settings()['domains'][0] ?? 'example.com'),
+                ),
+                $name,
+                $hash,
+                $i === 0 ? 'admin' : 'member',
+            ],
         );
     }
     $p = DB::insert('INSERT INTO projects(name,project_key,description) VALUES(?,?,?)', [
@@ -170,7 +177,9 @@ if (!is_dir(ROOT . '/.runtime')) {
 }
 file_put_contents(
     ROOT . '/.runtime/credentials.txt',
-    "Démonstration locale Sillage\nAdresse : camille.martin@cabesto.com\nMot de passe : $password\nURL : " .
+    "Démonstration locale Sillage\nAdresse : " .
+        Security::email('camille.martin@' . (Company::settings()['domains'][0] ?? 'example.com')) .
+        "\nMot de passe : $password\nURL : " .
         url() .
         "\nNe pas utiliser ces comptes en production.\n",
 );

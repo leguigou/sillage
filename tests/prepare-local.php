@@ -39,6 +39,9 @@ $environment = [
     'APP_KEY' => bin2hex(random_bytes(32)),
     'SESSION_SECURE' => 'false',
     'MAIL_TRANSPORT' => 'log',
+    'COMPANY_NAME' => 'Entreprise de test',
+    'ALLOWED_DOMAINS' => 'cabesto.com',
+    'EMAIL_DOMAIN_RESTRICTION' => 'true',
 ];
 // Préserver la clé des connexions de test déjà chiffrées lors d’une seconde exécution.
 if (is_file($configFile)) {
@@ -51,8 +54,24 @@ $config = str_replace(
     ['127.0.0.1:8089', 'apache-test.pid', 'apache-test-error.log', 'apache-test-access.log'],
     $config,
 );
-foreach ($environment as $k => $v) {
-    $config .= "\nSetEnv $k \"$v\"\n";
+$profiles = [
+    'apache-test.conf' => $environment,
+    'apache-company-test.conf' => array_replace($environment, [
+        'COMPANY_NAME' => 'Atelier Horizon & Associés',
+        'ALLOWED_DOMAINS' => 'atelier-horizon.example,horizon-services.example',
+        'EMAIL_DOMAIN_RESTRICTION' => 'true',
+    ]),
+    'apache-company-open-test.conf' => array_replace($environment, [
+        'COMPANY_NAME' => 'Atelier Horizon & Associés',
+        'ALLOWED_DOMAINS' => '',
+        'EMAIL_DOMAIN_RESTRICTION' => 'false',
+    ]),
+];
+foreach ($profiles as $filename => $values) {
+    $profile = $config;
+    foreach ($values as $k => $v) {
+        $profile .= "\nSetEnv $k \"$v\"\n";
+    }
+    file_put_contents($root . '/.runtime/' . $filename, $profile);
 }
-file_put_contents($root . '/.runtime/apache-test.conf', $config);
-echo "Environnement de test isolé prêt.\n";
+echo "Environnements de test isolés prêts.\n";

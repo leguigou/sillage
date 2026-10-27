@@ -11,12 +11,26 @@ final class Security
         }
         return hex2bin($hex);
     }
+    public static function sessionName(): string
+    {
+        return 'sillage_' .
+            substr(
+                hash_hmac(
+                    'sha256',
+                    rtrim(env('APP_URL', 'http://127.0.0.1:8088'), '/'),
+                    self::key(),
+                ),
+                0,
+                16,
+            );
+    }
     public static function start(): void
     {
         self::key();
+        Company::settings();
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
-        session_name('sillage_session');
+        session_name(self::sessionName());
         session_set_cookie_params([
             'httponly' => true,
             'secure' => env('SESSION_SECURE', 'true') === 'true',
@@ -53,20 +67,16 @@ final class Security
             exit('La session du formulaire a expiré. Rechargez la page.');
         }
     }
-    public static function email(string $email): string
+    public static function email(string $email, bool $checkCompany = true): string
     {
         $email = strtolower(trim($email));
-        if (
-            !filter_var($email, FILTER_VALIDATE_EMAIL) ||
-            strlen($email) > 190 ||
-            substr(strrchr($email, '@') ?: '', 1) !==
-                strtolower(env('ALLOWED_DOMAIN', 'cabesto.com'))
-        ) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 190) {
             throw new \InvalidArgumentException(
-                'Utilisez exclusivement votre adresse @' .
-                    env('ALLOWED_DOMAIN', 'cabesto.com') .
-                    '.',
+                'Saisissez une adresse e-mail valide (190 caractères maximum).',
             );
+        }
+        if ($checkCompany && !Company::allowsEmailDomain($email)) {
+            throw new \InvalidArgumentException(Company::signupHint());
         }
         return $email;
     }

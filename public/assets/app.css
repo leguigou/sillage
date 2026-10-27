@@ -368,6 +368,14 @@ kbd {
 .company-badge strong {
   font-size: 12px;
   display: block;
+  overflow-wrap: anywhere;
+}
+.company-badge > div {
+  min-width: 0;
+}
+.company-icon,
+.company-lock {
+  flex-shrink: 0;
 }
 .company-badge small {
   font-size: 10px;
@@ -2354,6 +2362,15 @@ label small {
 }
 .header-right .eyebrow {
   font-size: 9px;
+  max-width: 45vw;
+  overflow-wrap: anywhere;
+}
+.company-configuration {
+  margin: 18px 0;
+}
+.company-configuration dd {
+  margin: 4px 0 14px;
+  overflow-wrap: anywhere;
 }
 .guest-footer {
   display: flex;

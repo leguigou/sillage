@@ -1,38 +1,7 @@
 """End-to-end HTTP checks against the isolated sillage_test Apache host."""
-import http.cookiejar, urllib.request, urllib.parse, urllib.error, re, json, uuid, os, pathlib, hashlib, hmac
-BASE=os.environ.get('SILLAGE_TEST_URL','http://127.0.0.1:8089')
-if not BASE.endswith(':8089') and os.environ.get('CI')!='true': raise RuntimeError('Use isolated test server on 8089')
-jar=http.cookiejar.CookieJar(); client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar)); passed=0
-def call(path,data=None,json_accept=False):
-    encoded=urllib.parse.urlencode(data,doseq=True).encode() if data is not None else None
-    try:
-        with client.open(urllib.request.Request(BASE+path,data=encoded,headers={'Accept':'application/json' if json_accept else 'text/html'}),timeout=20) as response: return response.status,response.read().decode('utf-8'),response.url
-    except urllib.error.HTTPError as error: return error.code,error.read().decode('utf-8'),error.url
-def token(html):
-    found=re.search(r'name="_csrf" value="([a-f0-9]+)"',html)
-    if not found: raise AssertionError('CSRF token missing')
-    return found.group(1)
-def upload(path,fields,field,filename,content,mime):
-    boundary='sillage-'+uuid.uuid4().hex; parts=[]
-    for key,value in fields.items(): parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+key+'"\r\n\r\n'+str(value)+'\r\n').encode())
-    parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+field+'"; filename="'+filename+'"\r\nContent-Type: '+mime+'\r\n\r\n').encode()+content+b'\r\n')
-    parts.append(('--'+boundary+'--\r\n').encode())
-    request=urllib.request.Request(BASE+path,data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary})
-    try:
-        with client.open(request,timeout=20) as response: return response.status,response.read().decode(),response.url
-    except urllib.error.HTTPError as error: return error.code,error.read().decode(),error.url
-def signed_webhook(path,data,valid=True):
-    body=json.dumps(data).encode(); signature='sha256='+hmac.new(b'test-webhook-secret' if valid else b'wrong-secret',body,hashlib.sha256).hexdigest()
-    request=urllib.request.Request(BASE+path,data=body,headers={'Content-Type':'application/json','Accept':'application/json','X-Hub-Signature-256':signature})
-    try:
-        with client.open(request,timeout=20) as response: return response.status,response.read().decode()
-    except urllib.error.HTTPError as error: return error.code,error.read().decode()
-def check(ok,name):
-    global passed
-    if not ok: raise AssertionError(name)
-    passed+=1; print('OK',name)
-def get_token(path='/'):
-    status,html,_=call(path); check(status==200,'GET '+path.split('?')[0]); return token(html),html
+import http.cookiejar, urllib.request, urllib.parse, re, json, uuid
+import http_workflows_support as http_support
+from http_workflows_support import BASE, call, token, upload, signed_webhook, check, get_token, mail_for, passed_count
 status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'private page requires login')
 check(call('/login',{'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
 csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
@@ -106,13 +75,9 @@ check(status==200 and 'Votre compte est créé' in body,'registration initiates 
 csrf=token(body)
 status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!'})
 check(url.endswith('/login') and 'Validez votre adresse' in body,'unverified account cannot sign in')
-mail_dir=pathlib.Path(__file__).resolve().parents[1]/'storage'/'mail'
 def mail_link(purpose):
-    for path in sorted(mail_dir.glob('*.txt'),reverse=True):
-        text=path.read_text(encoding='utf-8')
-        if 'To: '+auth_email in text:
-            found=re.search(re.escape(BASE)+r'/'+purpose+r'\?token=[a-f0-9]{64}',text)
-            if found: return found.group(0).replace(BASE,'')
+    found=re.search(re.escape(BASE)+r'/'+purpose+r'\?token=[a-f0-9]{64}',mail_for(auth_email))
+    if found: return found.group(0).replace(BASE,'')
     raise AssertionError('Local test mail missing')
 verify_link=mail_link('verify'); status,body,url=call(verify_link); check(status==200 and 'Adresse confirmée' in body,'email token activates account')
 check(call(verify_link)[0]==422,'verification token is single use')
@@ -124,8 +89,8 @@ status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Nouvea
 csrf=token(body); status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Encore-Sillage-2026!'},True); check(status==422,'reset token is single use')
 csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'}); check(status==200 and not url.endswith('/login'),'new password works')
 
-member_client=client
-client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+member_client=http_support.client
+http_support.client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
 csrf=token(body)
 status,settings,_=call('/settings')
@@ -143,18 +108,18 @@ status,body,_=call('/teams',{'_csrf':csrf,'team_id':team_id,'name':'Renommée '+
 check(status==200 and 'Renommée '+marker in body,'team renamed through administration')
 status,body,_=call('/users/'+account_id,{'_csrf':csrf,'role':'viewer','active':'1'})
 check(status==200,'account role changed through administration')
-admin_client=client; client=member_client
+admin_client=http_support.client; http_support.client=member_client
 check(call('/settings')[2].endswith('/login'),'role change invalidates existing member session')
-client=admin_client
+http_support.client=admin_client
 check(call('/users/'+account_id,{'_csrf':csrf,'role':'viewer','active':'0'})[0]==200,'account disabled through administration')
 check(call('/teams/'+team_id+'/members',{'_csrf':csrf,'action':'add','user_id':account_id},True)[0]==422,'disabled account cannot join team')
-client=member_client; member_csrf,_=get_token('/login')
+http_support.client=member_client; member_csrf,_=get_token('/login')
 check(call('/login',{'_csrf':member_csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'})[2].endswith('/login'),'disabled account cannot sign in')
-client=admin_client
+http_support.client=admin_client
 check(call('/users/'+account_id,{'_csrf':csrf,'role':'member','active':'1'})[0]==200,'account reactivated')
 check(call('/teams/'+team_id+'/members',{'_csrf':csrf,'action':'remove','user_id':account_id})[0]==200,'member removed from team')
 status,body,_=call('/teams/'+team_id+'/delete',{'_csrf':csrf})
 check(status==200 and 'data-team-id="'+team_id+'"' not in body,'team deleted and account preserved')
-client=member_client; member_csrf,_=get_token('/login')
+http_support.client=member_client; member_csrf,_=get_token('/login')
 check(not call('/login',{'_csrf':member_csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'})[2].endswith('/login'),'reactivated member signs in after team deletion')
-print('\n',passed,'HTTP checks passed against isolated test database.')
+print('\n',passed_count(),'HTTP checks passed against isolated test database.')

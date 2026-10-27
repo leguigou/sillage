@@ -52,6 +52,6 @@ file_put_contents(
     $root . '/.env',
     "APP_ENV=local\nAPP_URL=http://127.0.0.1:8088\nAPP_KEY=" .
         bin2hex(random_bytes(32)) .
-        "\nALLOWED_DOMAIN=cabesto.com\nDB_HOST=127.0.0.1\nDB_PORT=3338\nDB_DATABASE=sillage\nDB_USERNAME=sillage\nDB_PASSWORD=$password\nMAIL_TRANSPORT=log\nMAIL_FROM=sillage@cabesto.com\nSESSION_SECURE=false\nUPLOAD_MAX_MB=10\n",
+        "\nCOMPANY_NAME=Mon entreprise\nALLOWED_DOMAINS=example.com\nEMAIL_DOMAIN_RESTRICTION=true\nDB_HOST=127.0.0.1\nDB_PORT=3338\nDB_DATABASE=sillage\nDB_USERNAME=sillage\nDB_PASSWORD=$password\nMAIL_TRANSPORT=log\nMAIL_FROM=sillage@example.com\nSESSION_SECURE=false\nUPLOAD_MAX_MB=10\n",
 );
 echo "Configuration locale créée. Aucun secret ne doit être ajouté à Git.\n";

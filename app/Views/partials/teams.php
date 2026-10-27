@@ -1,10 +1,10 @@
 <?php use App\Models\User; $isAdmin = $user['role'] === 'admin'; ?>
 <section class="panel team-section" id="teams">
   <div class="panel-header"><div><span class="eyebrow">AVANCER ENSEMBLE</span><h2>Équipes</h2><p>Organisez les personnes par métier ou par initiative.</p></div><span class="pill soft"><?= count($teams) ?> équipes</span></div>
-  <p class="help-text">Un utilisateur peut appartenir à plusieurs équipes. Tous les comptes Cabesto connectés conservent l’accès aux projets ; les équipes servent à organiser les personnes.</p>
+  <p class="help-text">Un utilisateur peut appartenir à plusieurs équipes. Tous les comptes connectés conservent l’accès aux projets ; les équipes servent à organiser les personnes.</p>
   <?php if ($isAdmin): ?>
   <form method="post" action="/teams" class="team-create"><?= csrf() ?><input type="hidden" name="_return" value="/settings#teams"><label>Nouvelle équipe<input name="name" maxlength="120" required placeholder="Ex. : Support magasins"></label><button class="button primary">Créer l’équipe</button></form>
-  <p class="help-text">Pour ajouter une personne : elle crée son compte avec son adresse @cabesto.com et valide l’e-mail reçu, puis vous la sélectionnez ci-dessous.</p>
+  <p class="help-text">Pour ajouter une personne : elle crée son compte et valide l’e-mail reçu, puis vous la sélectionnez ci-dessous. <?= e(App\Core\Company::signupHint()) ?></p>
   <?php endif; ?>
   <div class="team-grid">
     <?php foreach ($teams as $team): $people=$teamMembers[$team['id']]??[]; $selected=array_column($people,'id'); ?>
@@ -26,7 +26,7 @@
 </section>
 <?php if ($isAdmin): ?>
 <section class="panel team-section" id="users">
-  <div class="panel-header"><div><h2>Utilisateurs et accès</h2><p>Les rôles s’appliquent à tout l’espace Cabesto.</p></div><span class="pill soft"><?= count($accounts) ?> comptes</span></div>
+  <div class="panel-header"><div><h2>Utilisateurs et accès</h2><p>Les rôles s’appliquent à tout l’espace <?= e(App\Core\Company::name()) ?>.</p></div><span class="pill soft"><?= count($accounts) ?> comptes</span></div>
   <p class="help-text">Administrateur : configuration et gestion des accès. Membre : création et modification des tickets. Lecture seule : consultation et export. Désactiver un compte ferme ses sessions et conserve son historique. La validation d’adresse reste obligatoire.</p>
   <div class="access-list">
   <?php foreach ($accounts as $account): ?>

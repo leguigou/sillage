@@ -200,7 +200,9 @@ final class FormController
                 AttachmentController::store($id, $_FILES['attachment']);
             } catch (\Throwable $e) {
                 flash(
-                    'Votre demande a été créée, mais la pièce jointe n’a pas été ajoutée. Contactez votre interlocuteur Cabesto.',
+                    'Votre demande a été créée, mais la pièce jointe n’a pas été ajoutée. Contactez votre interlocuteur ' .
+                        \App\Core\Company::name() .
+                        '.',
                     'error',
                 );
             }
