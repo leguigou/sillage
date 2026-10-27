@@ -684,3 +684,34 @@ $$('[data-mcp-lifetime]').forEach((select) => {
   select.addEventListener('change', update);
   update();
 });
+
+$$('[data-company-form]').forEach((form) => {
+  const preview = $('.company-preview', form.closest('section'));
+  const name = $('[name="company_name"]', form), symbol = $('[name="company_icon"]', form);
+  const file = $('[name="company_logo"]', form), remove = $('[name="remove_logo"]', form);
+  const status = $('[data-company-preview-status]', form);
+  const savedLogo = $('img', preview)?.getAttribute('src');
+  let generation = 0;
+  const showImage = (src) => {
+    const image = document.createElement('img');
+    image.className = 'company-logo'; image.alt = 'Aperçu du logo'; image.src = src;
+    preview.replaceChildren(image);
+  };
+  const update = () => {
+    const current = ++generation, selected = file.files[0];
+    status.textContent = ''; file.setCustomValidity('');
+    if (selected) {
+      if (selected.size > 2 * 1024 * 1024 || !['image/png','image/jpeg','image/webp'].includes(selected.type)) {
+        status.textContent = 'Choisissez une image PNG, JPEG ou WebP de 2 Mo maximum.';
+        file.setCustomValidity(status.textContent); return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => { if (generation === current) showImage(reader.result); };
+      reader.onerror = () => { if (generation === current) status.textContent = 'Aperçu indisponible : sélectionnez à nouveau le fichier.'; };
+      reader.readAsDataURL(selected);
+    } else if (savedLogo && !remove?.checked) showImage(savedLogo);
+    else preview.textContent = symbol.value.trim() || Array.from(name.value.trim())[0]?.toLocaleUpperCase() || '?';
+  };
+  name.addEventListener('input', update); symbol.addEventListener('input', update);
+  file.addEventListener('change', update); remove?.addEventListener('change', update);
+});

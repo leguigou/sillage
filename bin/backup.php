@@ -45,6 +45,7 @@ try {
             $binary,
             '--defaults-extra-file=' . $credentials,
             '--single-transaction',
+            '--hex-blob',
             '--no-tablespaces',
             '--skip-lock-tables',
             env('DB_DATABASE'),

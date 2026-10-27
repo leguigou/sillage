@@ -373,6 +373,12 @@ kbd {
   padding: 12px;
   margin-bottom: 20px;
 }
+.company-logo { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; display: block; }
+.company-icon.company-preview { width: 56px; height: 56px; font-size: 26px; flex-shrink: 0; }
+[data-company-preview-status]:empty { display: none; }
+.company-settings { margin-top: 24px; scroll-margin-top: 24px; }
+.company-settings form { max-width: 720px; }
+.guest-company-icon { flex-shrink: 0; }
 .company-icon {
   display: flex;
   align-items: center;

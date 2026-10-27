@@ -18,6 +18,7 @@ if (env('DB_DATABASE') !== 'sillage_test') {
 Migrator::run();
 if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM rate_limits');
+    DB::run('DELETE FROM company_branding');
     foreach (
         [
             ['qa.admin@example.com', 'QA Admin', 'admin'],
@@ -379,6 +380,7 @@ try {
     require __DIR__ . '/mcp_models.php';
     require __DIR__ . '/timeline_calendar.php';
     require __DIR__ . '/ticket_conversation.php';
+    require __DIR__ . '/company_branding.php';
 } finally {
     DB::connection()->rollBack();
 }

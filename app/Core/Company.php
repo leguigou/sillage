@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Core;
+use App\Models\CompanyBranding;
 
 final class Company
 {
@@ -11,7 +12,7 @@ final class Company
     public static function settings(): array
     {
         $source = [
-            trim(env('COMPANY_NAME', 'Mon entreprise')),
+            CompanyBranding::get()['name'] ?? trim(env('COMPANY_NAME', 'Mon entreprise')),
             env('ALLOWED_DOMAINS', env('ALLOWED_DOMAIN')),
             env('EMAIL_DOMAIN_RESTRICTION', 'true'),
         ];
@@ -65,6 +66,20 @@ final class Company
     public static function initial(): string
     {
         return mb_strtoupper(mb_substr(self::name(), 0, 1));
+    }
+
+    public static function mark(): string
+    {
+        $branding = CompanyBranding::get();
+        if ($branding['logo_digest']) {
+            return '<img class="company-logo" src="/company/logo/' . e($branding['logo_digest']) . '" alt="' . e(self::name()) . '">';
+        }
+        return '<span aria-hidden="true">' . e($branding['icon'] ?? self::initial()) . '</span>';
+    }
+
+    public static function subtitle(): string
+    {
+        return CompanyBranding::get()['subtitle'];
     }
 
     public static function domainsLabel(): string

@@ -12,8 +12,12 @@ use App\Controllers\{
     TeamController,
     McpTokenController,
     AutomationController,
+    CompanyController,
 };
 $r = new Router();
+$company = new CompanyController();
+$r->add('POST', '/company', [$company, 'save'])
+    ->add('GET', '/company/logo/{digest}', [$company, 'logo']);
 $auth = new AuthController();
 $work = new WorkspaceController();
 $tickets = new TicketController();
