@@ -23,6 +23,11 @@ final class Filter
         'key' => "CONCAT(p.project_key,'-',t.number)",
         'labels' => 't.labels',
     ];
+    public static function active(array $input): bool
+    {
+        // Project selection and display options do not restrict the result set.
+        return self::where(0, $input)[0] !== self::where(0, [])[0];
+    }
     public static function where(int $project, array $input): array
     {
         $sql = ['t.archived=0'];
