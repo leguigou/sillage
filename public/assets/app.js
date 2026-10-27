@@ -487,76 +487,105 @@ try {
   }
 } catch {}
 if (new URLSearchParams(location.search).get('create') === '1') openDialog('ticket-dialog');
-// Les barres se déplacent ; leur poignée droite ajuste l’échéance.
+// Capture the gesture before the browser can start dragging the ticket link.
 $$('.timeline-bar').forEach((bar) => {
-  const row = bar.closest('[data-ticket-id]'),
-    track = bar.closest('.timeline-track');
+  if (document.body.dataset.role === 'viewer') return;
+  const row = bar.closest('[data-ticket-id]'), track = bar.closest('.timeline-track');
   const handle = document.createElement('span');
   handle.className = 'timeline-handle';
+  handle.title = 'Glisser pour ajuster l’échéance';
   handle.setAttribute('aria-hidden', 'true');
   bar.append(handle);
-  let moved = false;
-  bar.addEventListener(
-    'click',
-    (e) => {
-      if (moved) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    },
-    true,
-  );
+  bar.draggable = false;
+  bar.addEventListener('dragstart', (event) => event.preventDefault());
+  let suppressClick = false, saving = false, gesture = null;
+  bar.addEventListener('click', (event) => {
+    if (event.target === handle || (event.detail !== 0 && (suppressClick || saving))) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
   bar.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    moved = false;
-    const initialX = event.clientX,
+    if (event.button !== 0 || !event.isPrimary || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (saving || gesture) { event.preventDefault(); return; }
+    event.preventDefault();
+    bar.focus({ preventScroll: true });
+    suppressClick = event.target === handle;
+    const initialX = event.clientX, initialY = event.clientY,
       resize = event.target === handle,
-      originalLeft = bar.style.left,
-      originalWidth = bar.style.width;
-    const start = new Date(row.dataset.startDate + 'T00:00:00Z'),
-      due = new Date((row.dataset.dueDate || row.dataset.startDate) + 'T00:00:00Z');
-    let delta = 0;
+      originalLeft = bar.style.left, originalWidth = bar.style.width,
+      start = new Date(row.dataset.startDate + 'T00:00:00Z'),
+      due = new Date((row.dataset.dueDate || row.dataset.startDate) + 'T00:00:00Z'),
+      pointerId = event.pointerId;
+    let delta = 0, moved = false;
+    gesture = pointerId;
+    const restore = () => { bar.style.left = originalLeft; bar.style.width = originalWidth; };
     function move(e) {
-      if (Math.abs(e.clientX - initialX) < 6 && !moved) return;
+      if (e.pointerId !== pointerId) return;
+      if (!moved && Math.hypot(e.clientX - initialX, e.clientY - initialY) < 6) return;
       moved = true;
+      suppressClick = true;
       bar.classList.add('scheduling');
-      delta = Math.round(
-        ((e.clientX - initialX) / track.clientWidth) * Number(track.dataset.timelineDays),
-      );
-      const pct = (delta / Number(track.dataset.timelineDays)) * 100;
+      delta = Math.round(((e.clientX - initialX) / track.clientWidth) * Number(track.dataset.timelineDays));
+      const pct = delta / Number(track.dataset.timelineDays) * 100;
       if (resize) bar.style.width = `${Math.max(0.5, parseFloat(originalWidth) + pct)}%`;
       else bar.style.left = `${parseFloat(originalLeft) + pct}%`;
     }
-    async function finish() {
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', finish);
+    function cleanup() {
+      bar.removeEventListener('pointermove', move);
+      bar.removeEventListener('pointerup', finish);
+      bar.removeEventListener('pointercancel', cancel);
+      bar.removeEventListener('lostpointercapture', cancel);
+      document.removeEventListener('keydown', escape);
+      window.removeEventListener('blur', cancel);
+      if (bar.hasPointerCapture(pointerId)) bar.releasePointerCapture(pointerId);
       bar.classList.remove('scheduling');
-      if (!moved || !delta) return;
+      gesture = null;
+    }
+    function cancel(e) {
+      if (e?.pointerId !== undefined && e.pointerId !== pointerId) return;
+      suppressClick = true;
+      cleanup();
+      restore();
+      drawDependencies();
+    }
+    function escape(e) { if (e.key === 'Escape') { e.preventDefault(); cancel(); } }
+    async function finish(e) {
+      if (e.pointerId !== pointerId) return;
+      cleanup();
+      if (!moved || !delta) { restore(); return; }
       const day = 86400000,
         newStart = new Date(start.getTime() + (resize ? 0 : delta * day)),
         newDue = new Date(due.getTime() + delta * day);
       if (newDue < newStart) {
-        bar.style.left = originalLeft;
-        bar.style.width = originalWidth;
+        restore();
         toast('L’échéance doit rester après la date de début.', true);
         return;
       }
+      saving = true;
+      bar.setAttribute('aria-busy', 'true');
       try {
         await post(`/tickets/${row.dataset.ticketId}/schedule`, {
           start_date: newStart.toISOString().slice(0, 10),
           due_date: newDue.toISOString().slice(0, 10),
           version: row.dataset.version,
         });
-        sessionStorage.setItem('sillage.notice', 'Planification mise à jour.');
+        try { sessionStorage.setItem('sillage.notice', 'Planification mise à jour.'); } catch {}
         location.reload();
       } catch (error) {
-        bar.style.left = originalLeft;
-        bar.style.width = originalWidth;
+        restore();
         toast(error.message, true);
+        saving = false;
+        bar.removeAttribute('aria-busy');
       }
     }
-    document.addEventListener('pointermove', move);
-    document.addEventListener('pointerup', finish, { once: true });
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', finish);
+    bar.addEventListener('pointercancel', cancel);
+    bar.addEventListener('lostpointercapture', cancel);
+    document.addEventListener('keydown', escape);
+    window.addEventListener('blur', cancel);
+    bar.setPointerCapture(pointerId);
   });
 });
 function drawDependencies() {
