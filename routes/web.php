@@ -15,6 +15,7 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$r->add('GET', '/avatars/{id}/{digest}', [new \App\Controllers\AvatarController(), 'image']);
 $company = new CompanyController();
 $r->add('POST', '/company', [$company, 'save'])
     ->add('GET', '/company/logo/{digest}', [$company, 'logo']);

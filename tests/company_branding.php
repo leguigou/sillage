@@ -14,7 +14,7 @@ rejects(fn() => CompanyBranding::save(array_replace($brandingInput,['company_ico
 $path = tempnam(sys_get_temp_dir(),'sillage-logo-');
 try {
     file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
-    $logo = CompanyBranding::validateImage($path);
+    $logo = \App\Services\ImageUpload::validate($path);
     CompanyBranding::save(array_replace($brandingInput,['version'=>1]),$logo);
     $record = CompanyBranding::get();
     check($record['logo_digest'] === hash('sha256',$logo['data']) && str_contains(Company::mark(),'/company/logo/'), 'logo image sauvegardé avec empreinte en base');
@@ -22,9 +22,9 @@ try {
     CompanyBranding::save(array_replace($brandingInput,['remove_logo'=>1,'version'=>2]));
     check(CompanyBranding::get()['logo_digest'] === null && str_contains(Company::mark(),'⚓'), 'retrait du logo restaure le symbole');
     file_put_contents($path,'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
-    rejects(fn() => CompanyBranding::validateImage($path), 'logo SVG actif refusé');
+    rejects(fn() => \App\Services\ImageUpload::validate($path), 'logo SVG actif refusé');
     file_put_contents($path,str_repeat('x',2*1024*1024+1));
-    rejects(fn() => CompanyBranding::validateImage($path), 'logo dépassant 2 Mo refusé');
+    rejects(fn() => \App\Services\ImageUpload::validate($path), 'logo dépassant 2 Mo refusé');
 } finally {
     unlink($path);
 }

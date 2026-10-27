@@ -249,7 +249,7 @@ final class WorkspaceController
         if (!$name || mb_strlen($name) > 120) {
             throw new \InvalidArgumentException('Nom invalide.');
         }
-        DB::run('UPDATE users SET name=? WHERE id=?', [$name, $u['id']]);
+        \App\Models\UserAvatar::saveProfile((int)$u['id'], $name, \App\Services\ImageUpload::fromUpload($_FILES['avatar'] ?? [], 'La photo'), !empty($_POST['remove_avatar']));
         flash('Profil mis à jour.');
         redirect('/settings');
     }

@@ -715,3 +715,33 @@ $$('[data-company-form]').forEach((form) => {
   name.addEventListener('input', update); symbol.addEventListener('input', update);
   file.addEventListener('change', update); remove?.addEventListener('change', update);
 });
+
+$$('[data-avatar-form]').forEach((form) => {
+  const preview = $('.panel-header .avatar', form.closest('section'));
+  const source = preview.cloneNode(true), input = $('[name="avatar"]', form);
+  const remove = $('[name="remove_avatar"]', form), name = $('[name="name"]', form);
+  const status = $('[data-avatar-status]', form);
+  let generation = 0;
+  const update = () => {
+    const current = ++generation, file = input.files[0];
+    status.textContent = ''; input.setCustomValidity('');
+    if (file) {
+      if (file.size > 2 * 1024 * 1024 || !['image/png','image/jpeg','image/webp'].includes(file.type)) {
+        status.textContent = 'Choisissez une image PNG, JPEG ou WebP de 2 Mo maximum.';
+        input.setCustomValidity(status.textContent); return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (generation !== current) return;
+        const image = document.createElement('img'); image.className = 'avatar-image';
+        image.src = reader.result; image.alt = 'Aperçu de votre photo'; preview.replaceChildren(image);
+      };
+      reader.onerror = () => { if (generation === current) status.textContent = 'Aperçu indisponible. Sélectionnez à nouveau le fichier.'; };
+      reader.readAsDataURL(file);
+    } else if (remove?.checked || !source.querySelector('img')) {
+      const parts = name.value.trim().split(/\s+/);
+      preview.textContent = (Array.from(parts[0] || '')[0] || '') + (parts.length>1 ? Array.from(parts.at(-1))[0] : '');
+    } else preview.replaceChildren(...[...source.childNodes].map((node)=>node.cloneNode(true)));
+  };
+  input.addEventListener('change',update); remove?.addEventListener('change',update); name.addEventListener('input',update);
+});

@@ -220,3 +220,6 @@ La zone de dépôt accepte jusqu’à 20 fichiers par envoi, avec retrait indivi
 
 
 Les administrateurs peuvent modifier **Paramètres → Identité de l’entreprise** : nom, sous-titre, initiale/symbole et logo PNG/JPEG/WebP (2 Mo maximum), avec aperçu avant enregistrement. Ces informations et le logo sont conservés en MySQL et suivent les sauvegardes. Le nom enregistré prend priorité sur `COMPANY_NAME` ; la restriction des e-mails reste dans `.env`. Voir [la personnalisation par société](docs/personnalisation.md).
+
+
+Chaque compte, y compris en lecture seule, peut ajouter, remplacer ou retirer sa **photo de profil** dans **Paramètres → Votre profil**. Formats PNG/JPEG/WebP, 2 Mo et 4 096 × 4 096 pixels maximum, avec aperçu rond avant enregistrement. Elle remplace les initiales dans le profil, le menu, l’en-tête, les filtres, l’annuaire, les équipes, les commentaires et les cartes du tableau. Les photos sont stockées dans MySQL et accessibles uniquement aux utilisateurs connectés ; leur retrait rétablit les initiales. Migration additive : `007_user_avatars.sql`.

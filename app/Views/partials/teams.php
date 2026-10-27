@@ -11,7 +11,7 @@
     <article class="team-card" data-team-id="<?= (int)$team['id'] ?>">
       <header class="panel-header"><h3><?= e($team['name']) ?></h3><span class="pill neutral"><?= count($people) ?> membres</span></header>
       <?php foreach ($people as $person): ?>
-      <div class="member-row"><?= avatar($person['name'],'small') ?><div><strong><?= e($person['name']) ?></strong><small><?= e($person['email']) ?><?= !$person['active']?' · Désactivé':'' ?></small></div>
+      <div class="member-row"><?= avatar($person['name'],'small',(int)$person['id']) ?><div><strong><?= e($person['name']) ?></strong><small><?= e($person['email']) ?><?= !$person['active']?' · Désactivé':'' ?></small></div>
         <?php if ($isAdmin): ?><form method="post" action="/teams/<?= (int)$team['id'] ?>/members"><?= csrf() ?><input type="hidden" name="_return" value="/settings#teams"><input type="hidden" name="user_id" value="<?= (int)$person['id'] ?>"><input type="hidden" name="action" value="remove"><button class="text-button" aria-label="Retirer <?= e($person['name']) ?> de <?= e($team['name']) ?>">Retirer</button></form><?php endif; ?>
       </div>
       <?php endforeach; if (!$people): ?><p class="muted">Aucun membre pour le moment.</p><?php endif; ?>

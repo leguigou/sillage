@@ -9,7 +9,7 @@ final class CompanyController
     public function save(): void
     {
         Auth::admin();
-        CompanyBranding::save($_POST, CompanyBranding::uploadedLogo($_FILES['company_logo'] ?? []));
+        CompanyBranding::save($_POST, \App\Services\ImageUpload::fromUpload($_FILES['company_logo'] ?? [], 'Le logo'));
         flash('Les informations de l’entreprise ont été enregistrées.');
         redirect('/settings#company');
     }
