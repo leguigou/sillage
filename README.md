@@ -1,6 +1,6 @@
 # Sillage — l’espace de travail de votre société
 
-Application de ticketing en **PHP natif MVC**, sans framework, **MySQL 8.4** et **Apache 2.4**. Interface française, menu à gauche, thèmes clair et sombre. Une installation indépendante par société, avec nom et domaines d’inscription configurables. L’installation de travail actuelle est configurée pour Cabesto. Pas de plateforme mutualisée ni de facturation SaaS dans cette version.
+Application de ticketing en **PHP natif MVC**, sans framework, **MySQL 8.4** et **Apache 2.4**. Interface française, menu à gauche, thèmes clair et sombre. Une installation indépendante par société, avec nom et domaines d’inscription configurables. Pas de plateforme mutualisée ni de facturation SaaS dans cette version.
 
 ## Personnaliser pour une société
 

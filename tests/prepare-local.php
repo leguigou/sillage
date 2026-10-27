@@ -40,7 +40,7 @@ $environment = [
     'SESSION_SECURE' => 'false',
     'MAIL_TRANSPORT' => 'log',
     'COMPANY_NAME' => 'Entreprise de test',
-    'ALLOWED_DOMAINS' => 'cabesto.com',
+    'ALLOWED_DOMAINS' => 'example.com',
     'EMAIL_DOMAIN_RESTRICTION' => 'true',
 ];
 // Préserver la clé des connexions de test déjà chiffrées lors d’une seconde exécution.

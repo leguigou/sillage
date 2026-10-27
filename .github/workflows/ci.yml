@@ -35,7 +35,7 @@ jobs:
       SESSION_SECURE: 'false'
       MAIL_TRANSPORT: log
       COMPANY_NAME: Entreprise de test
-      ALLOWED_DOMAINS: cabesto.com
+      ALLOWED_DOMAINS: example.com
       EMAIL_DOMAIN_RESTRICTION: 'true'
       CI: 'true'
     steps:

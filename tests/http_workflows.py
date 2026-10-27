@@ -3,8 +3,8 @@ import http.cookiejar, urllib.request, urllib.parse, re, json, uuid
 import http_workflows_support as http_support
 from http_workflows_support import BASE, call, token, upload, signed_webhook, check, get_token, mail_for, passed_count
 status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'private page requires login')
-check(call('/login',{'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
-csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
+check(call('/login',{'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
+csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})
 check(status==200 and 'Bonjour, QA' in html,'verified administrator signs in'); csrf=token(html); pid=re.search(r'name="project_id" value="(\d+)"',html).group(1)
 for path in ['/list','/board','/timeline','/charts','/forms','/development','/settings','/all','/import']:
     status,body,_=call(path); check(status==200 and 'Sillage — Une pause' not in body,'render '+path)
@@ -61,14 +61,14 @@ public_path=link.group(1).replace(BASE,''); public_client=urllib.request.build_o
 with public_client.open(BASE+public_path) as response: public_html=response.read().decode()
 payload=urllib.parse.urlencode({'_csrf':token(public_html),'email':'external@example.org','title':'Demande externe '+marker,'description':'Besoin externe','priority':'medium'}).encode()
 with public_client.open(urllib.request.Request(BASE+public_path,data=payload)) as response: public_html=response.read().decode(); check('Votre demande a bien rejoint notre équipe' in public_html,'anonymous form submission')
-check('qa.admin@cabesto.com' not in public_html,'external page hides members'); check('Demande externe '+marker in call('/list?q='+marker)[1],'external ticket visible internally')
+check('qa.admin@example.com' not in public_html,'external page hides members'); check('Demande externe '+marker in call('/list?q='+marker)[1],'external ticket visible internally')
 check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(call('/tickets/'+ticket_id+'/archive',{'_csrf':csrf})[0]==200,'archive action'); check('href="/tickets/'+ticket_id+'"' not in call('/list?q='+marker)[1],'archived ticket excluded')
-call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@cabesto.com','password':'Tests-Sillage-2026!'})
+call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'})
 check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot create tickets'); check(call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot publish forms')
 check(call('/teams',{'_csrf':csrf,'name':'Forbidden team'})[0]==403,'viewer cannot manage teams')
 check(call('/users/1',{'_csrf':csrf,'role':'admin','active':'1'})[0]==403,'viewer cannot manage accounts')
 call('/logout',{'_csrf':csrf})
-auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@cabesto.com'
+auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@example.com'
 csrf,_=get_token('/register')
 status,body,_=call('/register',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!','name':'Test Validation'})
 check(status==200 and 'Votre compte est créé' in body,'registration initiates email verification')
@@ -91,13 +91,13 @@ csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':
 
 member_client=http_support.client
 http_support.client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.admin@cabesto.com','password':'Tests-Sillage-2026!'})
+csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})
 csrf=token(body)
 status,settings,_=call('/settings')
 # Match each account form independently to avoid selecting an earlier person's id.
 account_rows=re.findall(r'<form[^>]+data-account-id="(\d+)"[^>]*>(.*?)</form>',settings,re.S)
 account_id=next(i for i,row in account_rows if auth_email in row)
-own_id=next(i for i,row in account_rows if 'qa.admin@cabesto.com' in row)
+own_id=next(i for i,row in account_rows if 'qa.admin@example.com' in row)
 check(call('/teams',{'name':'No CSRF'})[0]==403,'team management requires CSRF')
 check(call('/users/'+own_id,{'_csrf':csrf,'role':'member','active':'1'},True)[0]==422,'administrator cannot remove own access')
 status,body,_=call('/teams',{'_csrf':csrf,'name':'Équipe '+marker})

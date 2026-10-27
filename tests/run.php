@@ -20,8 +20,8 @@ if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM rate_limits');
     foreach (
         [
-            ['qa.admin@cabesto.com', 'QA Admin', 'admin'],
-            ['qa.viewer@cabesto.com', 'QA Lecture', 'viewer'],
+            ['qa.admin@example.com', 'QA Admin', 'admin'],
+            ['qa.viewer@example.com', 'QA Lecture', 'viewer'],
         ]
         as [$email, $name, $role]
     ) {
@@ -205,17 +205,17 @@ try {
     }
 }
 check(
-    Security::email(' Nom.Prenom@CABESTO.COM ') === 'nom.prenom@cabesto.com',
+    Security::email(' Nom.Prenom@EXAMPLE.COM ') === 'nom.prenom@example.com',
     'domaine exact normalisé',
 );
 foreach (
-    ['test@cabesto.com.evil.net', 'test@sub.cabesto.com', 'test@gmail.com', 'test@evilcabesto.com']
+    ['test@example.com.evil.net', 'test@sub.example.com', 'test@gmail.com', 'test@evilexample.com']
     as $email
 ) {
     rejects(fn() => Security::email($email), 'refus de ' . $email);
 }
 check(
-    Security::nameFromEmail('nom.prenom@cabesto.com') === 'Nom Prenom',
+    Security::nameFromEmail('nom.prenom@example.com') === 'Nom Prenom',
     'nom déduit de l’adresse',
 );
 $hash = Security::password('UnePhraseUnique!2026');
@@ -245,7 +245,7 @@ unlink($temp);
 DB::connection()->beginTransaction();
 try {
     $uid = DB::insert(
-        "INSERT INTO users(email,name,password_hash,verified_at,role) VALUES('test.unit@cabesto.com','Test unitaire',?,UTC_TIMESTAMP(),'admin')",
+        "INSERT INTO users(email,name,password_hash,verified_at,role) VALUES('test.unit@example.com','Test unitaire',?,UTC_TIMESTAMP(),'admin')",
         [$hash],
     );
     $p = DB::insert("INSERT INTO projects(name,project_key) VALUES('Test isolé','UNIT')");
@@ -296,7 +296,7 @@ try {
     check(App\Models\Team::find($team)['name'] === 'Équipe renommée', 'équipe renommée');
     rejects(fn() => App\Models\Team::save(null, 'Équipe renommée'), 'nom équipe en double refusé');
     $member = DB::insert(
-        "INSERT INTO users(email,name,password_hash,verified_at) VALUES('unit.member@cabesto.com','Membre',?,UTC_TIMESTAMP())",
+        "INSERT INTO users(email,name,password_hash,verified_at) VALUES('unit.member@example.com','Membre',?,UTC_TIMESTAMP())",
         [$hash],
     );
     App\Models\User::manage($member, 'viewer', false, $uid);
