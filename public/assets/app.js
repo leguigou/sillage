@@ -745,3 +745,22 @@ $$('[data-avatar-form]').forEach((form) => {
   };
   input.addEventListener('change',update); remove?.addEventListener('change',update); name.addEventListener('input',update);
 });
+
+const connectionProvider = $('[data-connection-provider-select]');
+if (connectionProvider) {
+  const updateProviderGuide = (changed = false) => {
+    const provider = connectionProvider.value;
+    $$('[data-provider-guide]').forEach((guide) => { guide.hidden = guide.dataset.providerGuide !== provider; });
+    connectionProvider.setAttribute('aria-describedby', `provider-help-${provider}`);
+    const repository = $('[name="repository"]', connectionProvider.form);
+    repository.placeholder = provider === 'github' ? 'proprietaire/nom-du-depot' : 'workspace/nom-du-depot';
+    if (changed) $('[name="token"]', connectionProvider.form).value = '';
+  };
+  connectionProvider.addEventListener('change', () => updateProviderGuide(true));
+  $$('[data-connection-provider]').forEach((button) => button.addEventListener('click', () => {
+    const changed = connectionProvider.value !== button.dataset.connectionProvider;
+    connectionProvider.value = button.dataset.connectionProvider;
+    updateProviderGuide(changed);
+  }));
+  updateProviderGuide();
+}
