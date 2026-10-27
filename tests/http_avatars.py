@@ -9,7 +9,7 @@ status,avatar_page,_=upload('/account',avatar_fields,'avatar','avatar.png',avata
 avatar_path=re.search(r'src="(/avatars/(\d+)/[a-f0-9]{64})"',avatar_page)
 check(status==200 and avatar_path is not None and avatar_path.group(2)!='999999999','avatar upload is bound to authenticated account')
 avatar_url=avatar_path.group(1)
-check(avatar_page.count(avatar_url)>=3,'photo appears in profile sidebar and header')
+check(avatar_page.count(avatar_url)>=3,'photo appears in profile sidebar and directory')
 avatar_ticket_title='Avatar-'+uuid.uuid4().hex[:8]
 _,avatar_ticket_page,avatar_ticket_url=call('/tickets',{'_csrf':avatar_csrf,'project_id':pid,'title':avatar_ticket_title,'assignee_id':avatar_path.group(2)})
 avatar_ticket_id=avatar_ticket_url.rsplit('/',1)[-1]
