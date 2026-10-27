@@ -1639,9 +1639,9 @@ progress::-moz-progress-bar {
 .timeline-head,
 .timeline-row {
   display: grid;
-  grid-template-columns: 260px minmax(560px, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   border-bottom: 1px solid var(--line);
-  min-width: 850px;
+  min-width: 0;
 }
 .timeline-head > div:first-child {
   padding: 18px;
@@ -1653,20 +1653,138 @@ progress::-moz-progress-bar {
   display: block;
   font-size: 9px;
 }
-.timeline-ruler {
+.timeline-grid {
+  --timeline-days: 42;
+  --timeline-day-width: 28px;
   position: relative;
-  min-height: 62px;
-  background: var(--surface-soft);
+  min-width: calc(260px + var(--timeline-days) * var(--timeline-day-width));
 }
-.timeline-ruler span {
+.timeline-scale-months {
+  --timeline-day-width: 18px;
+}
+.timeline-scale-quarters {
+  --timeline-day-width: 6px;
+}
+.timeline-panel {
+  max-height: 72vh;
+}
+.timeline-head {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+.timeline-head .timeline-corner {
+  position: sticky;
+  left: 0;
+  z-index: 7;
+}
+.timeline-ruler {
+  background: var(--surface-soft);
+  min-width: 0;
+}
+.timeline-month-band,
+.timeline-week-band,
+.timeline-day-band {
+  position: relative;
+}
+.timeline-month-band {
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.timeline-week-band {
+  height: 38px;
+  border-bottom: 1px solid var(--line);
+}
+.timeline-day-band {
+  height: 36px;
+}
+.timeline-month,
+.timeline-week,
+.timeline-day {
   position: absolute;
-  top: 23px;
-  font-size: 9px;
-  color: var(--muted);
-  padding-left: 8px;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
   border-left: 1px solid var(--line);
 }
+.timeline-month {
+  padding-left: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.timeline-week {
+  padding-left: 8px;
+  border-left-width: 2px;
+}
+.timeline-week strong {
+  font-size: 10px;
+}
+.timeline-week small {
+  font-size: 9px;
+  color: var(--subtle);
+  margin-top: 2px;
+}
+.timeline-day {
+  align-items: center;
+  gap: 1px;
+  font-size: 10px;
+}
+.timeline-day small {
+  font-size: 9px;
+  color: var(--subtle);
+}
+.timeline-day.is-weekend {
+  background: color-mix(in srgb, var(--muted) 10%, var(--surface));
+}
+.timeline-day.is-today {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.timeline-scale-months .timeline-day small {
+  display: none;
+}
+.timeline-scale-months .timeline-day-band {
+  height: 26px;
+}
+.timeline-scale-quarters .timeline-week {
+  padding-left: 3px;
+}
+.timeline-scale-quarters .timeline-week small,
+.timeline-scale-quarters .timeline-day > * {
+  display: none;
+}
+.timeline-scale-quarters .timeline-day-band {
+  height: 8px;
+}
+.timeline-today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.timeline-today-key {
+  height: 12px;
+  width: 2px;
+  background: var(--accent);
+}
+.timeline-weekend-key {
+  height: 10px;
+  width: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
 .timeline-task {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1691,13 +1809,26 @@ progress::-moz-progress-bar {
 .timeline-track {
   position: relative;
   min-height: 64px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent calc(25% - 1px),
-    var(--line) calc(25% - 1px),
-    var(--line) 25%
-  );
+  overflow: hidden;
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      transparent 71.428571%,
+      color-mix(in srgb, var(--muted) 8%, var(--surface)) 71.428571%
+    );
+  background-size:
+    calc(700% / var(--timeline-days)) 100%,
+    calc(100% / var(--timeline-days)) 100%,
+    calc(700% / var(--timeline-days)) 100%;
+}
+.timeline-outside {
+  position: absolute;
+  top: 23px;
+  left: 12px;
+  font-size: 10px;
+  color: var(--muted);
 }
 .timeline-bar {
   position: absolute;
@@ -3352,4 +3483,15 @@ label small {
 }
 #automation-editor {
   scroll-margin-top: 24px;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.form-required-note {
+  font-size: 10px;
+  color: var(--subtle);
+  margin: 0;
 }

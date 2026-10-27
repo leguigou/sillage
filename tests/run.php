@@ -376,7 +376,8 @@ try {
         fn() => Ticket::create($p, ['title' => 'Sous-tâche', 'type' => 'subtask'], $uid),
         'parent requis pour sous-tâche',
     );
-    require __DIR__.'/mcp_models.php';
+    require __DIR__ . '/mcp_models.php';
+    require __DIR__ . '/timeline_calendar.php';
 } finally {
     DB::connection()->rollBack();
 }

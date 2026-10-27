@@ -420,6 +420,9 @@ $$('[data-donut]').forEach((container) => {
     offset += length;
   });
 });
+$$('[data-timeline-grid-days]').forEach((grid) =>
+  grid.style.setProperty('--timeline-days', Number(grid.dataset.timelineGridDays)),
+);
 $$('[data-timeline-left]').forEach(
   (el) => (el.style.left = `${Math.max(0, Number(el.dataset.timelineLeft))}%`),
 );
@@ -541,7 +544,7 @@ $$('.timeline-bar').forEach((bar) => {
 });
 function drawDependencies() {
   const data = $('#timeline-dependencies'),
-    panel = $('.timeline-panel');
+    panel = $('.timeline-grid');
   if (!data || !panel) return;
   $('.timeline-dependencies', panel)?.remove();
   let edges;

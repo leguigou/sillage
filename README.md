@@ -90,6 +90,10 @@ puis utiliser **`DEMARRER-BASE-EXTERNE.cmd`**. Ce mode ne lance ni serveur MySQL
 
 Les préférences d’affichage et de thème restent dans le navigateur. Les tickets, utilisateurs, formulaires, règles, vues enregistrées, commentaires, fichiers et événements de développement sont persistés côté serveur.
 
+La chronologie s’ouvre sur six semaines, du lundi au dimanche, avec numéros ISO, jours, week-ends et repère du jour courant.
+Les vues Mois et Trimestres couvrent respectivement 16 et 52 semaines ; les en-têtes utilisent les véritables limites des mois et trimestres.
+Les titres des tickets et les dates restent visibles pendant le défilement. Les ressources CSS/JS sont versionnées pour éviter les anciennes présentations en cache.
+
 La commande « Reprendre ma vue précédente » reprend les paramètres Sillage de ce navigateur ; elle n’importe pas automatiquement les réglages d’une ancienne instance Jira.
 
 ### Limites explicites

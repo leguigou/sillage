@@ -35,6 +35,17 @@ function url(string $path = ''): string
 {
     return rtrim(env('APP_URL', 'http://127.0.0.1:8088'), '/') . '/' . ltrim($path, '/');
 }
+function asset_url(string $name): string
+{
+    static $versions = [];
+    if (!preg_match('#^[a-zA-Z0-9_./-]+$#D', $name) || str_contains($name, '..')) {
+        throw new InvalidArgumentException('Nom de ressource invalide.');
+    }
+    $path = '/assets/' . ltrim($name, '/');
+    $file = ROOT . '/public' . $path;
+    $versions[$path] ??= is_file($file) ? substr(hash_file('sha256', $file), 0, 12) : '';
+    return $path . ($versions[$path] !== '' ? '?v=' . $versions[$path] : '');
+}
 function redirect(string $path): never
 {
     header('Location: ' . url($path), true, 303);
