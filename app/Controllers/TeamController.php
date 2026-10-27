@@ -33,10 +33,7 @@ final class TeamController
     public function delete(string $id): void
     {
         Auth::admin();
-        DB::transaction(function () use ($id) {
-            Team::find((int) $id);
-            DB::run('DELETE FROM teams WHERE id=?', [(int) $id]);
-        });
+        Team::delete((int) $id);
         flash('Équipe supprimée. Les comptes et les tickets sont conservés.');
         redirect('/settings#teams');
     }

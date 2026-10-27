@@ -11,6 +11,7 @@ if($LASTEXITCODE -ne 0){throw 'Préparation de test impossible'}
 if($LASTEXITCODE -ne 0){throw 'Tests de contrats en échec'}
 $sillageSuites=@(
     @{Configuration='apache-test.conf'; Script='http_workflows.py'; ScriptArguments=@()},
+    @{Configuration='apache-test.conf'; Script='http_mcp.py'; ScriptArguments=@()},
     @{Configuration='apache-company-test.conf'; Script='http_company.py'; ScriptArguments=@()},
     @{Configuration='apache-company-open-test.conf'; Script='http_company.py'; ScriptArguments=@('--open')}
 )

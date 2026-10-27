@@ -5,6 +5,13 @@ use App\Core\DB;
 
 final class Team
 {
+    public static function delete(int $id): void
+    {
+        DB::transaction(function () use ($id) {
+            self::find($id);
+            DB::run('DELETE FROM teams WHERE id=?', [$id]);
+        });
+    }
     public static function save(?int $id, string $name): int
     {
         $name = trim($name);

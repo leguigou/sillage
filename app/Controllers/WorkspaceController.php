@@ -10,7 +10,7 @@ final class WorkspaceController
     {
         $user = Auth::requireUser();
         $projects = Project::all();
-        if (!$projects) {
+        if (!$projects && $section !== 'settings') {
             View::render('initial-project', [
                 'guest' => true,
                 'title' => 'Bienvenue dans Sillage',
@@ -18,9 +18,13 @@ final class WorkspaceController
             ]);
             return;
         }
-        $project = Project::find(
-            (int) ($_GET['project'] ?? ($_SESSION['project_id'] ?? $projects[0]['id'])),
-        );
+        $defaultProject = (int) ($_SESSION['project_id'] ?? ($projects[0]['id'] ?? 0));
+        if ($projects && !in_array($defaultProject, array_column($projects, 'id'), true)) {
+            $defaultProject = (int) $projects[0]['id'];
+        }
+        $project = $projects
+            ? Project::find((int) ($_GET['project'] ?? $defaultProject))
+            : ['id' => 0, 'name' => \App\Core\Company::name(), 'project_key' => ''];
         $_SESSION['project_id'] = $project['id'];
         $all = $section === 'all';
         $pid = $all ? 0 : (int) $project['id'];
@@ -55,6 +59,43 @@ final class WorkspaceController
             $section === 'list' || $all ? ($page - 1) * $limit : 0,
         );
         $members = Project::members();
+        $mcpTokens =
+            $section === 'settings'
+                ? DB::all(
+                    'SELECT id,name,fingerprint,scopes,auth_version,expires_at,last_used_at,created_at FROM mcp_tokens WHERE user_id=? ORDER BY id DESC',
+                    [$user['id']],
+                )
+                : [];
+        $mcpAudit =
+            $section === 'settings'
+                ? DB::all(
+                    'SELECT a.tool_name,a.succeeded,a.created_at,k.name token_name FROM mcp_audit a LEFT JOIN mcp_tokens k ON k.id=a.token_id WHERE a.user_id=? ORDER BY a.id DESC LIMIT 20',
+                    [$user['id']],
+                )
+                : [];
+        $automationRules =
+            $section === 'automation'
+                ? array_map(
+                    fn($r) => \App\Models\Automation::find((int) $r['id']),
+                    DB::all('SELECT id FROM automation_rules WHERE project_id=? ORDER BY id', [
+                        $project['id'],
+                    ]),
+                )
+                : [];
+        $automationRuns =
+            $section === 'automation'
+                ? DB::all(
+                    'SELECT r.*,t.number FROM automation_runs r JOIN tickets t ON t.id=r.ticket_id WHERE t.project_id=? ORDER BY r.id DESC LIMIT 30',
+                    [$project['id']],
+                )
+                : [];
+        $editingRule = null;
+        if ($section === 'automation' && !empty($_GET['edit'])) {
+            $editingRule = \App\Models\Automation::find((int) $_GET['edit']);
+            if ((int) $editingRule['project_id'] !== (int) $project['id']) {
+                throw new \InvalidArgumentException('Règle d’un autre projet.');
+            }
+        }
         $accounts =
             $section === 'settings' && $user['role'] === 'admin'
                 ? DB::all(
@@ -114,6 +155,7 @@ final class WorkspaceController
             'development' => 'Développement',
             'charts' => 'Rapports',
             'settings' => 'Paramètres',
+            'automation' => 'Automatisations',
             default => 'Vue d’ensemble',
         };
         View::render(
@@ -125,6 +167,11 @@ final class WorkspaceController
                 'project',
                 'tickets',
                 'members',
+                'mcpTokens',
+                'mcpAudit',
+                'automationRules',
+                'automationRuns',
+                'editingRule',
                 'accounts',
                 'teams',
                 'teamMembers',
@@ -148,25 +195,7 @@ final class WorkspaceController
     public function project(): void
     {
         Auth::admin();
-        $name = trim((string) ($_POST['name'] ?? ''));
-        $key = strtoupper(trim((string) ($_POST['key'] ?? '')));
-        if (
-            $name === '' ||
-            mb_strlen($name) > 120 ||
-            !preg_match('/^[A-Z][A-Z0-9]{1,9}$/D', $key)
-        ) {
-            throw new \InvalidArgumentException(
-                'Nom requis et clé de 2 à 10 lettres/chiffres, commençant par une lettre.',
-            );
-        }
-        if (DB::one('SELECT id FROM projects WHERE project_key=?', [$key])) {
-            throw new \InvalidArgumentException('Cette clé de projet existe déjà.');
-        }
-        $id = DB::insert('INSERT INTO projects(name,project_key,description) VALUES(?,?,?)', [
-            $name,
-            $key,
-            mb_substr((string) ($_POST['description'] ?? ''), 0, 2000),
-        ]);
+        $id = Project::save($_POST);
         flash('Votre nouveau projet est prêt.');
         redirect('/?project=' . $id);
     }
@@ -174,13 +203,6 @@ final class WorkspaceController
     {
         $u = Auth::requireUser();
         $pid = (int) ($_POST['project_id'] ?? 0);
-        Project::find($pid);
-        $name = trim((string) ($_POST['name'] ?? ''));
-        if (!$name || mb_strlen($name) > 120) {
-            throw new \InvalidArgumentException(
-                'Donnez un nom à votre vue (120 caractères maximum).',
-            );
-        }
         $settings = json_decode(
             (string) ($_POST['settings'] ?? '{}'),
             true,
@@ -190,52 +212,34 @@ final class WorkspaceController
         if (!is_array($settings)) {
             throw new \InvalidArgumentException('Vue invalide.');
         }
-        Filter::where($pid, $settings);
-        DB::run('INSERT INTO saved_views(user_id,project_id,name,settings) VALUES(?,?,?,?)', [
-            $u['id'],
+        \App\Models\SavedView::save(
+            (int) $u['id'],
             $pid,
-            $name,
-            json_encode($settings, JSON_THROW_ON_ERROR),
-        ]);
+            (string) ($_POST['name'] ?? ''),
+            $settings,
+        );
         flash('Vue enregistrée.');
         redirect('/list?project=' . $pid);
     }
     public function deleteView(string $id): void
     {
         $u = Auth::requireUser();
-        DB::run('DELETE FROM saved_views WHERE id=? AND user_id=?', [(int) $id, $u['id']]);
+        \App\Models\SavedView::delete((int) $id, (int) $u['id']);
         flash('Vue supprimée.');
         redirect('/list');
     }
     public function rule(): void
     {
         Auth::admin();
-        $pid = (int) $_POST['project_id'];
-        Project::find($pid);
-        $field = (string) $_POST['field'];
-        if (
-            !in_array($field, ['status', 'priority', 'type', 'flagged'], true) ||
-            !preg_match('/^#[0-9a-f]{6}$/iD', (string) $_POST['color'])
-        ) {
-            throw new \InvalidArgumentException('Règle invalide.');
-        }
-        DB::run(
-            'INSERT INTO formatting_rules(project_id,field,match_value,color,title) VALUES(?,?,?,?,?)',
-            [
-                $pid,
-                $field,
-                mb_substr((string) $_POST['value'], 0, 120),
-                $_POST['color'],
-                mb_substr((string) $_POST['title'], 0, 120),
-            ],
-        );
+        $pid = (int) ($_POST['project_id'] ?? 0);
+        \App\Models\FormattingRule::save($_POST);
         flash('Règle créée.');
         redirect('/list?project=' . $pid);
     }
     public function deleteRule(string $id): void
     {
         Auth::admin();
-        DB::run('DELETE FROM formatting_rules WHERE id=?', [(int) $id]);
+        \App\Models\FormattingRule::delete((int) $id);
         redirect('/list');
     }
     public function account(): void

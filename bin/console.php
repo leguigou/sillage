@@ -56,6 +56,19 @@ if ($command === 'company:check') {
     echo 'Société : ' . $company['name'] . PHP_EOL . App\Core\Company::signupHint() . PHP_EOL;
     exit();
 }
+if ($command === 'mcp:tools') {
+    $catalog = App\Mcp\Tools::catalog([
+        'id' => 0,
+        'name' => 'Opérateur CLI',
+        'role' => 'admin',
+        'scopes' => array_keys(App\Models\McpToken::SCOPES),
+    ]);
+    echo json_encode(
+        array_values(array_map(fn($t) => $t['definition'], $catalog)),
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+    ) . PHP_EOL;
+    exit();
+}
 if ($command === 'health') {
     echo 'PHP ' .
         PHP_VERSION .
@@ -73,4 +86,4 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : migrate | seed | key:generate | health | company:check | mail:list | admin:create email | user:role email admin/member/viewer\n";
+echo "Sillage : migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | admin:create email | user:role email admin/member/viewer\n";

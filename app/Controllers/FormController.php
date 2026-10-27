@@ -5,113 +5,32 @@ use App\Core\{Auth, DB, Security, View};
 use App\Models\{Project, Ticket};
 final class FormController
 {
-    public const FIELDS = [
-        'title' => 'Résumé',
-        'description' => 'Description',
-        'priority' => 'Priorité',
-        'due_date' => 'Date souhaitée',
-        'attachment' => 'Pièce jointe',
-    ];
     public function save(): void
     {
         $u = Auth::admin();
-        $pid = (int) ($_POST['project_id'] ?? 0);
-        Project::find($pid);
-        $title = trim((string) ($_POST['title'] ?? ''));
-        if (!$title || mb_strlen($title) > 160) {
-            throw new \InvalidArgumentException('Le titre est requis (160 caractères maximum).');
-        }
-        $type = (string) ($_POST['ticket_type'] ?? 'task');
-        if (!isset(Ticket::TYPES[$type]) || $type === 'subtask') {
-            throw new \InvalidArgumentException(
-                'Type de ticket invalide pour un formulaire externe.',
-            );
-        }
-        $fields = [];
-        $selected = (array) ($_POST['fields'] ?? []);
-        array_unshift($selected, 'title');
-        foreach (array_unique($selected) as $key) {
-            if (isset(self::FIELDS[$key])) {
-                $conditionField = (string) ($_POST['condition_field'][$key] ?? '');
-                if ($conditionField && $conditionField !== 'priority') {
-                    throw new \InvalidArgumentException(
-                        'Seules les conditions sur la priorité sont prises en charge.',
-                    );
-                }
-                if ($conditionField && !in_array('priority', $selected, true)) {
-                    throw new \InvalidArgumentException(
-                        'Ajoutez le champ Priorité avant de l’utiliser dans une condition.',
-                    );
-                }
-                if (
-                    $conditionField &&
-                    !isset(Ticket::PRIORITIES[(string) ($_POST['condition_value'][$key] ?? 'high')])
-                ) {
-                    throw new \InvalidArgumentException('Priorité de condition invalide.');
-                }
-                $fields[] = [
-                    'key' => $key,
-                    'label' => mb_substr(
-                        trim((string) ($_POST['labels'][$key] ?? self::FIELDS[$key])),
-                        0,
-                        120,
-                    ),
-                    'required' =>
-                        $key === 'title' ||
-                        in_array($key, (array) ($_POST['required'] ?? []), true),
-                    'condition' =>
-                        $key === 'title' || !$conditionField
-                            ? null
-                            : [
-                                'field' => 'priority',
-                                'value' => (string) ($_POST['condition_value'][$key] ?? 'high'),
-                            ],
-                ];
-            }
-        }
-        $description = mb_substr(trim((string) ($_POST['description'] ?? '')), 0, 5000);
-        $json = json_encode($fields, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        $id = (int) ($_POST['id'] ?? 0);
-        if ($id) {
-            $old = DB::one('SELECT * FROM public_forms WHERE id=? AND project_id=?', [$id, $pid]);
-            if (!$old) {
-                throw new \InvalidArgumentException('Formulaire introuvable.');
-            }
-            DB::run(
-                'UPDATE public_forms SET title=?,description=?,fields_json=?,ticket_type=? WHERE id=?',
-                [$title, $description, $json, $type, $id],
-            );
-        } else {
-            $token = bin2hex(random_bytes(32));
-            $id = DB::insert(
-                'INSERT INTO public_forms(project_id,title,description,token_hash,fields_json,ticket_type,reporter_id) VALUES(?,?,?,?,?,?,?)',
-                [$pid, $title, $description, hash('sha256', $token), $json, $type, $u['id']],
-            );
-            $_SESSION['new_form_link'] = ['id' => $id, 'url' => url('/f/' . $token)];
+        $input = $_POST;
+        $input['fields'] = (array) ($_POST['fields'] ?? []);
+        $input['required'] = (array) ($_POST['required'] ?? []);
+        $form = \App\Models\PublicForm::save($input, (int) $u['id']);
+        if (isset($form['public_url'])) {
+            $_SESSION['new_form_link'] = ['id' => $form['id'], 'url' => $form['public_url']];
         }
         flash('Formulaire enregistré. Le lien autorise uniquement l’envoi d’une demande.');
-        redirect('/forms?project=' . $pid);
+        redirect('/forms?project=' . $form['project_id']);
     }
     public function toggle(string $id): void
     {
         Auth::admin();
-        DB::run('UPDATE public_forms SET enabled=1-enabled WHERE id=?', [(int) $id]);
+        $form = \App\Models\PublicForm::find((int) $id);
+        \App\Models\PublicForm::enabled((int) $id, !$form['enabled']);
         flash('Disponibilité du formulaire modifiée.');
         redirect('/forms');
     }
     public function rotate(string $id): void
     {
         Auth::admin();
-        $f = DB::one('SELECT * FROM public_forms WHERE id=?', [(int) $id]);
-        if (!$f) {
-            throw new \InvalidArgumentException('Formulaire introuvable.');
-        }
-        $token = bin2hex(random_bytes(32));
-        DB::run('UPDATE public_forms SET token_hash=? WHERE id=?', [
-            hash('sha256', $token),
-            (int) $id,
-        ]);
-        $_SESSION['new_form_link'] = ['id' => $id, 'url' => url('/f/' . $token)];
+        $form = \App\Models\PublicForm::rotate((int) $id);
+        $_SESSION['new_form_link'] = ['id' => $form['id'], 'url' => $form['public_url']];
         flash('Nouveau lien créé. Le précédent ne fonctionne plus.');
         redirect('/forms');
     }

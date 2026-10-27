@@ -4,6 +4,74 @@ namespace App\Models;
 use App\Core\DB;
 final class Project
 {
+    public static function save(array $input, ?int $id = null): int
+    {
+        return DB::transaction(function () use ($input, $id) {
+            if ($id) {
+                DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$id]);
+            }
+            $old = $id ? self::find($id) : null;
+            $name = trim((string) ($input['name'] ?? ($old['name'] ?? '')));
+            $key = strtoupper(trim((string) ($input['key'] ?? ($old['project_key'] ?? ''))));
+            $description = (string) ($input['description'] ?? ($old['description'] ?? ''));
+            $color = (string) ($input['color'] ?? ($old['color'] ?? '#7166eb'));
+            if (
+                !$name ||
+                mb_strlen($name) > 120 ||
+                !preg_match('/^[A-Z][A-Z0-9]{1,9}$/D', $key) ||
+                mb_strlen($description) > 2000 ||
+                !preg_match('/^#[a-f0-9]{6}$/iD', $color)
+            ) {
+                throw new \InvalidArgumentException(
+                    'Nom, clé de 2 à 10 lettres/chiffres, description ou couleur de projet invalide.',
+                );
+            }
+            if ($old && $old['project_key'] !== $key) {
+                throw new \InvalidArgumentException(
+                    'La clé du projet est immuable pour préserver les références de tickets.',
+                );
+            }
+            if (
+                DB::one('SELECT id FROM projects WHERE project_key=? AND id<>?', [$key, $id ?? 0])
+            ) {
+                throw new \InvalidArgumentException('Cette clé de projet existe déjà.');
+            }
+            try {
+                if ($id) {
+                    DB::run('UPDATE projects SET name=?,description=?,color=? WHERE id=?', [
+                        $name,
+                        $description,
+                        $color,
+                        $id,
+                    ]);
+                    return $id;
+                }
+                return DB::insert(
+                    'INSERT INTO projects(name,project_key,description,color) VALUES(?,?,?,?)',
+                    [$name, $key, $description, $color],
+                );
+            } catch (\PDOException $e) {
+                if (($e->errorInfo[1] ?? 0) === 1062) {
+                    throw new \InvalidArgumentException('Cette clé de projet existe déjà.');
+                }
+                throw $e;
+            }
+        });
+    }
+    public static function deleteEmpty(int $id): void
+    {
+        self::find($id);
+        try {
+            DB::run('DELETE FROM projects WHERE id=?', [$id]);
+        } catch (\PDOException $e) {
+            if (($e->errorInfo[1] ?? 0) === 1451) {
+                throw new \InvalidArgumentException(
+                    'Seul un projet sans données associées peut être supprimé.',
+                );
+            }
+            throw $e;
+        }
+    }
     public static function all(): array
     {
         return DB::all('SELECT * FROM projects ORDER BY id');

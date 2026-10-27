@@ -3311,3 +3311,45 @@ label small {
   flex-wrap: wrap;
   margin-bottom: 24px;
 }
+
+.mcp-create {
+  margin: 24px 0;
+  padding: 24px;
+  background: var(--surface-soft);
+  border-radius: 16px;
+}
+.mcp-create fieldset {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.mcp-create .inline-fields {
+  grid-template-columns: 1.4fr 1fr 1fr;
+}
+@media (max-width: 760px) {
+  .mcp-create .inline-fields {
+    grid-template-columns: 1fr;
+  }
+}
+.automation-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.automation-row p {
+  margin: 6px 0;
+}
+.button-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+#automation-editor {
+  scroll-margin-top: 24px;
+}

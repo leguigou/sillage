@@ -10,6 +10,8 @@ use App\Controllers\{
     FormController,
     DevelopmentController,
     TeamController,
+    McpTokenController,
+    AutomationController,
 };
 $r = new Router();
 $auth = new AuthController();
@@ -20,6 +22,13 @@ $transfer = new TransferController();
 $forms = new FormController();
 $dev = new DevelopmentController();
 $teams = new TeamController();
+$mcpTokens = new McpTokenController();
+$automation = new AutomationController();
+$r->add('POST', '/mcp/tokens', [$mcpTokens, 'create'])
+    ->add('POST', '/mcp/tokens/{id}/delete', [$mcpTokens, 'delete'])
+    ->add('POST', '/automation', [$automation, 'save'])
+    ->add('POST', '/automation/{id}/toggle', [$automation, 'toggle'])
+    ->add('POST', '/automation/{id}/delete', [$automation, 'delete']);
 $r->add('POST', '/teams', [$teams, 'save'])
     ->add('POST', '/teams/{id}/members', [$teams, 'membership'])
     ->add('POST', '/teams/{id}/delete', [$teams, 'delete'])
@@ -35,7 +44,7 @@ $r->add('GET', '/verify', [$auth, 'verify'])->add('POST', '/logout', [$auth, 'lo
 $r->add('POST', '/account/password', [$auth, 'changePassword']);
 $r->add('GET', '/', fn() => $work->show('dashboard'));
 foreach (
-    ['list', 'board', 'timeline', 'forms', 'development', 'charts', 'settings', 'all']
+    ['list', 'board', 'timeline', 'forms', 'development', 'charts', 'settings', 'all', 'automation']
     as $section
 ) {
     $r->add('GET', '/' . $section, fn() => $work->show($section));

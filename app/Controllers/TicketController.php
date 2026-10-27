@@ -167,18 +167,7 @@ final class TicketController
         $u = Auth::editor();
         $t = Ticket::find((int) $id);
         $restore = !empty($_POST['restore']);
-        DB::transaction(function () use ($id, $t, $u, $restore) {
-            DB::run(
-                'UPDATE tickets SET archived=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=?',
-                [$restore ? 0 : 1, (int) $id],
-            );
-            Ticket::activity(
-                (int) $t['project_id'],
-                (int) $id,
-                (int) $u['id'],
-                $restore ? 'a restauré le ticket' : 'a archivé le ticket',
-            );
-        });
+        Ticket::archive((int) $id, !$restore, (int) $u['id'], (int) $t['version']);
         flash(
             $restore
                 ? 'Ticket restauré.'
@@ -214,83 +203,24 @@ final class TicketController
     public function comment(string $id): void
     {
         $u = Auth::editor();
-        $t = Ticket::find((int) $id);
-        $body = trim((string) ($_POST['body'] ?? ''));
-        if (!$body || mb_strlen($body) > 10000) {
-            throw new \InvalidArgumentException(
-                'Le commentaire doit contenir entre 1 et 10 000 caractères.',
-            );
-        }
-        DB::run('INSERT INTO comments(ticket_id,user_id,body) VALUES(?,?,?)', [
-            $id,
-            $u['id'],
-            $body,
-        ]);
-        Ticket::activity(
-            (int) $t['project_id'],
-            (int) $id,
-            (int) $u['id'],
-            'a ajouté un commentaire',
-        );
+        Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id']);
         redirect('/tickets/' . (int) $id . '#activity');
     }
     public function link(string $id): void
     {
         $u = Auth::editor();
-        $t = Ticket::find((int) $id);
-        $target = Ticket::find((int) ($_POST['target_id'] ?? 0));
-        $relation = (string) ($_POST['relation'] ?? 'relates');
-        if (
-            $t['project_id'] !== $target['project_id'] ||
-            $t['id'] === $target['id'] ||
-            !in_array($relation, ['relates', 'blocks', 'duplicates'], true)
-        ) {
-            throw new \InvalidArgumentException('Relation invalide.');
-        }
-        if ($relation === 'blocks') {
-            $pending = [$target['id']];
-            $seen = [];
-            while ($pending) {
-                $node = array_pop($pending);
-                if ((int) $node === (int) $id) {
-                    throw new \InvalidArgumentException('Cette dépendance créerait une boucle.');
-                }
-                if (isset($seen[$node])) {
-                    continue;
-                }
-                $seen[$node] = true;
-                foreach (
-                    DB::all(
-                        "SELECT target_id FROM ticket_links WHERE source_id=? AND relation='blocks'",
-                        [$node],
-                    )
-                    as $l
-                ) {
-                    $pending[] = $l['target_id'];
-                }
-            }
-        }
-        DB::run('INSERT IGNORE INTO ticket_links(source_id,target_id,relation) VALUES(?,?,?)', [
-            $id,
-            $target['id'],
-            $relation,
-        ]);
-        Ticket::activity(
-            (int) $t['project_id'],
+        Ticket::link(
             (int) $id,
+            (int) ($_POST['target_id'] ?? 0),
+            (string) ($_POST['relation'] ?? 'relates'),
             (int) $u['id'],
-            'a associé ' . $target['key'],
         );
         redirect('/tickets/' . (int) $id);
     }
     public function unlink(string $id): void
     {
         Auth::editor();
-        $link = DB::one('SELECT * FROM ticket_links WHERE id=?', [(int) $id]);
-        if (!$link) {
-            throw new \InvalidArgumentException('Relation introuvable.');
-        }
-        DB::run('DELETE FROM ticket_links WHERE id=?', [(int) $id]);
-        redirect('/tickets/' . $link['source_id']);
+        $ticket = Ticket::unlink((int) $id);
+        redirect('/tickets/' . $ticket);
     }
 }

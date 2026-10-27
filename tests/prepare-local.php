@@ -48,7 +48,12 @@ if (is_file($configFile)) {
     $environment['APP_KEY'] = json_decode(file_get_contents($configFile), true)['APP_KEY'];
 }
 file_put_contents($configFile, json_encode($environment, JSON_THROW_ON_ERROR));
-$config = file_get_contents($root . '/.runtime/apache-local.conf');
+$config = file_get_contents($root . '/deploy/apache-windows.conf.template');
+$config = str_replace(
+    ['{{ROOT}}', '{{PHP}}'],
+    [str_replace('\\', '/', $root), str_replace('\\', '/', dirname(PHP_BINARY))],
+    $config,
+);
 $config = str_replace(
     ['127.0.0.1:8088', 'apache.pid', 'apache-error.log', 'apache-access.log'],
     ['127.0.0.1:8089', 'apache-test.pid', 'apache-test-error.log', 'apache-test-access.log'],

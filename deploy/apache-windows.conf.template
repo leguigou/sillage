@@ -26,6 +26,7 @@ CustomLog "{{ROOT}}/.runtime/apache-access.log" common
  AllowOverride None
  Require local
  RewriteEngine On
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
  RewriteCond %{REQUEST_FILENAME} !-f
  RewriteRule ^ index.php [QSA,L]
  <FilesMatch "\.php$">

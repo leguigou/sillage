@@ -125,7 +125,7 @@ document.addEventListener('keydown', (e) => {
     $('dialog[open]')
   )
     return;
-  if (e.key === 'c') {
+  if (e.key === 'c' && document.body.dataset.role !== 'viewer' && $('#ticket-dialog')) {
     e.preventDefault();
     openDialog('ticket-dialog');
   }
@@ -186,6 +186,7 @@ async function post(path, values) {
   return data;
 }
 async function quick(row, field, value) {
+  const previousVersion = Number(row.dataset.version);
   const data = await post(`/tickets/${row.dataset.ticketId}/quick`, {
     field,
     value,
@@ -194,6 +195,13 @@ async function quick(row, field, value) {
   $$(`[data-ticket-id="${row.dataset.ticketId}"]`).forEach(
     (r) => (r.dataset.version = data.ticket.version),
   );
+  if (Number(data.ticket.version) > previousVersion + 1) {
+    sessionStorage.setItem(
+      'sillage.notice',
+      'Modification enregistrée et automatisations appliquées.',
+    );
+    location.reload();
+  }
   return data;
 }
 $$('[data-quick-field]').forEach((input) =>
@@ -618,3 +626,12 @@ $$('[data-toggle-children]').forEach((button) =>
     });
   }),
 );
+
+$$('[data-mcp-lifetime]').forEach((select) => {
+  const update = () =>
+    $$('[data-mcp-duration]', select.form).forEach((input) => {
+      input.disabled = select.value === 'unlimited';
+    });
+  select.addEventListener('change', update);
+  update();
+});

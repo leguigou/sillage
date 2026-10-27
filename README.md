@@ -101,6 +101,23 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 - La synchronisation de développement examine la première page de 50 PR. Les webhooks reçus complètent l’historique ; cette vue ne garantit pas la récupération rétroactive de tous les événements.
 - Les connecteurs sont testés au niveau de leurs contrats et signatures avec des fixtures. Aucune connexion réelle à un compte GitHub ou Bitbucket n’est revendiquée sans les jetons du propriétaire.
 
+## MCP et automatisations
+
+Le serveur MCP est disponible à **`/mcp`** avec 45 outils : projets, tickets, commentaires, relations,
+formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
+Les métadonnées des pièces jointes et les événements de développement sont également consultables.
+
+Dans **Paramètres → MCP et clés d’accès**, chaque utilisateur génère une clé personnelle,
+choisit sa durée en minutes/heures/jours ou **Sans expiration**, limite ses droits,
+consulte le dernier accès et peut supprimer la clé. Le secret complet est affiché une seule fois.
+Une clé ne peut jamais disposer de plus de droits que son propriétaire. HTTPS est requis en production.
+
+Le menu **Automatisations** permet de créer, modifier, suspendre ou supprimer des règles par projet,
+avec déclenchement à la création/modification d’un ticket ou au changement d’état, conditions et journal d’exécution.
+Ces règles sont exécutées par les modèles métier, que le ticket provienne du site, d’un formulaire, d’un CSV ou du MCP.
+
+Voir [le guide MCP, ses droits et son catalogue](docs/mcp.md).
+
 ## Structure MVC
 
 ```text

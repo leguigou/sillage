@@ -170,12 +170,18 @@ final class Ticket
                 $reporter,
                 $external ? 'Demande reçue via un formulaire externe' : 'a créé le ticket',
             );
+            Automation::run('ticket.created', $id, $reporter);
             return $id;
         });
     }
-    public static function update(int $id, array $input, int $actor, int $version): void
-    {
-        DB::transaction(function () use ($id, $input, $actor, $version) {
+    public static function update(
+        int $id,
+        array $input,
+        int $actor,
+        int $version,
+        bool $automate = true,
+    ): void {
+        DB::transaction(function () use ($id, $input, $actor, $version, $automate) {
             $old = self::find($id);
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
             $old = self::find($id);
@@ -201,6 +207,147 @@ final class Ticket
                         ? ' · ' . self::STATUSES[$data['status']]
                         : ''),
             );
+            if ($automate) {
+                Automation::run('ticket.updated', $id, $actor, $old['status'] !== $data['status']);
+            }
         });
+    }
+    public static function patch(
+        int $id,
+        array $changes,
+        int $actor,
+        int $version,
+        bool $automate = true,
+    ): void {
+        $old = self::find($id);
+        $allowed = [
+            'title',
+            'description',
+            'type',
+            'status',
+            'priority',
+            'assignee_id',
+            'parent_id',
+            'labels',
+            'start_date',
+            'due_date',
+            'flagged',
+            'estimated_hours',
+        ];
+        if (!$changes || array_diff(array_keys($changes), $allowed)) {
+            throw new \InvalidArgumentException('Champs de modification invalides.');
+        }
+        self::update(
+            $id,
+            array_replace($old, ['labels' => $old['labels_array']], $changes),
+            $actor,
+            $version,
+            $automate,
+        );
+    }
+    public static function archive(int $id, bool $archived, int $actor, int $version): void
+    {
+        DB::transaction(function () use ($id, $archived, $actor, $version) {
+            $t = self::find($id);
+            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$t['project_id']]);
+            if (
+                !DB::run(
+                    'UPDATE tickets SET archived=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=? AND version=?',
+                    [(int) $archived, $id, $version],
+                )->rowCount()
+            ) {
+                throw new \InvalidArgumentException('Version du ticket obsolète.');
+            }
+            self::activity(
+                (int) $t['project_id'],
+                $id,
+                $actor,
+                $archived ? 'a archivé le ticket' : 'a restauré le ticket',
+            );
+        });
+    }
+    public static function comment(int $id, string $body, int $actor): int
+    {
+        return DB::transaction(function () use ($id, $body, $actor) {
+            $t = Ticket::find((int) $id);
+            $body = trim($body);
+            if (!$body || mb_strlen($body) > 10000) {
+                throw new \InvalidArgumentException(
+                    'Le commentaire doit contenir entre 1 et 10 000 caractères.',
+                );
+            }
+            $comment = DB::insert('INSERT INTO comments(ticket_id,user_id,body) VALUES(?,?,?)', [
+                $id,
+                $actor,
+                $body,
+            ]);
+            Ticket::activity(
+                (int) $t['project_id'],
+                (int) $id,
+                (int) $actor,
+                'a ajouté un commentaire',
+            );
+            return $comment;
+        });
+    }
+    public static function link(int $id, int $targetId, string $relation, int $actor): void
+    {
+        DB::transaction(function () use ($id, $targetId, $relation, $actor) {
+            $t = Ticket::find((int) $id);
+            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$t['project_id']]);
+            $target = Ticket::find($targetId);
+            if (
+                $t['project_id'] !== $target['project_id'] ||
+                $t['id'] === $target['id'] ||
+                !in_array($relation, ['relates', 'blocks', 'duplicates'], true)
+            ) {
+                throw new \InvalidArgumentException('Relation invalide.');
+            }
+            if ($relation === 'blocks') {
+                $pending = [$target['id']];
+                $seen = [];
+                while ($pending) {
+                    $node = array_pop($pending);
+                    if ((int) $node === (int) $id) {
+                        throw new \InvalidArgumentException(
+                            'Cette dépendance créerait une boucle.',
+                        );
+                    }
+                    if (isset($seen[$node])) {
+                        continue;
+                    }
+                    $seen[$node] = true;
+                    foreach (
+                        DB::all(
+                            "SELECT target_id FROM ticket_links WHERE source_id=? AND relation='blocks'",
+                            [$node],
+                        )
+                        as $l
+                    ) {
+                        $pending[] = $l['target_id'];
+                    }
+                }
+            }
+            DB::run('INSERT IGNORE INTO ticket_links(source_id,target_id,relation) VALUES(?,?,?)', [
+                $id,
+                $target['id'],
+                $relation,
+            ]);
+            Ticket::activity(
+                (int) $t['project_id'],
+                (int) $id,
+                (int) $actor,
+                'a associé ' . $target['key'],
+            );
+        });
+    }
+    public static function unlink(int $id): int
+    {
+        $link = DB::one('SELECT * FROM ticket_links WHERE id=?', [$id]);
+        if (!$link) {
+            throw new \InvalidArgumentException('Relation introuvable.');
+        }
+        DB::run('DELETE FROM ticket_links WHERE id=?', [$id]);
+        return (int) $link['source_id'];
     }
 }
