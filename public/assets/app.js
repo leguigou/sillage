@@ -11,7 +11,24 @@ function syncSidebar() {
   sidebar.inert = closed;
   button?.setAttribute('aria-expanded', closed ? 'false' : 'true');
 }
+function syncSidebarToggle() {
+  const button = $('[data-sidebar-toggle]');
+  if (!button) return;
+  const collapsed = document.documentElement.dataset.sidebarCollapsed === 'true';
+  button.setAttribute('aria-expanded', String(!collapsed));
+  button.setAttribute('aria-label', collapsed ? 'Déplier le menu' : 'Replier le menu');
+  button.title = collapsed ? 'Déplier le menu' : 'Replier le menu';
+}
+$('[data-sidebar-toggle]')?.addEventListener('click', () => {
+  const collapsed = document.documentElement.dataset.sidebarCollapsed !== 'true';
+  document.documentElement.dataset.sidebarCollapsed = String(collapsed);
+  document.cookie = `sillage_sidebar_collapsed=${collapsed}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+  try { localStorage.setItem('sillage.sidebar.collapsed', String(collapsed)); } catch {}
+  syncSidebarToggle();
+  drawDependencies();
+});
 syncSidebar();
+syncSidebarToggle();
 window.addEventListener('resize', syncSidebar);
 if (document.body.dataset.role === 'viewer') {
   $$('[data-quick-field],[data-edit-field],[data-create-status],[data-schedule-ticket]').forEach(
