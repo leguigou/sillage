@@ -124,6 +124,10 @@ final class Ticket
                 'Le temps estimé doit être compris entre 0 et 999 999,99 heures, avec deux décimales maximum.',
             );
         }
+        $progress = $input['progress_percent'] ?? 0;
+        if ((!is_int($progress) && !is_string($progress)) || !preg_match('/^(?:100|[1-9]?[0-9])$/D', (string) $progress)) {
+            throw new \InvalidArgumentException('L’avancement doit être un nombre entier entre 0 et 100 %.');
+        }
         return [
             'title' => $title,
             'description' => $desc,
@@ -137,6 +141,7 @@ final class Ticket
             'due_date' => $due,
             'flagged' => !empty($input['flagged']) ? 1 : 0,
             'estimated_hours' => $hours === '' ? null : $hours,
+            'progress_percent' => (int) $progress,
         ];
     }
     public static function create(
@@ -153,7 +158,7 @@ final class Ticket
             }
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
-                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 [
                     $project,
                     $p['next_number'],
@@ -233,6 +238,7 @@ final class Ticket
             'due_date',
             'flagged',
             'estimated_hours',
+            'progress_percent',
         ];
         if (!$changes || array_diff(array_keys($changes), $allowed)) {
             throw new \InvalidArgumentException('Champs de modification invalides.');
@@ -266,20 +272,27 @@ final class Ticket
             );
         });
     }
-    public static function comment(int $id, string $body, int $actor): int
+    public static function comment(int $id, string $body, int $actor, string $format = 'text'): int
     {
-        return DB::transaction(function () use ($id, $body, $actor) {
+        return DB::transaction(function () use ($id, $body, $actor, $format) {
             $t = Ticket::find((int) $id);
             $body = trim($body);
-            if (!$body || mb_strlen($body) > 10000) {
+            if (!in_array($format, ['text', 'html'], true)) {
+                throw new \InvalidArgumentException('Format de commentaire invalide.');
+            }
+            if ($format === 'html') {
+                $body = \App\Services\Conversation::clean($body, $id);
+            }
+            if (!$body || ($format === 'text' && mb_strlen($body) > 10000)) {
                 throw new \InvalidArgumentException(
                     'Le commentaire doit contenir entre 1 et 10 000 caractères.',
                 );
             }
-            $comment = DB::insert('INSERT INTO comments(ticket_id,user_id,body) VALUES(?,?,?)', [
+            $comment = DB::insert('INSERT INTO comments(ticket_id,user_id,body,body_format) VALUES(?,?,?,?)', [
                 $id,
                 $actor,
                 $body,
+                $format,
             ]);
             Ticket::activity(
                 (int) $t['project_id'],

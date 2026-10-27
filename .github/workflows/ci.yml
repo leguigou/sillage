@@ -43,8 +43,8 @@ jobs:
       - name: Installer les extensions de test
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends libonig-dev libcurl4-openssl-dev python3 python3-venv
-          docker-php-ext-install pdo_mysql mbstring curl
+          apt-get install -y --no-install-recommends libxml2-dev libonig-dev libcurl4-openssl-dev python3 python3-venv
+          docker-php-ext-install pdo_mysql mbstring curl dom
           python3 -m venv /tmp/sillage-mcp-sdk
           /tmp/sillage-mcp-sdk/bin/pip install -r tests/requirements-mcp.txt
       - name: Vérifier la syntaxe PHP

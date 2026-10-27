@@ -42,6 +42,7 @@ final class TransferController
                     'start_date',
                     'due_date',
                     'estimated_hours',
+                    'progress_percent',
                     'labels',
                 ],
                 ',',
@@ -65,6 +66,7 @@ final class TransferController
                     'start_date' => $t['start_date'],
                     'due_date' => $t['due_date'],
                     'estimated_hours' => $t['estimated_hours'],
+                    'progress_percent' => $t['progress_percent'],
                     'labels' => implode(', ', $t['labels_array']),
                 ];
                 if ($format === 'csv') {
@@ -135,6 +137,7 @@ final class TransferController
                     'start_date',
                     'due_date',
                     'estimated_hours',
+                    'progress_percent',
                     'labels',
                 ]
                 as $field

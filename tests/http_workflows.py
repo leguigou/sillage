@@ -37,6 +37,7 @@ attachment=re.search(r'href="/attachments/(\d+)"',body); check(status==200 and a
 check(call('/attachments/'+attachment.group(1))[1]=='A safe local test attachment','attachment downloaded through authenticated controller')
 status,body,_=upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf,'_return':'/tickets/'+ticket_id},'file','page.html',b'<html><body>Test only</body></html>','text/html')
 check(status==200 and 'Type de fichier non autorisé' in body,'active HTML attachment rejected')
+exec((__import__('pathlib').Path(__file__).parent/'http_ticket_conversation.py').read_text(encoding='utf-8'))
 csv_marker='CSV-'+marker
 csv_content=('title,description,type,status,priority,start_date,due_date,estimated_hours,labels\n'+csv_marker+',Import QA,task,todo,medium,2026-10-26,2026-11-04,4.75,import\n').encode()
 status,body,_=upload('/import/preview',{'_csrf':csrf,'project_id':pid},'csv','tickets.csv',csv_content,'text/csv')

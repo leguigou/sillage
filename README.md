@@ -161,7 +161,7 @@ Les données MySQL et les fichiers utilisent des volumes persistants. Ne pas ex�
 
 Le workflow `.github/workflows/ci.yml` vérifie PHP et les parcours HTTP avec MySQL 8.4. Le workflow **Déployer Sillage** est manuel, attend les vérifications et utilise l’environnement GitHub `production`.
 
-Préparer un serveur Linux avec Apache 2.4 + PHP 8.3 minimum (8.5 conseillé), `pdo_mysql`, `mbstring`, `curl`, `openssl`, `fileinfo`, et MySQL 8.4. Installer le client `mysqldump` pour les sauvegardes. Pointer Apache **uniquement vers `public/`**, jamais vers la racine du dépôt. Un exemple est fourni dans `deploy/apache-vhost.conf` ; configurer HTTPS auprès de l’hébergeur.
+Préparer un serveur Linux avec Apache 2.4 + PHP 8.3 minimum (8.5 conseillé), `pdo_mysql`, `mbstring`, `curl`, `openssl`, `fileinfo`, `dom`, et MySQL 8.4. Installer le client `mysqldump` pour les sauvegardes. Pointer Apache **uniquement vers `public/`**, jamais vers la racine du dépôt. Un exemple est fourni dans `deploy/apache-vhost.conf` ; configurer HTTPS auprès de l’hébergeur.
 
 ```text
 /var/www/sillage/
@@ -210,3 +210,10 @@ python tests/http_workflows.py
 ```
 
 Les fixtures contiennent des identifiants connus **uniquement dans la base de test**. Elles ne doivent pas être installées dans la base applicative. Le détail des validations et des limites est dans [docs/validation.md](docs/validation.md).
+
+
+La fiche ticket propose un avancement manuel entier de 0 à 100 %, indépendant de son état (`progress_percent` dans le MCP et les imports/exports). Les tickets existants démarrent à 0 % ; aucune estimation historique n’est déduite de leur état.
+
+La conversation dispose d’un éditeur avec gras, italique, souligné, listes et liens HTTP(S). Ctrl+V charge les images dans les pièces jointes privées et les insère à la position du curseur ; envoyez ensuite le commentaire pour publier son contenu. L’éditeur accepte uniquement le texte des collages provenant d’autres pages. Le serveur reconstruit une liste limitée de balises, retire scripts, styles et attributs actifs, et n’autorise que les images jointes au même ticket. Les anciens commentaires restent du texte brut. Le MCP accepte `body_format: "html"` en option pour `tickets_comment`, avec le même traitement.
+
+La zone de dépôt accepte jusqu’à 20 fichiers par envoi, avec retrait individuel avant envoi. Le bouton apparaît uniquement lorsque la sélection contient des fichiers. En cas de rejet partiel, seuls les fichiers en erreur restent en attente. Les membres autorisés à modifier les tickets peuvent supprimer définitivement une pièce jointe après confirmation ; son image disparaît aussi des conversations. L’archivage du ticket demande une confirmation et reste réversible depuis sa fiche.

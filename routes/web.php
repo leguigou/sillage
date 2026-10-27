@@ -66,6 +66,8 @@ $r->add('POST', '/tickets/{id}/move', [$tickets, 'move']);
 $r->add('POST', '/tickets/{id}/comments', [$tickets, 'comment'])
     ->add('POST', '/tickets/{id}/links', [$tickets, 'link'])
     ->add('POST', '/links/{id}/delete', [$tickets, 'unlink']);
+$r->add('POST', '/attachments/{id}/delete', [$files, 'delete']);
+$r->add('GET', '/attachments/{id}/preview', [$files, 'preview']);
 $r->add('POST', '/tickets/{id}/attachments', [$files, 'upload'])->add('GET', '/attachments/{id}', [
     $files,
     'download',

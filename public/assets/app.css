@@ -3495,3 +3495,17 @@ label small {
   color: var(--subtle);
   margin: 0;
 }
+
+/* Ticket conversation and private attachments */
+.button.danger-outline{color:var(--danger,#e35c64);border:1px solid var(--danger,#e35c64);background:transparent;width:100%}
+.button.danger-outline:hover{background:transparent;filter:brightness(1.15)}
+.attachment-row{display:flex;align-items:center;gap:8px;min-width:0}.attachment-row .attachment{flex:1;min-width:0;overflow-wrap:anywhere}.attachment-row form{flex:none}
+.file-dropzone{border:1px dashed var(--line);border-radius:14px;padding:18px 12px;text-align:center;cursor:pointer;position:relative;transition:border-color .15s,background .15s}
+.file-dropzone span{font-size:12px;opacity:.65}.file-dropzone input{font-size:11px;max-width:100%;margin-top:10px;cursor:pointer}.file-dropzone.drag-over,.file-dropzone:focus-within{border-color:var(--accent);background:var(--accent-soft)}
+.pending-files{list-style:none;margin:0;padding:0}.pending-files li{display:flex;gap:8px;align-items:center;font-size:12px;padding:8px 0;border-bottom:1px solid var(--line)}.pending-files li span{flex:1;overflow-wrap:anywhere;min-width:0}
+[data-upload-status]:empty,.upload-status:empty{display:none}[data-upload-status],.upload-status{font-size:12px;overflow-wrap:anywhere;margin:0}
+.rich-composer{display:grid;gap:10px}.editor-toolbar,.conversation-editor{display:none}.enhanced .editor-toolbar{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.editor-toolbar button{background:transparent;border:1px solid transparent;border-radius:7px;color:inherit;min-width:30px;min-height:30px;padding:4px 8px;cursor:pointer}.editor-toolbar button:hover{border-color:var(--line);background:var(--surface-soft)}
+.enhanced .conversation-editor{display:block;border:1px solid var(--line);border-radius:12px;padding:14px;min-height:140px;max-height:420px;overflow-y:auto;overflow-wrap:anywhere;line-height:1.65;outline:none}.conversation-editor:focus{border-color:var(--accent)}.conversation-editor:empty::before{content:attr(data-placeholder);opacity:.5;pointer-events:none}
+.conversation-editor img,.conversation-content img{max-width:100%;max-height:360px;object-fit:contain;border-radius:10px;display:block;margin:10px 0}.conversation-content{overflow-wrap:anywhere;line-height:1.65}.conversation-content p{margin:8px 0}.conversation-content ul,.conversation-content ol,.conversation-editor ul,.conversation-editor ol{padding-left:24px}.conversation-content a{color:var(--accent);text-decoration:underline}.conversation-content pre{white-space:pre-wrap}.conversation-content blockquote{border-left:3px solid var(--line);padding-left:12px;margin-left:0}
+.ticket-progress{width:100%;height:8px;accent-color:var(--accent)}

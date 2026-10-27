@@ -44,12 +44,14 @@ def mail_for(email):
 def passed_count():
     return passed
 
-def upload(path,fields,field,filename,content,mime):
+def upload(path,fields,field,filename,content,mime,extra_files=None,json_accept=False):
     boundary='sillage-'+uuid.uuid4().hex; parts=[]
     for key,value in fields.items(): parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+key+'"\r\n\r\n'+str(value)+'\r\n').encode())
     parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+field+'"; filename="'+filename+'"\r\nContent-Type: '+mime+'\r\n\r\n').encode()+content+b'\r\n')
+    for extra_name,extra_content,extra_mime in extra_files or []:
+        parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+field+'"; filename="'+extra_name+'"\r\nContent-Type: '+extra_mime+'\r\n\r\n').encode()+extra_content+b'\r\n')
     parts.append(('--'+boundary+'--\r\n').encode())
-    request=urllib.request.Request(BASE+path,data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary})
+    request=urllib.request.Request(BASE+path,data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary,'Accept':'application/json' if json_accept else 'text/html'})
     try:
         with client.open(request,timeout=20) as response: return response.status,response.read().decode(),response.url
     except urllib.error.HTTPError as error: return error.code,error.read().decode(),error.url

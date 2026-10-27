@@ -94,6 +94,7 @@ final class TicketController
                     'start_date',
                     'flagged',
                     'estimated_hours',
+                    'progress_percent',
                 ],
                 true,
             )
@@ -203,7 +204,7 @@ final class TicketController
     public function comment(string $id): void
     {
         $u = Auth::editor();
-        Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id']);
+        Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'));
         redirect('/tickets/' . (int) $id . '#activity');
     }
     public function link(string $id): void

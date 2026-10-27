@@ -1,6 +1,6 @@
 FROM php:8.5-apache
-RUN apt-get update && apt-get install -y --no-install-recommends libonig-dev libcurl4-openssl-dev default-mysql-client python3 ca-certificates \
-    && docker-php-ext-install pdo_mysql mbstring curl \
+RUN apt-get update && apt-get install -y --no-install-recommends libxml2-dev libonig-dev libcurl4-openssl-dev default-mysql-client python3 ca-certificates \
+    && docker-php-ext-install pdo_mysql mbstring curl dom \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public

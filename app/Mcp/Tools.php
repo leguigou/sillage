@@ -90,6 +90,7 @@ final class Tools
             'start_date' => ['type' => ['string', 'null'], 'maxLength' => 10],
             'due_date' => ['type' => ['string', 'null'], 'maxLength' => 10],
             'flagged' => $bool,
+            'progress_percent' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
             'estimated_hours' => [
                 'type' => ['string', 'number', 'null'],
                 'maxLength' => 9,
@@ -252,8 +253,8 @@ final class Tools
             'tickets_comment',
             'Ajouter un commentaire interne au ticket.',
             'write',
-            $obj(['id' => $id, 'body' => $str(10000)], ['id', 'body']),
-            fn($a) => ['id' => Ticket::comment($a['id'], $a['body'], (int) $user['id'])],
+            $obj(['id' => $id, 'body' => $str(100000), 'body_format' => $enum(['text','html'])], ['id', 'body']),
+            fn($a) => ['id' => Ticket::comment($a['id'], $a['body'], (int) $user['id'], $a['body_format'] ?? 'text')],
         );
         $add(
             'tickets_comments_list',
@@ -269,7 +270,7 @@ final class Tools
                         $a['id'],
                     ])['n'],
                     'comments' => DB::all(
-                        'SELECT c.id,c.body,c.created_at,u.name FROM comments c JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id LIMIT ' .
+                        'SELECT c.id,c.body,c.body_format,c.created_at,u.name FROM comments c JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,
