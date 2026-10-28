@@ -1,4 +1,5 @@
-FROM php:8.5-apache
+# PHP 8.4 : sur 8.5 l'extension dom exige les en-têtes Lexbor absents de l'image officielle.
+FROM php:8.4-apache
 RUN apt-get update && apt-get install -y --no-install-recommends libxml2-dev libonig-dev libcurl4-openssl-dev default-mysql-client python3 ca-certificates \
     && docker-php-ext-install pdo_mysql mbstring curl dom \
     && a2enmod rewrite headers \

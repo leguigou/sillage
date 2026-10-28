@@ -9,7 +9,7 @@ permissions:
 jobs:
   php-mysql:
     runs-on: ubuntu-latest
-    container: php:8.5-cli
+    container: php:8.4-cli
     services:
       mysql:
         image: mysql:8.4
