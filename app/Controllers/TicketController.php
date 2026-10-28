@@ -172,6 +172,14 @@ final class TicketController
         });
         json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
     }
+    public function pause(string $id): void
+    {
+        $user=Auth::editor();$action=$_POST['action']??'';
+        if (!in_array($action,['pause','resume'],true)) throw new \InvalidArgumentException('Action de pause invalide.');
+        Ticket::setPaused((int)$id,$action==='pause',(int)$user['id'],(int)($_POST['version']??0));
+        flash($action==='pause'?'Ticket mis en pause. Il est masqué des vues actives.':'Le ticket a repris son état précédent.');
+        redirect(ticket_url((int)$id));
+    }
     public function archive(string $id): void
     {
         $u = Auth::editor();

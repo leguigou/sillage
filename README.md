@@ -107,7 +107,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 
 ## MCP et automatisations
 
-Le serveur MCP est disponible à **`/mcp`** avec 49 outils : projets, tickets, commentaires, relations,
+Le serveur MCP est disponible à **`/mcp`** avec 50 outils : projets, tickets, commentaires, relations,
 formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
 Les métadonnées des pièces jointes et les événements de développement sont également consultables.
 
@@ -251,3 +251,5 @@ La connexion web est désormais mémorisée pendant **30 jours** grâce à un co
 La fiche ticket s’ouvre en lecture : message initial et suivi des commentaires sont visibles ensemble, les attributs restent dans la colonne droite. Un en-tête compact conserve les boutons Commenter, Modifier et Copier le lien. Commenter ouvre directement l’éditeur enrichi dans une fenêtre, sans défiler dans le fil ; fermer puis rouvrir conserve le brouillon tant que la page reste ouverte. Le développement est accessible dans un onglet distinct. Les liens directs vers les commentaires, pièces jointes et éléments Git restent utilisables.
 
 Le retour depuis une fiche ticket conserve la vue d’origine (chronologie, liste, tableau…), le projet, les filtres et la période. Les liens entre tickets et les sauvegardes conservent ce contexte. Le navigateur mémorise par onglet les positions de page et des panneaux défilants ; le retour à la chronologie restitue aussi ses défilements horizontal et vertical. Un ticket ouvert directement propose la liste de son projet.
+
+« Bloqué » signale un obstacle sans retirer le ticket du travail actif : un badge orange avec drapeau apparaît dans la fiche, la liste, le tableau et la chronologie. « En pause » est un état distinct, pour remettre à plus tard. Le bouton de la fiche met en pause ou reprend l’état précédent, en conservant les autres informations. Les pauses sont masquées des vues de travail par défaut ; le raccourci En pause et le filtre dédié permettent de les retrouver ou de les inclure. La migration 016 ajoute la mémoire de l’état précédent ; les tickets existants gardent leur état.

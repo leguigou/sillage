@@ -184,6 +184,7 @@ final class Tools
             'assignee' => ['type' => ['string', 'integer']],
             'team' => ['type'=>['string','integer']],
             'hide_done' => $bool,
+            'pause' => $enum(['active','only','all']),
             'flagged' => $bool,
             'label' => $str(40),
             'sort' => $enum([
@@ -204,7 +205,7 @@ final class Tools
         ]);
         $add(
             'tickets_list',
-            'Rechercher les tickets par projet ou dans toute l’installation, filtres simples ou JQL partiel. Les descriptions se lisent avec tickets_get.',
+            'Rechercher les tickets par projet ou dans toute l’installation. Les pauses sont masquées par défaut ; utiliser filters.pause=only ou all pour les retrouver. Les descriptions se lisent avec tickets_get.',
             'read',
             $obj(['project_id' => $id, 'filters' => $filters] + $page),
             function ($a) {
@@ -256,6 +257,16 @@ final class Tools
             $obj(['id' => $id, 'version' => $id, 'fields' => $patch], ['id', 'version', 'fields']),
             function ($a) use ($user) {
                 Ticket::patch($a['id'], $a['fields'], (int) $user['id'], $a['version']);
+                return Ticket::find($a['id']);
+            },
+        );
+        $add(
+            'tickets_pause',
+            'Mettre en pause un ticket (masqué des vues actives) ou reprendre son état précédent, sans modifier les autres champs.',
+            'write',
+            $obj(['id'=>$id,'version'=>$id,'paused'=>$bool],['id','version','paused']),
+            function($a) use($user) {
+                Ticket::setPaused($a['id'],$a['paused'],(int)$user['id'],$a['version']);
                 return Ticket::find($a['id']);
             },
         );

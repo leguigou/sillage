@@ -7,6 +7,7 @@ final class Filter
     private array $tokens = [];
     private int $pos = 0;
     private int $depth = 0;
+    private bool $mentionsPaused = false;
     public const FIELDS = [
         'title' => 't.title',
         'status' => 't.status',
@@ -95,12 +96,40 @@ final class Filter
             $sql[] = 't.due_date<=?';
             $params[] = \App\Core\Security::date($input['due_before']);
         }
+        $jqlPaused=false;
         if (!empty($input['jql'])) {
-            [$extra, $args] = (new self())->parse((string) $input['jql']);
+            $parser=new self();
+            [$extra, $args] = $parser->parse((string) $input['jql']);
+            $jqlPaused=$parser->mentionsPaused;
             $sql[] = $extra;
             array_push($params, ...$args);
         }
+        $pause=self::resolvePauseMode($input,$jqlPaused);
+        if ($pause==='only') $sql[]="t.status='paused'";
+        elseif ($pause==='active') $sql[]="t.status<>'paused'";
         return [implode(' AND ', $sql), $params];
+    }
+    private static function resolvePauseMode(array $input,bool $jqlPaused): string
+    {
+        $mode=$input['pause']??'';
+        if (!is_string($mode) || !in_array($mode,['','active','only','all'],true)) throw new \InvalidArgumentException('Filtre de pause invalide.');
+        if ($mode!=='') return $mode;
+        $status=$input['status']??[];
+        if (!is_array($status)) $status=explode(',',(string)$status);
+        return in_array('paused',$status,true)||$jqlPaused?'all':'active';
+    }
+    public static function pauseMode(array $input): string
+    {
+        $parser=new self();
+        if (!empty($input['jql'])) $parser->parse((string)$input['jql']);
+        return self::resolvePauseMode($input,$parser->mentionsPaused);
+    }
+    public static function visibleStatuses(array $input): array
+    {
+        $statuses=Ticket::STATUSES;$mode=self::pauseMode($input);
+        if ($mode==='active') unset($statuses['paused']);
+        elseif ($mode==='only') $statuses=['paused'=>$statuses['paused']];
+        return $statuses;
     }
     public function parse(string $query): array
     {
@@ -110,6 +139,7 @@ final class Filter
         $this->tokens = [];
         $this->pos = 0;
         $this->depth = 0;
+        $this->mentionsPaused = false;
         $offset = 0;
         while ($offset < strlen($query)) {
             if (
@@ -255,7 +285,8 @@ final class Filter
             default => [],
         };
         foreach ($options as $key => $label) {
-            if (mb_strtolower($raw) === mb_strtolower($label) || $raw === $key) {
+            if (mb_strtolower($raw) === mb_strtolower($label) || mb_strtolower($raw) === $key) {
+                if ($field==='status' && $key==='paused') $this->mentionsPaused=true;
                 return $key;
             }
         }

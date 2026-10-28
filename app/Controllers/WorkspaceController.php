@@ -127,7 +127,7 @@ final class WorkspaceController
         }
         [$where, $args] = Filter::where($pid, $filters);
         $kpis = DB::one(
-            "SELECT SUM(t.completed_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) completed,SUM(t.created_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) created,SUM(t.updated_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) updated,SUM(t.status<>'done' AND t.due_date BETWEEN UTC_DATE() AND UTC_DATE()+INTERVAL 7 DAY) upcoming,SUM(t.status<>'done' AND t.due_date<UTC_DATE()) overdue" .
+            "SELECT SUM(t.completed_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) completed,SUM(t.created_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) created,SUM(t.updated_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) updated,SUM(t.status NOT IN ('done','paused') AND t.due_date BETWEEN UTC_DATE() AND UTC_DATE()+INTERVAL 7 DAY) upcoming,SUM(t.status NOT IN ('done','paused') AND t.due_date<UTC_DATE()) overdue" .
                 Query::JOIN .
                 "WHERE $where",
             $args,

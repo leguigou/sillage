@@ -37,3 +37,5 @@ function icon(string $name, string $class=''): string {
     return '<svg class="icon '.e($class).'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'.($paths[$name]??$paths['grid']).'</svg>';
 }
 function avatar(?string $name, string $extra='', ?int $userId=null): string { $image=\App\Models\UserAvatar::url($userId); $parts=preg_split('/\s+/u',trim($name??'')); $initials=$name?mb_substr($parts[0],0,1).(count($parts)>1?mb_substr(end($parts),0,1):''):'–'; return '<span class="avatar '.e($extra).'" title="'.e($name??'Non assigné').'">'.($image?'<img class="avatar-image" src="'.e($image).'" alt="'.e($name).'">':e($initials)).'</span>'; }
+
+function blocked_badge(bool $blocked): string { return $blocked?'<span class="blocked-badge" title="Un obstacle empêche d’avancer sur ce ticket">'.icon('flag').'<span>Bloqué</span></span>':''; }

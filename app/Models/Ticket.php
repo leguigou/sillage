@@ -9,6 +9,7 @@ final class Ticket
         'progress' => 'En cours',
         'review' => 'En revue',
         'done' => 'Terminé',
+        'paused' => 'En pause',
     ];
     public const TYPES = [
         'task' => 'Tâche',
@@ -177,6 +178,7 @@ final class Ticket
                     $data['status'] === 'done' ? gmdate('Y-m-d H:i:s') : null,
                 ],
             );
+            if ($data['status']==='paused') DB::run('UPDATE tickets SET paused_from_status=? WHERE id=?',['todo',$id]);
             self::activity(
                 $project,
                 $id,
@@ -200,12 +202,13 @@ final class Ticket
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
             $old = self::find($id);
             $data = self::validate(array_replace(['team_id'=>$old['team_id']],$input), (int) $old['project_id'], $id);
+            $resume=$data['status']==='paused'?($old['status']==='paused'?($old['paused_from_status']??'todo'):$old['status']):null;
             $completed =
                 $data['status'] === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
             $set = implode(',', array_map(fn($k) => "$k=?", array_keys($data)));
             $s = DB::run(
-                "UPDATE tickets SET $set,completed_at=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=? AND version=?",
-                [...array_values($data), $completed, $id, $version],
+                "UPDATE tickets SET $set,completed_at=?,paused_from_status=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=? AND version=?",
+                [...array_values($data), $completed, $resume, $id, $version],
             );
             if ($s->rowCount() !== 1) {
                 throw new \InvalidArgumentException(
@@ -261,6 +264,20 @@ final class Ticket
             $version,
             $automate,
         );
+    }
+    public static function setPaused(int $id,bool $paused,int $actor,int $version): void
+    {
+        DB::transaction(function() use($id,$paused,$actor,$version) {
+            $ticket=self::find($id);
+            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$ticket['project_id']]);
+            $ticket=self::find($id);
+            if ((int)$ticket['version']!==$version) throw new \InvalidArgumentException('Ce ticket a changé. Rechargez-le avant de modifier sa pause.');
+            if ($ticket['archived']) throw new \InvalidArgumentException('Restaurez le ticket archivé avant de modifier sa pause.');
+            if (($ticket['status']==='paused')===$paused) return;
+            $status=$paused?'paused':($ticket['paused_from_status']??'todo');
+            if (!isset(self::STATUSES[$status]) || (!$paused && $status==='paused')) $status='todo';
+            self::patch($id,['status'=>$status],$actor,$version);
+        });
     }
     public static function archive(int $id, bool $archived, int $actor, int $version): void
     {

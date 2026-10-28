@@ -84,6 +84,7 @@ $r->add('GET', '/tickets/{id}', [$tickets, 'show'])
 $r->add('POST', '/tickets/{id}/quick', [$tickets, 'quick'])
     ->add('POST', '/tickets/{id}/archive', [$tickets, 'archive'])
     ->add('POST', '/bulk', [$tickets, 'bulk']);
+$r->add('POST','/tickets/{id}/pause',[$tickets,'pause']);
 $r->add('POST', '/tickets/{id}/schedule', [$tickets, 'schedule']);
 $r->add('POST', '/tickets/{id}/move', [$tickets, 'move']);
 $r->add('POST', '/tickets/{id}/comments', [$tickets, 'comment'])

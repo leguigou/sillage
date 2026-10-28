@@ -40,6 +40,7 @@ try:
     viewer_csrf,_=get_token('/login')
     _, viewer_html,_=call('/login',{'_csrf':viewer_csrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'})
     viewer_csrf=token(viewer_html)
+    viewer_client=http_support.client
     check(call('/attachments/'+str(batch['files'][0]['id'])+'/delete',{'_csrf':viewer_csrf},True)[0]==403,'read-only member cannot delete attachments')
 finally:
     http_support.client=saved_client

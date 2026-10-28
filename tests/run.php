@@ -18,6 +18,8 @@ if (env('DB_DATABASE') !== 'sillage_test') {
 Migrator::run();
 if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM rate_limits');
+    // Remove previous synthetic Git events so bounded development pages test only this run.
+    DB::run('DELETE FROM development_events');
     DB::run('DELETE FROM llm_profiles');
     DB::run('DELETE FROM notification_outbox');
     DB::run('DELETE FROM project_email_settings');
@@ -395,6 +397,7 @@ try {
     require __DIR__ . '/notifications.php';
     require __DIR__ . '/persistent_login.php';
     require __DIR__ . '/oauth.php';
+    require __DIR__ . '/paused_tickets.php';
 } finally {
     DB::connection()->rollBack();
 }

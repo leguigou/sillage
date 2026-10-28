@@ -68,7 +68,7 @@ php -c .runtime/php-config/php.ini bin/console.php mcp:tools
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Espace et dashboard             | `workspace_info`, `reports_summary`                                                                                                |
 | Projets                         | `projects_list`, `projects_create`, `projects_update`, `projects_delete_empty`                                                     |
-| Tickets                         | `tickets_list`, `tickets_get`, `tickets_create`, `tickets_update`, `tickets_archive`, `tickets_bulk_update`                        |
+| Tickets                         | `tickets_list`, `tickets_get`, `tickets_create`, `tickets_update`, `tickets_pause`, `tickets_archive`, `tickets_bulk_update`                        |
 | Commentaires et relations       | `tickets_comment`, `tickets_comments_list`, `tickets_link`, `tickets_links_list`, `tickets_unlink`                                 |
 | Formulaires                     | `forms_list`, `forms_get`, `forms_save`, `forms_set_enabled`, `forms_rotate_link`, `forms_delete`                                  |
 | Mise en forme                   | `formatting_list`, `formatting_create`, `formatting_delete`                                                                        |
@@ -152,3 +152,9 @@ Les [équipes](equipes.md) se lient à plusieurs projets. Les tickets acceptent 
 
 
 `project_notifications_get` et `project_notifications_save` gèrent la politique e-mail de chaque projet avec contrôle de version. La modification des tickets par MCP passe par la même file de notifications que le site. Voir [les événements et la livraison](notifications.md).
+
+## Tickets en pause et tickets bloqués
+
+`flagged: true` indique un obstacle et conserve le ticket dans les vues actives. `status: "paused"` le met de côté. Les recherches, statistiques et exports basés sur les filtres excluent les pauses par défaut. Dans `tickets_list`, `filters.pause` accepte `active`, `only` (pauses seules) et `all` ; le filtre d’état `paused` ou une requête avancée mentionnant cet état les inclut aussi. Les vues enregistrées conservent ce filtre.
+
+`tickets_pause` reçoit `id`, `version`, `paused` (booléen). `true` mémorise l’état courant puis met en pause ; `false` reprend cet état. Les autres champs sont conservés. Un ticket créé ou importé directement en pause reprend en « À faire ». `tickets_update` peut aussi sélectionner l’état `paused` ou un autre état explicitement. La pause conserve le contrôle de version, les règles et les notifications configurées pour les changements d’état. Actualiser les outils de l’intégration pour découvrir `tickets_pause`.
