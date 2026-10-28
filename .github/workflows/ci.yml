@@ -34,6 +34,7 @@ jobs:
       DB_PASSWORD: ci-isolated-password
       SESSION_SECURE: 'false'
       MAIL_TRANSPORT: log
+      MAIL_FROM: sillage@example.com
       COMPANY_NAME: Entreprise de test
       ALLOWED_DOMAINS: example.com
       EMAIL_DOMAIN_RESTRICTION: 'true'
