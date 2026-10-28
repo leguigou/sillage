@@ -2,6 +2,9 @@
 import base64
 csrf, body = get_token('/tickets/'+ticket_id)
 current_version = re.search(r'name="version" value="(\d+)"',body).group(1)
+_,same_ticket,_=call('/tickets/'+ticket_id)
+check(re.search(r'name="version" value="(\d+)"',same_ticket).group(1)==current_version,'opening ticket twice does not change its version or stored information')
+check('id="ticket-edit-dialog"' in body and 'data-ticket-comment' in body and 'data-ticket-tab="development"' in body,'ticket exposes explicit editing quick comment and separate development tab')
 check('data-file-queue' in body and 'data-upload-submit hidden' in body and 'danger-outline' in body, 'ticket exposes contextual attachment queue and outlined archive')
 for invalid in ['-1','101','1.5']:
     check(call('/tickets/'+ticket_id+'/quick',{'_csrf':csrf,'field':'progress_percent','value':invalid,'version':current_version},True)[0]==422,'invalid progress rejected '+invalid)

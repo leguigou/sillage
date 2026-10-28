@@ -1,5 +1,5 @@
 <?php use App\Services\DevelopmentPayload; $branchSuggestion='feature/'.$ticket['key'].'-'.trim(substr(preg_replace('/[^a-z0-9]+/','-',strtolower((string)iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$ticket['title']))),0,60),'-'); ?>
-<section class="panel ticket-development" id="development">
+<section class="panel ticket-development" id="development" data-ticket-panel aria-labelledby="ticket-tab-development">
  <div class="panel-header"><div><h2>Développement</h2><p>Branches, commits et pull requests liés à <?= e($ticket['key']) ?>.</p></div><?= icon('code') ?></div>
  <?php if($primaryRepository): ?><p class="help-text">Dépôt principal : <strong><?= e($primaryRepository['repository']) ?></strong></p><?php endif; ?>
  <div class="development-counts"><?php foreach(DevelopmentPayload::KINDS as $kind=>$label): ?><button type="button" data-development-open="ticket-development-<?= e($kind) ?>"><strong><?= (int)($developmentCounts[$kind]??0) ?></strong><span><?= e($label) ?></span></button><?php endforeach; ?></div>

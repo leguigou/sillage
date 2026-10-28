@@ -1,0 +1,3 @@
+<section class="panel ticket-conversation" id="activity" aria-labelledby="ticket-conversation-title"><h2 id="ticket-conversation-title">Suivi des commentaires <span class="ticket-comment-count">(<?= count($comments) ?>)</span></h2>
+<?php foreach($comments as $c): ?><article class="comment"><?= avatar($c['name'],'small',(int)$c['user_id']) ?><div><strong><?= e($c['name']) ?></strong><small><?= e($c['created_at']) ?></small><div class="conversation-content"><?= \App\Services\Conversation::render($c) ?></div></div></article><?php endforeach; if(!$comments): ?><p class="muted">Aucun commentaire pour le moment.</p><?php endif; ?>
+</section>

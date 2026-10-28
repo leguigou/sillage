@@ -247,3 +247,5 @@ Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **
 
 
 La connexion web est désormais mémorisée pendant **30 jours** grâce à un cookie protégé et à un justificatif stocké sous empreinte en MySQL. Une perte de session PHP ou un redéploiement n’impose plus de ressaisir le mot de passe si la base, `APP_URL` et `APP_KEY` sont conservées. Déconnexion, changement de mot de passe ou de droits révoquent les accès concernés. Voir [le fonctionnement de la connexion persistante](docs/connexion-persistante.md).
+
+La fiche ticket s’ouvre en lecture : message initial et suivi des commentaires sont visibles ensemble, les attributs restent dans la colonne droite. Un en-tête compact conserve les boutons Commenter, Modifier et Copier le lien. Commenter ouvre directement l’éditeur enrichi dans une fenêtre, sans défiler dans le fil ; fermer puis rouvrir conserve le brouillon tant que la page reste ouverte. Le développement est accessible dans un onglet distinct. Les liens directs vers les commentaires, pièces jointes et éléments Git restent utilisables.

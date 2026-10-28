@@ -1,12 +1,5 @@
 'use strict';
 
-$$('input[name="progress_percent"]').forEach((input) => {
-  input.addEventListener('input', () => {
-    const bar = input.form?.querySelector('progress.ticket-progress');
-    if (bar && input.validity.valid) bar.value = Number(input.value);
-  });
-});
-
 document.addEventListener('submit', async (event) => {
   const form = event.target;
   const row = form.closest('[data-attachment-id]');
