@@ -184,6 +184,7 @@ final class Ticket
                 $external ? 'Demande reçue via un formulaire externe' : 'a créé le ticket',
             );
             Automation::run('ticket.created', $id, $reporter);
+            \App\Services\Notifications::enqueue(self::find($id),['created'],$external?null:$reporter);
             return $id;
         });
     }
@@ -223,6 +224,7 @@ final class Ticket
             if ($automate) {
                 Automation::run('ticket.updated', $id, $actor, $old['status'] !== $data['status']);
             }
+            \App\Services\Notifications::changed($old,self::find($id),$actor);
         });
     }
     public static function patch(
@@ -279,6 +281,7 @@ final class Ticket
                 $actor,
                 $archived ? 'a archivé le ticket' : 'a restauré le ticket',
             );
+            if ((bool)$t['archived']!==$archived) \App\Services\Notifications::enqueue(self::find($id),['archived'],$actor);
         });
     }
     public static function comment(int $id, string $body, int $actor, string $format = 'text'): int
@@ -309,6 +312,7 @@ final class Ticket
                 (int) $actor,
                 'a ajouté un commentaire',
             );
+            \App\Services\Notifications::enqueue(self::find($id),['commented'],$actor);
             return $comment;
         });
     }

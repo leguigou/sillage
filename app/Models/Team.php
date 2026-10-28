@@ -5,12 +5,17 @@ use App\Core\DB;
 
 final class Team
 {
-    public static function delete(int $id): void
+    public static function delete(int $id,?int $actor=null): void
     {
-        DB::transaction(function () use ($id) {
+        DB::transaction(function () use ($id,$actor) {
             self::find($id);
+            $affected=DB::all('SELECT id FROM tickets WHERE team_id=?',[$id]);
             // Keep tickets and their individual owners, and invalidate stale edit forms.
             DB::run('UPDATE tickets SET team_id=NULL,version=version+1,updated_at=UTC_TIMESTAMP() WHERE team_id=?',[$id]);
+            foreach($affected as $row) {
+                $after=Ticket::find((int)$row['id']);$before=$after;$before['team_id']=$id;
+                \App\Services\Notifications::changed($before,$after,$actor);
+            }
             DB::run('DELETE FROM teams WHERE id=?', [$id]);
         });
     }

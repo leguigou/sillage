@@ -132,6 +132,12 @@ tool('automation_set_enabled',{'id':rule['id'],'version':rule['version'],'enable
 check(tool('automation_runs',{'project_id':pid})['total']==2,'automation execution logged through MCP')
 
 summary=tool('reports_summary',{'project_id':pid});check(summary['total']==3,'MCP dashboard statistics use all project tickets')
+email_policy=tool('project_notifications_get',{'project_id':pid})
+check(email_policy['enabled']==False,'MCP reports email policy disabled before setup')
+email_policy=tool('project_notifications_save',{'project_id':pid,'version':0,'enabled':True,'rules':{'created':['assignee']}})
+check(email_policy['enabled']==1 and email_policy['rules']['created']==['assignee'],'MCP saves project event recipients')
+tool('project_notifications_save',{'project_id':pid,'version':0,'enabled':False,'rules':{}},success=False)
+tool('project_notifications_save',{'project_id':pid,'version':1,'enabled':False,'rules':{}})
 saved=tool('views_save',{'project_id':pid,'name':'Vue MCP','filters':{'q':marker}})
 check(any(v['id']==saved['id'] for v in tool('views_list',{'project_id':pid})['views']),'MCP personal view persisted')
 tool('views_delete',{'id':saved['id']})

@@ -89,3 +89,14 @@ set_exception_handler(function (Throwable $error): void {
             : 'Une erreur est survenue. Réessayez dans quelques instants.';
     require ROOT . '/app/Views/error.php';
 });
+
+// Local log transport is fast and deterministic; production mail is delivered by the CLI worker.
+if (PHP_SAPI!=='cli' && env('APP_ENV')==='local' && env('MAIL_TRANSPORT')==='log') {
+    register_shutdown_function(function(): void {
+        try {
+            if (!App\Core\DB::connection()->inTransaction()) App\Services\Notifications::deliver(20);
+        } catch (Throwable) {
+            error_log('Sillage : traitement local des notifications indisponible.');
+        }
+    });
+}

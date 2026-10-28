@@ -19,6 +19,11 @@ $r->add('GET', '/avatars/{id}/{digest}', [new \App\Controllers\AvatarController(
 $company = new CompanyController();
 $r->add('POST', '/company', [$company, 'save'])
     ->add('GET', '/company/logo/{digest}', [$company, 'logo']);
+$notifications=new \App\Controllers\NotificationController();
+$r->add('POST','/projects/{id}/notifications',[$notifications,'project'])
+    ->add('POST','/projects/{id}/notifications/retry',[$notifications,'retry'])
+    ->add('POST','/account/notifications',[$notifications,'preference'])
+    ->add('POST','/notifications/test',[$notifications,'test']);
 $llm=new \App\Controllers\LlmController();
 $r->add('POST','/llm/profiles/test',[$llm,'probe'])
     ->add('POST','/llm/profiles',[$llm,'save'])

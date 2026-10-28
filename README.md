@@ -107,7 +107,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 
 ## MCP et automatisations
 
-Le serveur MCP est disponible à **`/mcp`** avec 47 outils : projets, tickets, commentaires, relations,
+Le serveur MCP est disponible à **`/mcp`** avec 49 outils : projets, tickets, commentaires, relations,
 formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
 Les métadonnées des pièces jointes et les événements de développement sont également consultables.
 
@@ -239,3 +239,8 @@ Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **
 ## Assistance par LLM
 
 **Paramètres → Intelligence artificielle** permet d’enregistrer plusieurs profils OpenAI, LM Studio, Ollama, DeepSeek, Anthropic, Grok ou Gemini. Tester la connexion, choisir un modèle retourné par le fournisseur puis enregistrer et sélectionner le profil par défaut. Les clés restent chiffrées en MySQL. Le bouton **Assistant** recherche dans les tickets avec des sources ; les descriptions et conversations proposent une aide à la rédaction, reformulation et synthèse, avec insertion explicite dans le brouillon. Voir [le guide des fournisseurs et de l’assistance](docs/intelligence-artificielle.md).
+
+
+## Notifications e-mail
+
+**Paramètres → Notifications e-mail** permet de choisir les événements et destinataires indépendamment pour chaque projet. **Mes notifications** permet à chacun de se désabonner des nouvelles des tickets. Les changements sont regroupés dans une file transactionnelle avec journal des envois et reprise des échecs. Les projets restent désactivés jusqu’à leur configuration. En local, les e-mails sont journalisés ; en production, configurer le transport PHP et planifier `php bin/console.php notifications:send`. Voir [le guide des notifications](docs/notifications.md).

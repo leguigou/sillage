@@ -6,6 +6,10 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/app/bootstrap.php';
 use App\Core\{DB, Security, Migrator};
 $command = $argv[1] ?? 'help';
+if ($command === 'notifications:send') {
+    echo json_encode(\App\Services\Notifications::deliver(100),JSON_THROW_ON_ERROR).PHP_EOL;
+    exit();
+}
 if ($command === 'key:generate') {
     echo bin2hex(random_bytes(32)) . PHP_EOL;
     exit();
@@ -86,4 +90,4 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | admin:create email | user:role email admin/member/viewer\n";
+echo "Sillage : migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | admin:create email | user:role email admin/member/viewer\n";

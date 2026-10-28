@@ -147,6 +147,22 @@ final class Tools
             fn($a) => Project::find(Project::save($a, $a['id'])),
         );
         $add(
+            'project_notifications_get',
+            'Lire les événements et destinataires e-mail configurés pour un projet.',
+            'read',
+            $obj(['project_id'=>$id],['project_id']),
+            function($a) { Project::find($a['project_id']); return \App\Models\ProjectEmail::get($a['project_id']); },
+        );
+        $notificationRules=[];
+        foreach(\App\Models\ProjectEmail::EVENTS as $event=>$label) $notificationRules[$event]=['type'=>'array','items'=>$enum(array_keys(\App\Models\ProjectEmail::RECIPIENTS)),'uniqueItems'=>true];
+        $add(
+            'project_notifications_save',
+            'Configurer les événements et destinataires e-mail d’un projet ; version 0 pour la première configuration. Auteur exclu par défaut, préférences personnelles respectées.',
+            'admin',
+            $obj(['project_id'=>$id,'version'=>['type'=>'integer','minimum'=>0],'enabled'=>$bool,'notify_actor'=>$bool,'rules'=>$obj($notificationRules),'recipients'=>['type'=>'array','items'=>$id,'uniqueItems'=>true,'maxItems'=>200]],['project_id','version','enabled','rules']),
+            function($a) { \App\Models\ProjectEmail::save($a['project_id'],$a); return \App\Models\ProjectEmail::get($a['project_id']); },
+        );
+        $add(
             'projects_delete_empty',
             'Supprimer uniquement un projet sans données associées.',
             'admin',
@@ -659,8 +675,8 @@ final class Tools
             'Supprimer une équipe et libérer ses affectations ; les comptes et les tickets sont conservés.',
             'admin',
             $obj(['id' => $id], ['id']),
-            function ($a) {
-                Team::delete($a['id']);
+            function ($a) use($user) {
+                Team::delete($a['id'],(int)$user['id']);
                 return ['deleted' => true];
             },
             true,
