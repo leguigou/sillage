@@ -44,3 +44,9 @@ Les tests utilisent de vrais échanges HTTP avec des clients fictifs sur la base
 Références : [authentification des plugins OpenAI](https://developers.openai.com/plugins/build/auth), [autorisation MCP](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
 
 Les URL, portées et identifiants possèdent chacun un bouton de copie. La création et les autres sauvegardes des paramètres s’effectuent sans navigation complète, avec confirmation ou erreur sur place. Les brouillons des autres sections sont conservés.
+
+## Si le bouton Autoriser semble ne rien faire
+
+Une ancienne version limitait aussi les redirections du formulaire au même site avec `form-action 'self'`. Chromium pouvait bloquer le retour vers ChatGPT après que le code avait été créé. Un second clic réutilisait alors une demande consommée. La règle du consentement autorise désormais uniquement l’origine du rappel enregistré ; le serveur conserve son contrôle de l’URL exacte. Les autres pages gardent la restriction au même site. Voir [le comportement des redirections CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/form-action).
+
+Après déploiement, fermer l’ancien écran et relancer la connexion depuis ChatGPT avec le client existant. Les demandes expirées ou utilisées affichent une explication sur place. Plusieurs fenêtres d’autorisation peuvent coexister ; chacune conserve son état et ses droits. Si seul « Consulter » est présenté, le client n’a demandé que `read` : demander aussi `write` pour créer/modifier les tickets, et `admin` pour administrer les projets et règles.

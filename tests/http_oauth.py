@@ -47,7 +47,9 @@ def oauth_consent(fields):
     except urllib.error.HTTPError as error: return error.code,error.headers.get('Location',''),error.read().decode()
     return response.status,response.headers.get('Location',''),response.read().decode()
 def oauth_code(scopes=['read','write','offline_access']):
-    status,page,_=oauth_authorize()
+    with admin_client.open(BASE+'/oauth/authorize?'+urllib.parse.urlencode(oauth_params)) as response:
+        status=response.status; page=response.read().decode(); policy=response.headers['Content-Security-Policy']
+    check("form-action 'self' https://client.example" in policy,'consent CSP permits the registered callback origin for browser redirects')
     check(status==200 and 'Autoriser ChatGPT test OAuth' in page,'consent page identifies client and account')
     nonce=re.search(r'name="nonce" value="([a-f0-9]+)"',page).group(1)
     data={'_csrf':token(page),'nonce':nonce,'decision':'allow','scopes[]':scopes}
@@ -56,8 +58,29 @@ def oauth_code(scopes=['read','write','offline_access']):
     query=urllib.parse.parse_qs(urllib.parse.urlsplit(location).query)
     check(query['state']==[oauth_params['state']] and query['iss']==[BASE],'callback preserves state and issuer')
     again=oauth_consent(data)
-    check(again[0]==303 and not again[1].startswith(oauth_cb),'used consent cannot grant a second authorization')
+    check(again[0]==422 and not again[1] and 'Relancez l’autorisation' in again[2],'used consent explains retry in place without a settings redirect')
     return query['code'][0]
+# Independent pending requests must preserve their own state and decisions.
+_,tab_one,_=oauth_authorize({**oauth_params,'state':'first-tab','scope':'read'})
+_,tab_two,_=oauth_authorize({**oauth_params,'state':'second-tab','scope':'read'})
+nonce_one=re.search(r'name="nonce" value="([a-f0-9]+)"',tab_one).group(1)
+nonce_two=re.search(r'name="nonce" value="([a-f0-9]+)"',tab_two).group(1)
+status,location,_=oauth_consent({'_csrf':token(tab_one),'nonce':nonce_one,'decision':'allow','scopes[]':['read']})
+check(status==303 and urllib.parse.parse_qs(urllib.parse.urlsplit(location).query).get('state')==['first-tab'],'opening a second authorization does not invalidate the first consent')
+status,location,_=oauth_consent({'_csrf':token(tab_two),'nonce':nonce_two,'decision':'deny'})
+query=urllib.parse.parse_qs(urllib.parse.urlsplit(location).query)
+check(status==303 and query.get('error')==['access_denied'] and query.get('state')==['second-tab'],'denial returns to its own client request with exact state')
+_,retry_page,_=oauth_authorize()
+retry_nonce=re.search(r'name="nonce" value="([a-f0-9]+)"',retry_page).group(1)
+retry={'_csrf':token(retry_page),'nonce':retry_nonce,'decision':'allow'}
+status,location,error_page=oauth_consent(retry)
+check(status==422 and not location and 'Choisissez au moins un droit' in error_page,'empty selection reports error on consent instead of redirecting to settings')
+status,location,_=oauth_consent({**retry,'scopes[]':['read']})
+check(status==303 and location.startswith(oauth_cb+'?'),'valid selection can retry the same pending consent after validation error')
+status,location,error_page=oauth_consent({'_csrf':csrf,'nonce':'unknown','decision':'allow','scopes[]':['read']})
+check(status==422 and not location and 'Relancez l’autorisation' in error_page,'unknown pending request gives an actionable authorization error')
+with admin_client.open(BASE+'/settings') as response:
+    check("form-action 'self'" in response.headers['Content-Security-Policy'] and 'https://client.example' not in response.headers['Content-Security-Policy'],'ordinary settings retain same-origin-only form policy')
 raw_code=oauth_code()
 oauth_exchange={'grant_type':'authorization_code','client_id':oauth_id,'code':raw_code,'redirect_uri':oauth_cb,'code_verifier':oauth_verifier,'resource':BASE+'/mcp'}
 check(json.loads(call('/oauth/token',{**oauth_exchange,'code_verifier':'x'*64},True)[1])['error']=='invalid_grant','wrong verifier refused through HTTP')

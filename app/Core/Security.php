@@ -46,10 +46,25 @@ final class Security
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         header('X-Frame-Options: DENY');
-        header(
-            "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-        );
+        self::contentSecurityPolicy();
         header('Cache-Control: no-store');
+    }
+    /** OAuth form redirects must also be permitted by the originating document's CSP. */
+    public static function contentSecurityPolicy(?string $formRedirect = null): void
+    {
+        $sources = "'self'";
+        if ($formRedirect !== null) {
+            $parts = parse_url($formRedirect);
+            if (
+                !$parts || !filter_var($formRedirect, FILTER_VALIDATE_URL) ||
+                !in_array($parts['scheme'] ?? '', ['http', 'https'], true) ||
+                isset($parts['user']) || isset($parts['pass']) ||
+                !preg_match('/^(?:[a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])$/D', $parts['host'] ?? '')
+            ) throw new \InvalidArgumentException('Destination du formulaire invalide.');
+            // The server still redirects to the exact registered URL; only its origin enters CSP.
+            $sources .= ' ' . $parts['scheme'] . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+        }
+        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action " . $sources);
     }
     public static function csrf(): string
     {

@@ -41,29 +41,61 @@ final class OAuthController
         if ($error=\App\Mcp\Endpoint::error()) throw new \InvalidArgumentException($error['message']);
         Security::limit('oauth-authorize',60,60);
         try { $request=OAuth::authorization($_GET); }
-        catch(OAuthError $error) { throw new \InvalidArgumentException('Demande OAuth invalide ('.$error->error.'). Vérifiez le client, l’URL de rappel, la ressource et PKCE.'); }
+        catch(OAuthError $error) {
+            $this->invalidConsent('La demande OAuth est invalide ('.$error->error.'). Vérifiez le client, l’URL de rappel, la ressource et PKCE.');return;
+        }
         $user=Auth::user();
         if (!$user) {
             $_SESSION['oauth_after_login']='/oauth/authorize?'.http_build_query($_GET,'','&',PHP_QUERY_RFC3986);
             redirect('/login');
         }
         $nonce=bin2hex(random_bytes(24));
-        // One pending consent per browser session; a new request replaces the previous one.
-        $_SESSION['oauth_consent']=['nonce'=>$nonce,'request'=>$request,'expires'=>time()+600,'user_id'=>$user['id']];
+        $pending=array_filter($_SESSION['oauth_consents']??[],fn($entry)=>$entry['expires']>=time());
+        // Bound temporary session storage while allowing several client windows to coexist.
+        $pending=array_slice($pending,-7,null,true);
+        $pending[$nonce]=['request'=>$request,'expires'=>time()+600,'user_id'=>$user['id']];
+        $_SESSION['oauth_consents']=$pending;
+        $this->renderConsent($request,$user,$nonce);
+    }
+    private function renderConsent(array $request,array $user,string $nonce,?string $error=null): void
+    {
+        Security::contentSecurityPolicy($request['redirect_uri']);
+        header('Referrer-Policy: no-referrer');
         $available=array_values(array_intersect($request['scopes'],[...McpToken::availableScopes($user['role']),'offline_access']));
-        View::render('oauth-consent',['guest'=>true,'title'=>'Autoriser une connexion MCP','request'=>$request,'nonce'=>$nonce,'user'=>$user,'available'=>$available]);
+        View::render('oauth-consent',['guest'=>true,'title'=>'Autoriser une connexion MCP','request'=>$request,'nonce'=>$nonce,'user'=>$user,'available'=>$available,'consentError'=>$error]);
+    }
+    private function invalidConsent(?string $message=null): void
+    {
+        http_response_code(422);
+        View::render('oauth-error',['guest'=>true,'title'=>'Autorisation à relancer','consentError'=>$message]);
     }
     public function consent(): void
     {
-        $user=Auth::requireUser();$pending=$_SESSION['oauth_consent']??null;
-        if (!$pending || $pending['expires']<time() || (int)$pending['user_id']!==(int)$user['id'] || !hash_equals($pending['nonce'],(string)($_POST['nonce']??''))) throw new \InvalidArgumentException('Cette autorisation a expiré. Relancez la connexion depuis ChatGPT.');
+        $user=Auth::user();
+        $nonce=is_string($_POST['nonce']??null)?$_POST['nonce']:'';
+        $pending=$_SESSION['oauth_consents'][$nonce]??null;
+        if (!$user || !$pending || $pending['expires']<time() || (int)$pending['user_id']!==(int)$user['id']) {
+            unset($_SESSION['oauth_consents'][$nonce]);
+            $this->invalidConsent();return;
+        }
         $request=$pending['request'];$params=['state'=>$request['state'],'iss'=>OAuth::issuer()];
         if (($_POST['decision']??'')==='deny') $params['error']='access_denied';
         elseif (($_POST['decision']??'')==='allow') {
             try { $params['code']=OAuth::code($request,$user,(array)($_POST['scopes']??[])); }
-            catch(OAuthError) { throw new \InvalidArgumentException('Choisissez au moins un droit disponible pour votre compte, puis réessayez.'); }
-        } else throw new \InvalidArgumentException('Décision OAuth invalide.');
-        unset($_SESSION['oauth_consent']);
+            catch(OAuthError $error) {
+                if ($error->error!=='invalid_scope') {
+                    unset($_SESSION['oauth_consents'][$nonce]);
+                    $this->invalidConsent();return;
+                }
+                http_response_code(422);
+                $this->renderConsent($request,$user,$nonce,'Choisissez au moins un droit disponible pour votre compte, puis réessayez.');return;
+            }
+        } else {
+            http_response_code(422);
+            $this->renderConsent($request,$user,$nonce,'Choisissez « Autoriser la connexion » ou « Refuser ».');return;
+        }
+        unset($_SESSION['oauth_consents'][$nonce]);
+        Security::contentSecurityPolicy($request['redirect_uri']);
         header('Referrer-Policy: no-referrer');
         header('Location: '.$request['redirect_uri'].(str_contains($request['redirect_uri'],'?')?'&':'?').http_build_query($params,'','&',PHP_QUERY_RFC3986),true,303);exit;
     }
