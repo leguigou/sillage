@@ -39,6 +39,7 @@ check(call('/attachments/'+attachment.group(1))[1]=='A safe local test attachmen
 status,body,_=upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf,'_return':'/tickets/'+ticket_id},'file','page.html',b'<html><body>Test only</body></html>','text/html')
 check(status==200 and 'Type de fichier non autorisé' in body,'active HTML attachment rejected')
 exec((__import__('pathlib').Path(__file__).parent/'http_ticket_conversation.py').read_text(encoding='utf-8'))
+exec((__import__('pathlib').Path(__file__).parent/'http_ticket_navigation.py').read_text(encoding='utf-8'))
 csv_marker='CSV-'+marker
 csv_content=('title,description,type,status,priority,start_date,due_date,estimated_hours,labels\n'+csv_marker+',Import QA,task,todo,medium,2026-10-26,2026-11-04,4.75,import\n').encode()
 status,body,_=upload('/import/preview',{'_csrf':csrf,'project_id':pid},'csv','tickets.csv',csv_content,'text/csv')
@@ -66,7 +67,7 @@ with public_client.open(BASE+public_path) as response: public_html=response.read
 payload=urllib.parse.urlencode({'_csrf':token(public_html),'email':'external@example.org','title':'Demande externe '+marker,'description':'Besoin externe','priority':'medium'}).encode()
 with public_client.open(urllib.request.Request(BASE+public_path,data=payload)) as response: public_html=response.read().decode(); check('Votre demande a bien rejoint notre équipe' in public_html,'anonymous form submission')
 check('qa.admin@example.com' not in public_html,'external page hides members'); check('Demande externe '+marker in call('/list?q='+marker)[1],'external ticket visible internally')
-check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(call('/tickets/'+ticket_id+'/archive',{'_csrf':csrf})[0]==200,'archive action'); check('href="/tickets/'+ticket_id+'"' not in call('/list?q='+marker)[1],'archived ticket excluded')
+check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(call('/tickets/'+ticket_id+'/archive',{'_csrf':csrf})[0]==200,'archive action'); check('data-ticket-id="'+ticket_id+'"' not in call('/list?q='+marker)[1],'archived ticket excluded')
 call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'})
 check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot create tickets'); check(call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot publish forms')
 check(call('/teams',{'_csrf':csrf,'name':'Forbidden team'})[0]==403,'viewer cannot manage teams')

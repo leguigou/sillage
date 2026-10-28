@@ -98,7 +98,7 @@ final class AttachmentController
             json_response(['files' => $stored, 'errors' => $errors], $stored ? 200 : 422);
         }
         flash($errors ? implode(' ', array_column($errors, 'message')) : 'Pièces jointes ajoutées.', $errors ? 'error' : 'success');
-        redirect('/tickets/' . (int) $id);
+        redirect(ticket_url((int)$id));
     }
     public function delete(string $id): void
     {
@@ -121,7 +121,7 @@ final class AttachmentController
             json_response(['ok' => true]);
         }
         flash('Pièce jointe supprimée.');
-        redirect('/tickets/' . $ticket . '#attachments');
+        redirect(ticket_url((int)$ticket,'#attachments'));
     }
     private static function path(array $file): string
     {

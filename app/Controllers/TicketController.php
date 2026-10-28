@@ -83,7 +83,7 @@ final class TicketController
             json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
         }
         flash('Modifications enregistrées.');
-        redirect('/tickets/' . (int) $id);
+        redirect(ticket_url((int)$id));
     }
     public function quick(string $id): void
     {
@@ -183,7 +183,7 @@ final class TicketController
                 ? 'Ticket restauré.'
                 : 'Ticket archivé. Vous pouvez le restaurer depuis sa fiche.',
         );
-        redirect('/tickets/' . (int) $id);
+        redirect(ticket_url((int)$id));
     }
     public function bulk(): void
     {
@@ -214,7 +214,7 @@ final class TicketController
     {
         $u = Auth::editor();
         Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'));
-        redirect('/tickets/' . (int) $id . '#activity');
+        redirect(ticket_url((int)$id,'#activity'));
     }
     public function link(string $id): void
     {
@@ -225,12 +225,12 @@ final class TicketController
             (string) ($_POST['relation'] ?? 'relates'),
             (int) $u['id'],
         );
-        redirect('/tickets/' . (int) $id);
+        redirect(ticket_url((int)$id));
     }
     public function unlink(string $id): void
     {
         Auth::editor();
         $ticket = Ticket::unlink((int) $id);
-        redirect('/tickets/' . $ticket);
+        redirect(ticket_url((int)$ticket));
     }
 }

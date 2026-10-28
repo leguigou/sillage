@@ -9,7 +9,7 @@
   <dt>Temps total estimé</dt><dd><?= $ticket['estimated_hours']===null?'Non renseigné':e(number_format((float)$ticket['estimated_hours'],2,',',' ')).' h' ?></dd>
   <dt>Date de début</dt><dd><?= e($ticket['start_date']?:'Non renseignée') ?></dd>
   <dt>Échéance</dt><dd><?= e($ticket['due_date']?:'Non renseignée') ?></dd>
-  <dt>Parent</dt><dd><?php if($parent): ?><a href="/tickets/<?= (int)$parent['id'] ?>"><?= e($parent['project_key'].'-'.$parent['number'].' · '.$parent['title']) ?></a><?php else: ?>Aucun<?php endif; ?></dd>
+  <dt>Parent</dt><dd><?php if($parent): ?><a href="<?= e(ticket_url((int)$parent['id'])) ?>"><?= e($parent['project_key'].'-'.$parent['number'].' · '.$parent['title']) ?></a><?php else: ?>Aucun<?php endif; ?></dd>
   <dt>Étiquettes</dt><dd><?= e($ticket['labels_array']?implode(', ',$ticket['labels_array']):'Aucune') ?></dd>
   <dt>Bloqué</dt><dd><?= $ticket['flagged']?'Oui':'Non' ?></dd>
 </dl></section>

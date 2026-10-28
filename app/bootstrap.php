@@ -35,6 +35,15 @@ function url(string $path = ''): string
 {
     return rtrim(env('APP_URL', 'http://127.0.0.1:8088'), '/') . '/' . ltrim($path, '/');
 }
+function ticket_url(int $id,string $fragment=''): string
+{
+    return App\Services\TicketNavigation::ticket($id,$fragment);
+}
+function ticket_context(): string
+{
+    $source=App\Services\TicketNavigation::current();
+    return $source===null?'':'<input type="hidden" name="_ticket_return" value="'.e($source).'">';
+}
 function asset_url(string $name): string
 {
     static $versions = [];
