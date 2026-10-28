@@ -19,6 +19,11 @@ $r->add('GET', '/avatars/{id}/{digest}', [new \App\Controllers\AvatarController(
 $company = new CompanyController();
 $r->add('POST', '/company', [$company, 'save'])
     ->add('GET', '/company/logo/{digest}', [$company, 'logo']);
+$llm=new \App\Controllers\LlmController();
+$r->add('POST','/llm/profiles/test',[$llm,'probe'])
+    ->add('POST','/llm/profiles',[$llm,'save'])
+    ->add('POST','/llm/profiles/{id}/action',[$llm,'action'])
+    ->add('POST','/llm/assist',[$llm,'assist']);
 $auth = new AuthController();
 $work = new WorkspaceController();
 $tickets = new TicketController();

@@ -234,3 +234,8 @@ Le bouton **Vérifier le jeton et lister les dépôts** charge les dépôts acce
 
 
 Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **Paramètres du projet → Dépôt Git principal**, sélectionnez une connexion existante. Les fiches tickets affichent désormais les branches, commits et pull requests associés à leur clé. Les webhooks peuvent déclencher des règles propres au projet, notamment lors de la fusion d’une PR. Voir [le guide du suivi Git](docs/developpement.md). Builds et déploiements restent prévus pour une étape ultérieure.
+
+
+## Assistance par LLM
+
+**Paramètres → Intelligence artificielle** permet d’enregistrer plusieurs profils OpenAI, LM Studio, Ollama, DeepSeek, Anthropic, Grok ou Gemini. Tester la connexion, choisir un modèle retourné par le fournisseur puis enregistrer et sélectionner le profil par défaut. Les clés restent chiffrées en MySQL. Le bouton **Assistant** recherche dans les tickets avec des sources ; les descriptions et conversations proposent une aide à la rédaction, reformulation et synthèse, avec insertion explicite dans le brouillon. Voir [le guide des fournisseurs et de l’assistance](docs/intelligence-artificielle.md).

@@ -18,6 +18,7 @@ if (env('DB_DATABASE') !== 'sillage_test') {
 Migrator::run();
 if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM rate_limits');
+    DB::run('DELETE FROM llm_profiles');
     DB::run('DELETE FROM company_branding');
     foreach (
         [
@@ -385,6 +386,7 @@ try {
     require __DIR__ . '/development_connections.php';
     require __DIR__ . '/development_tracking.php';
     require __DIR__ . '/team_projects.php';
+    require __DIR__ . '/llm.php';
 } finally {
     DB::connection()->rollBack();
 }
