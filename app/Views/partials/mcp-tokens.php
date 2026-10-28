@@ -1,10 +1,11 @@
 <?php use App\Models\McpToken;
+require_once ROOT.'/app/Views/copy-field.php';
 $newKey=$_SESSION['new_mcp_key']??null; unset($_SESSION['new_mcp_key']); ?>
 <section class="panel team-section" id="mcp">
   <div class="panel-header"><div><span class="eyebrow">SILLAGE, CONNECTÉ À VOS OUTILS</span><h2>MCP et clés d’accès</h2><p>Autorisez un assistant à agir avec les droits de votre compte.</p></div><span class="pill soft"><?= count($mcpTokens) ?> clés</span></div>
-  <label>Adresse du serveur MCP<input value="<?= e(url('/mcp')) ?>" readonly></label>
+  <?= copy_field('Adresse du serveur MCP',url('/mcp')) ?>
   <p class="help-text">Transport Streamable HTTP, authentification par en-tête <code>Authorization: Bearer votre_clé</code>. HTTPS requis en production. Chaque clé appartient à votre compte et peut recevoir moins de droits que vous.</p>
-  <?php if ($newKey): ?><div class="notice" role="status"><strong>Votre nouvelle clé — à copier maintenant</strong><p>Elle ne sera plus affichée après cette page.</p><label>Clé MCP générée<input value="<?= e($newKey['key']) ?>" readonly autocomplete="off" spellcheck="false"></label></div><?php endif; ?>
+  <?php if ($newKey): ?><div class="oauth-created" role="status"><strong>Votre nouvelle clé — à copier maintenant</strong><p>Elle ne sera plus affichée après cette page.</p><?= copy_field('Clé MCP générée',$newKey['key'],true) ?></div><?php endif; ?>
   <form method="post" action="/mcp/tokens" class="stack mcp-create"><?= csrf() ?><input type="hidden" name="_return" value="/settings#mcp">
     <label>Nom de la clé<input name="name" required maxlength="120" placeholder="Ex. : Assistant de mon équipe"></label>
     <div class="inline-fields"><label>Validité<select name="lifetime" data-mcp-lifetime><option value="limited">Pendant une durée</option><option value="unlimited">Sans expiration</option></select></label><label>Durée<input name="duration" type="number" min="1" max="36500" value="30" required data-mcp-duration></label><label>Unité<select name="unit" data-mcp-duration><option value="minutes">Minutes</option><option value="hours">Heures</option><option value="days" selected>Jours</option></select></label></div>

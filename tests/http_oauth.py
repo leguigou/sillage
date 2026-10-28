@@ -1,3 +1,14 @@
+from html.parser import HTMLParser
+
+class CopyFields(HTMLParser):
+    def __init__(self, page):
+        super().__init__(); self.inputs={}; self.buttons={}; self.feed(page)
+    def handle_starttag(self, tag, attrs):
+        attrs=dict(attrs)
+        if tag=='input' and attrs.get('id'): self.inputs[attrs['id']]=attrs
+        if tag=='button' and attrs.get('data-copy-target'): self.buttons.setdefault(attrs.get('aria-label'),attrs['data-copy-target'])
+    def value(self,label): return self.inputs[self.buttons['Copier '+label]]['value']
+
 """OAuth discovery, browser consent and PKCE token exchange through real HTTP/MySQL."""
 import base64, hashlib
 http_support.client=admin_client;csrf,oauth_page=get_token('/settings')
@@ -12,7 +23,8 @@ check(call('/oauth/token')[0]==405,'token endpoint requires POST')
 check(call('/oauth/token',{'client_id':'bad'},True)[0]==401,'unknown OAuth client refused')
 oauth_cb='https://client.example/callback'
 oauth_status,oauth_page,_=call('/oauth/clients',{'_csrf':csrf,'name':'ChatGPT test OAuth','redirect_uri':oauth_cb,'auth_method':'none'})
-oauth_id=re.search(r'ID client OAuth<input readonly value="([a-z0-9_]+)"',oauth_page).group(1)
+oauth_id=CopyFields(oauth_page).value('ID client OAuth')
+check(CopyFields(oauth_page).value('URL du serveur MCP')==BASE+'/mcp','OAuth server value has an accessible copy button')
 check(oauth_status==200 and 'Client public' in oauth_page,'administrator registers public OAuth client with exact callback')
 check(call('/oauth/clients',{'name':'Missing CSRF','redirect_uri':oauth_cb,'auth_method':'none'},True)[0]==403,'OAuth client creation requires CSRF')
 oauth_verifier='v'*64;oauth_challenge=base64.urlsafe_b64encode(hashlib.sha256(oauth_verifier.encode()).digest()).decode().rstrip('=')
@@ -73,8 +85,8 @@ _,oauth_page,_=call('/settings');check('ChatGPT test OAuth' in oauth_page and 'M
 check(call('/oauth/clients/'+oauth_id+'/delete',{'_csrf':csrf})[0]==200,'administrator can remove client and dependent grants')
 for auth_method in ['client_secret_post','client_secret_basic']:
     _,page,_=call('/oauth/clients',{'_csrf':csrf,'name':'ChatGPT test OAuth','redirect_uri':oauth_cb,'auth_method':auth_method})
-    confidential_id=re.search(r'ID client OAuth<input readonly value="([a-z0-9_]+)"',page).group(1)
-    confidential_secret=re.search(r'Secret du client OAuth — affiché une seule fois<input readonly autocomplete="off" value="([a-f0-9]+)"',page).group(1)
+    confidential_id=CopyFields(page).value('ID client OAuth')
+    confidential_secret=CopyFields(page).value('Secret du client OAuth — affiché une seule fois')
     check(confidential_secret not in call('/settings')[1],'OAuth client secret displayed once '+auth_method)
     params={**oauth_params,'client_id':confidential_id}
     _,page,_=oauth_authorize(params)

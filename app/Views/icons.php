@@ -17,6 +17,7 @@ function icon(string $name, string $class=''): string {
         'more'=>'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
         'filter'=>'<path d="M4 6h16M7 12h10M10 18h4"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/>',
         'check'=>'<path d="m5 12 4 4L19 6"/>',
+        'copy'=>'<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
         'close'=>'<path d="m6 6 12 12M6 18 18 6"/>',
         'sun'=>'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1 1M18 18l1 1M5 19l1-1M18 6l1-1"/>',
         'moon'=>'<path d="M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z"/>',

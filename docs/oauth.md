@@ -6,7 +6,7 @@ Déployer cette version et appliquer les migrations (dont `015_mcp_oauth.sql`) a
 
 1. Dans ChatGPT, choisir OAuth et « Client OAuth défini par l’utilisateur », puis copier l’URL de rappel affichée.
 2. Dans Sillage, en administrateur : **Paramètres → Connexions OAuth — ChatGPT**. Saisir le nom et cette URL exacte. Choisir `none` pour un client public protégé par PKCE.
-3. Copier l’ID généré dans ChatGPT, laisser le secret vide et choisir la méthode `none`. Pour un client confidentiel, sélectionner la même méthode `client_secret_post` ou `client_secret_basic` des deux côtés et copier aussi le secret affiché une seule fois.
+3. Utiliser le bouton **Copier** de l’ID généré puis le coller dans ChatGPT, laisser le secret vide et choisir la méthode `none`. Pour un client confidentiel, sélectionner la même méthode `client_secret_post` ou `client_secret_basic` des deux côtés et copier aussi le secret affiché une seule fois.
 
 Ne pas coller une clé personnelle MCP dans le champ ID ou secret OAuth : ce sont deux modes d’authentification distincts.
 
@@ -42,3 +42,5 @@ Chaque utilisateur voit ses connexions, droits, expiration et dernier accès dan
 Les tests utilisent de vrais échanges HTTP avec des clients fictifs sur la base isolée. La connexion depuis ChatGPT vers l’installation publique doit être vérifiée après le déploiement.
 
 Références : [authentification des plugins OpenAI](https://developers.openai.com/plugins/build/auth), [autorisation MCP](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+
+Les URL, portées et identifiants possèdent chacun un bouton de copie. La création et les autres sauvegardes des paramètres s’effectuent sans navigation complète, avec confirmation ou erreur sur place. Les brouillons des autres sections sont conservés.

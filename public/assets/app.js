@@ -49,6 +49,14 @@ function toast(message, error = false) {
   stack.append(el);
   setTimeout(() => el.remove(), 6500);
 }
+async function copyValue(value) {
+  if (typeof value !== 'string') throw new Error('Valeur indisponible');
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
+  const input = document.createElement('textarea'), focused = document.activeElement;
+  input.value = value; input.className = 'clipboard-fallback'; document.body.append(input);
+  try { input.select(); if (!document.execCommand('copy')) throw new Error('Copie refusée'); }
+  finally { input.remove(); focused?.focus({preventScroll:true}); }
+}
 function openDialog(id) {
   const dialog = document.getElementById(id);
   if (dialog) {
@@ -67,12 +75,15 @@ document.addEventListener('click', (event) => {
   if (closer) closer.closest('dialog')?.close();
   const confirm = event.target.closest('[data-confirm]');
   if (confirm && !window.confirm(confirm.dataset.confirm)) event.preventDefault();
-  const copy = event.target.closest('[data-copy]');
-  if (copy)
-    navigator.clipboard
-      .writeText(copy.dataset.copy)
-      .then(() => toast('Copié. Le prochain pas est à vous.'))
-      .catch(() => toast('Copie indisponible dans ce navigateur.', true));
+  const copy = event.target.closest('[data-copy],[data-copy-target]');
+  if (copy) {
+    const value = copy.dataset.copyTarget ? document.getElementById(copy.dataset.copyTarget)?.value : copy.dataset.copy;
+    copyValue(value).then(() => {
+      toast('Valeur copiée.');
+      const label = $('span', copy);
+      if (label) { label.textContent = 'Copié'; setTimeout(() => { if (label.isConnected) label.textContent = 'Copier'; }, 1800); }
+    }).catch(() => toast('Copie indisponible. Sélectionnez la valeur pour la copier.', true));
+  }
   if (event.target.closest('[data-mobile-menu]')) {
     $('.sidebar')?.classList.toggle('mobile-open');
     syncSidebar();
@@ -676,7 +687,8 @@ $$('[data-toggle-children]').forEach((button) =>
   }),
 );
 
-$$('[data-mcp-lifetime]').forEach((select) => {
+function initSettingsPreviews(root = document) {
+$$('[data-mcp-lifetime]', root).forEach((select) => {
   const update = () =>
     $$('[data-mcp-duration]', select.form).forEach((input) => {
       input.disabled = select.value === 'unlimited';
@@ -685,7 +697,7 @@ $$('[data-mcp-lifetime]').forEach((select) => {
   update();
 });
 
-$$('[data-company-form]').forEach((form) => {
+$$('[data-company-form]', root).forEach((form) => {
   const preview = $('.company-preview', form.closest('section'));
   const name = $('[name="company_name"]', form), symbol = $('[name="company_icon"]', form);
   const file = $('[name="company_logo"]', form), remove = $('[name="remove_logo"]', form);
@@ -716,7 +728,7 @@ $$('[data-company-form]').forEach((form) => {
   file.addEventListener('change', update); remove?.addEventListener('change', update);
 });
 
-$$('[data-avatar-form]').forEach((form) => {
+$$('[data-avatar-form]', root).forEach((form) => {
   const preview = $('.panel-header .avatar', form.closest('section'));
   const source = preview.cloneNode(true), input = $('[name="avatar"]', form);
   const remove = $('[name="remove_avatar"]', form), name = $('[name="name"]', form);
@@ -745,6 +757,9 @@ $$('[data-avatar-form]').forEach((form) => {
   };
   input.addEventListener('change',update); remove?.addEventListener('change',update); name.addEventListener('input',update);
 });
+
+}
+initSettingsPreviews();
 
 const connectionProvider = $('[data-connection-provider-select]');
 if (connectionProvider) {

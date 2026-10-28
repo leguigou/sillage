@@ -11,7 +11,7 @@
   }
   const configDialog=$('#llm-config-dialog'), config=$('[data-llm-config]');
   if (config) {
-    const catalog=JSON.parse($('#llm-profile-data').textContent);
+    let catalog=JSON.parse($('#llm-profile-data').textContent);
     const provider=$('[name=provider]',config),url=$('[name=base_url]',config),key=$('[name=token]',config),model=$('[name=model]',config);
     const test=$('[data-llm-test]',config),save=$('[data-llm-save]',config),status=$('[data-llm-status]',config);
     let current=null,proof='',busy=false;
@@ -35,8 +35,12 @@
       if(profile) model.replaceChildren(new Option(profile.model,profile.model,true,true));
       hints();configDialog.showModal();
     }
-    $('[data-llm-new]')?.addEventListener('click',()=>open());
-    $$('[data-llm-edit]').forEach(button=>button.addEventListener('click',()=>open(catalog.profiles.find(p=>Number(p.id)===Number(button.dataset.llmEdit)))));
+    document.addEventListener('click',event=>{
+      if(event.target.closest('[data-llm-new]')) open();
+      const button=event.target.closest('[data-llm-edit]');
+      if(button) open(catalog.profiles.find(p=>Number(p.id)===Number(button.dataset.llmEdit)));
+    });
+    document.addEventListener('sillage:settings-updated',()=>{catalog=JSON.parse($('#llm-profile-data').textContent);});
     provider.addEventListener('change',()=>{url.value=catalog.providers[provider.value].url;key.value='';invalidate();hints();});
     [url,key].forEach(el=>el.addEventListener('input',invalidate));
     configDialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
@@ -58,12 +62,14 @@
       event.preventDefault();if(!proof || !config.reportValidity())return;
       const input={proof,name:$('[name=name]',config).value,model:model.value,enabled:$('[name=enabled]',config).checked?'1':'',make_default:$('[name=make_default]',config).checked?'1':''};
       lock(true);status.textContent='Enregistrement du profil…';
-      try { await post('/llm/profiles',input);window.location.assign('/settings#llm');window.location.reload(); }
+      try { await post('/llm/profiles',input);configDialog.close();lock(false);await window.SillageSettings.refresh('llm');toast('Profil enregistré.'); }
       catch(error){status.textContent=error.message;lock(false);}
     });
   }
+  function initializeAssistant() {
   const dialog=$('#llm-assistant-dialog'),form=$('[data-llm-assistant]');
-  if (!form) return;
+  if (!form || form.dataset.initialized) return;
+  form.dataset.initialized='true';
   const mode=$('[name=mode]',form),text=$('[name=text]',form),status=$('[data-llm-assist-status]',form),result=$('[data-llm-result]',form),output=$('[data-llm-output]',form),apply=$('[data-llm-apply]',form),generate=$('[data-llm-generate]',form);
   let target=null,original='',pending=false;
   function syncMode(){ $('[data-llm-scope]',form).hidden=mode.value!=='search';apply.hidden=!target||mode.value==='search'||!output.value; }
@@ -77,8 +83,9 @@
   $$('[data-llm-open]').forEach(button=>button.addEventListener('click',()=>open()));
   if(document.body.dataset.role!=='viewer') {
     $$('form[action="/tickets"] textarea[name=description],form[action^="/tickets/"] textarea[name=description],.conversation-editor').forEach(field=>{
-      const button=document.createElement('button');button.type='button';button.className='button subtle llm-field-help';button.textContent='✦ Aide à la rédaction';
-      button.addEventListener('click',()=>open(field));field.insertAdjacentElement('afterend',button);
+      let button=field.nextElementSibling?.matches('.llm-field-help')?field.nextElementSibling:null;
+      if(!button){button=document.createElement('button');button.type='button';button.className='button subtle llm-field-help';button.textContent='✦ Aide à la rédaction';field.insertAdjacentElement('afterend',button);}
+      button.onclick=()=>open(field);
     });
   }
   mode.addEventListener('change',()=>{resetResult();syncMode();});
@@ -113,4 +120,7 @@
     } else target.value=output.value;
     target.dispatchEvent(new Event('input',{bubbles:true}));dialog.close();target.focus();
   });
+  }
+  initializeAssistant();
+  document.addEventListener('sillage:settings-updated',event=>{if(event.detail.id==='llm')initializeAssistant();});
 })();
