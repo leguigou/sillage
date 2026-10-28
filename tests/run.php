@@ -21,6 +21,7 @@ if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM llm_profiles');
     DB::run('DELETE FROM notification_outbox');
     DB::run('DELETE FROM project_email_settings');
+    DB::run('DELETE FROM persistent_logins');
     DB::run('UPDATE users SET ticket_email_enabled=1');
     DB::run('DELETE FROM company_branding');
     foreach (
@@ -391,6 +392,7 @@ try {
     require __DIR__ . '/team_projects.php';
     require __DIR__ . '/llm.php';
     require __DIR__ . '/notifications.php';
+    require __DIR__ . '/persistent_login.php';
 } finally {
     DB::connection()->rollBack();
 }

@@ -142,6 +142,7 @@ final class AuthController
                 $t['user_id'],
             ]);
             DB::run('DELETE FROM auth_tokens WHERE user_id=?', [$t['user_id']]);
+            \App\Core\PersistentLogin::revokeAll((int)$t['user_id']);
         });
         Auth::logout();
         flash('Mot de passe modifié. Reconnectez-vous.');
@@ -167,6 +168,7 @@ final class AuthController
             $hash,
             $u['id'],
         ]);
+        \App\Core\PersistentLogin::revokeAll((int)$u['id']);
         Auth::logout();
         flash('Mot de passe modifié. Reconnectez-vous.');
         redirect('/login');

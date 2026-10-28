@@ -4,7 +4,7 @@ Chaque installation utilise sa propre base MySQL, son propre dossier `storage`, 
 sa configuration de courrier et son URL HTTPS. Le même code GitHub sert toutes les installations.
 Il n’y a pas de société à choisir au moment de se connecter : l’URL identifie l’installation.
 Les cookies de session sont propres à l’URL et à la clé de chaque installation, y compris pour deux ports locaux.
-Cette mise à jour du nom de cookie demande une reconnexion sur les installations existantes.
+Un changement d’URL ou de clé d’installation peut nécessiter une reconnexion. Les mises à jour qui conservent ces valeurs bénéficient de la [connexion persistante de trente jours](connexion-persistante.md).
 
 ## Configuration dans `.env`
 

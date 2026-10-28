@@ -49,6 +49,7 @@ final class User
                     (int) $active,
                     $id,
                 ]);
+                \App\Core\PersistentLogin::revokeAll($id);
             }
         });
     }

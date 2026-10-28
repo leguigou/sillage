@@ -6,6 +6,7 @@ status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'pri
 check(call('/login',{'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
 csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})
 check(status==200 and 'Bonjour, QA' in html,'verified administrator signs in'); csrf=token(html); pid=re.search(r'name="project_id" value="(\d+)"',html).group(1)
+exec((__import__('pathlib').Path(__file__).parent/'http_persistent_login.py').read_text(encoding='utf-8'))
 for path in ['/list','/board','/timeline','/charts','/forms','/development','/settings','/all','/import']:
     status,body,_=call(path); check(status==200 and 'Sillage — Une pause' not in body,'render '+path)
 check(call('/.env')[0] in (403,404,422),'environment not public'); check(call('/storage/mail')[0] in (404,422),'mail storage not public')
@@ -78,7 +79,21 @@ check(call('/connections/'+connection.group(1)+'/update',{'_csrf':csrf,'token':'
 check(call('/connections/repositories',{'_csrf':csrf,'project_id':pid,'provider':'github','token':'synthetic-token'},True)[0]==403,'viewer cannot discover repositories')
 check(call('/projects/'+pid+'/update',{'_csrf':csrf,'name':'Interdit'},True)[0]==403,'viewer cannot change project repository settings')
 check(call('/users/1',{'_csrf':csrf,'role':'admin','active':'1'})[0]==403,'viewer cannot manage accounts')
+logout_jar=next(h.cookiejar for h in http_support.client.handlers if isinstance(h,urllib.request.HTTPCookieProcessor))
+logout_cookie=copy.copy(next(c for c in logout_jar if c.name.endswith('_remember')))
+logout_original_client=http_support.client
+logout_replica_jar=http.cookiejar.CookieJar();logout_replica_jar.set_cookie(copy.copy(logout_cookie))
+logout_replica=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(logout_replica_jar))
+http_support.client=logout_replica
+check(not call('/settings')[2].endswith('/login'),'remembered credential restores another PHP session')
+http_support.client=logout_original_client
 call('/logout',{'_csrf':csrf})
+check(not any(c.name.endswith('_remember') for c in logout_jar),'logout removes persistent browser cookie')
+http_support.client=logout_replica
+check(call('/settings')[2].endswith('/login'),'logout invalidates PHP sessions restored using the same credential')
+http_support.client=logout_original_client
+logout_jar.set_cookie(logout_cookie)
+check(call('/settings')[2].endswith('/login'),'replaying saved cookie after logout does not reconnect')
 auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@example.com'
 csrf,_=get_token('/register')
 status,body,_=call('/register',{'_csrf':csrf,'email':auth_email,'password':'Inscription-Sillage-2026!','name':'Test Validation'})

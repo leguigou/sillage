@@ -244,3 +244,6 @@ Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **
 ## Notifications e-mail
 
 **Paramètres → Notifications e-mail** permet de choisir les événements et destinataires indépendamment pour chaque projet. **Mes notifications** permet à chacun de se désabonner des nouvelles des tickets. Les changements sont regroupés dans une file transactionnelle avec journal des envois et reprise des échecs. Les projets restent désactivés jusqu’à leur configuration. En local, les e-mails sont journalisés ; en production, configurer le transport PHP et planifier `php bin/console.php notifications:send`. Voir [le guide des notifications](docs/notifications.md).
+
+
+La connexion web est désormais mémorisée pendant **30 jours** grâce à un cookie protégé et à un justificatif stocké sous empreinte en MySQL. Une perte de session PHP ou un redéploiement n’impose plus de ressaisir le mot de passe si la base, `APP_URL` et `APP_KEY` sont conservées. Déconnexion, changement de mot de passe ou de droits révoquent les accès concernés. Voir [le fonctionnement de la connexion persistante](docs/connexion-persistante.md).
