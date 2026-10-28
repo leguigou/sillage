@@ -36,6 +36,7 @@ $r->add('POST', '/mcp/tokens', [$mcpTokens, 'create'])
     ->add('POST', '/automation/{id}/delete', [$automation, 'delete']);
 $r->add('POST', '/teams', [$teams, 'save'])
     ->add('POST', '/teams/{id}/members', [$teams, 'membership'])
+    ->add('POST', '/teams/{id}/projects', [$teams, 'project'])
     ->add('POST', '/teams/{id}/delete', [$teams, 'delete'])
     ->add('POST', '/users/{id}', [$teams, 'user']);
 $r->add('GET', '/login', fn() => $auth->page())->add('POST', '/login', [$auth, 'login']);

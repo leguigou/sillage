@@ -74,7 +74,7 @@ php -c .runtime/php-config/php.ini bin/console.php mcp:tools
 | Formulaires                     | `forms_list`, `forms_get`, `forms_save`, `forms_set_enabled`, `forms_rotate_link`, `forms_delete`                                  |
 | Mise en forme                   | `formatting_list`, `formatting_create`, `formatting_delete`                                                                        |
 | Automatisations                 | `automation_list`, `automation_get`, `automation_save`, `automation_set_enabled`, `automation_delete`, `automation_runs`           |
-| Équipes et comptes              | `members_list`, `teams_list`, `teams_members_list`, `teams_save`, `teams_membership`, `teams_delete`, `users_list`, `users_update` |
+| Équipes et comptes              | `members_list`, `teams_list`, `teams_members_list`, `teams_save`, `teams_membership`, `teams_projects_list`, `teams_project_membership`, `teams_delete`, `users_list`, `users_update` |
 | Vues personnelles               | `views_list`, `views_save`, `views_delete`                                                                                         |
 | Pièces jointes et développement | `tickets_attachments`, `development_list`                                                                                          |
 
@@ -147,3 +147,6 @@ Les tests utilisent MySQL, Apache, des requêtes HTTP réelles et le **SDK Pytho
 Python et le SDK servent uniquement aux tests ; PHP/Apache suffit pour l’exploitation.
 Le téléversement/téléchargement binaire des pièces jointes et la gestion des secrets GitHub/Bitbucket restent dans l’interface web.
 Le MCP expose les métadonnées des fichiers et les événements de développement sans les jetons fournisseurs.
+
+
+Les [équipes](equipes.md) se lient à plusieurs projets. Les tickets acceptent `team_id`, indépendant de `assignee_id`, et les filtres acceptent `team` (identifiant ou `"none"`). `reports_summary` expose les agrégats d’équipe.

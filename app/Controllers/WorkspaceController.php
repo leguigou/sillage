@@ -102,7 +102,10 @@ final class WorkspaceController
                     'SELECT id,name,email,role,active,verified_at FROM users ORDER BY name,id',
                 )
                 : [];
-        $teams = $section === 'settings' ? DB::all('SELECT * FROM teams ORDER BY name,id') : [];
+        $teams = DB::all('SELECT * FROM teams ORDER BY name,id');
+        $projectTeams=\App\Models\Team::forProject((int)$project['id']);
+        $teamProjects=[];
+        if ($section==='settings') foreach(DB::all('SELECT tp.team_id,p.id,p.name,p.project_key FROM team_projects tp JOIN projects p ON p.id=tp.project_id ORDER BY p.name,p.id') as $linked) $teamProjects[$linked['team_id']][]=$linked;
         $teamMembers = [];
         if ($section === 'settings') {
             foreach (
@@ -119,7 +122,7 @@ final class WorkspaceController
             [$project['id']],
         );
         $stats = [];
-        foreach (['status', 'type', 'priority', 'assignee'] as $field) {
+        foreach (['status', 'type', 'priority', 'assignee', 'team'] as $field) {
             $stats[$field] = Query::aggregate($pid, $filters, $field);
         }
         [$where, $args] = Filter::where($pid, $filters);
@@ -173,6 +176,8 @@ final class WorkspaceController
                 'accounts',
                 'teams',
                 'teamMembers',
+                'teamProjects',
+                'projectTeams',
                 'stats',
                 'activity',
                 'kpis',
@@ -194,13 +199,15 @@ final class WorkspaceController
     public function updateProject(string $id): void
     {
         Auth::admin();
+        if (isset($_POST['teams_present'])) $_POST['team_ids']=$_POST['team_ids']??[];
         Project::save($_POST,(int)$id);
-        flash('Projet et dépôt principal enregistrés.');
+        flash('Projet, équipes et dépôt principal enregistrés.');
         redirect('/?project='.(int)$id);
     }
     public function project(): void
     {
         Auth::admin();
+        if (isset($_POST['teams_present'])) $_POST['team_ids']=$_POST['team_ids']??[];
         $id = Project::save($_POST);
         flash('Votre nouveau projet est prêt.');
         redirect('/?project=' . $id);

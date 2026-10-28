@@ -1,0 +1,2 @@
+<?php $ticketTeams=$projectTeams??App\Models\Team::forProject((int)$project['id']); ?>
+<label>Équipe responsable<select name="team_id"><option value="">Sans équipe</option><?php foreach($ticketTeams as $candidate): ?><option value="<?= (int)$candidate['id'] ?>" <?= (int)($selectedTeam??0)===(int)$candidate['id']?'selected':'' ?>><?= e($candidate['name']) ?></option><?php endforeach; ?></select><small>L’équipe et la personne assignée sont indépendantes. Seules les équipes liées au projet sont proposées.</small></label>

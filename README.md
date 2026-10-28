@@ -47,7 +47,7 @@ La personne doit d’abord s’inscrire avec une adresse autorisée par la confi
 Une personne peut appartenir à plusieurs équipes. Le bouton **Retirer** enlève uniquement son appartenance à l’équipe.
 Dans **Paramètres → Utilisateurs et accès**, l’administrateur change le rôle ou désactive/réactive le compte.
 Chaque changement d’accès invalide les sessions concernées. Le dernier administrateur actif et vérifié est protégé.
-Les équipes organisent les personnes ; elles ne créent pas de restriction d’accès par projet.
+Les équipes regroupent des membres, participent à plusieurs projets et reçoivent des tickets avec un responsable individuel. Plusieurs équipes peuvent travailler sur un projet. Les filtres, regroupements et rapports suivent le travail par équipe. Les permissions restent celles des rôles globaux ; voir [le guide des équipes](docs/equipes.md).
 
 - Inscription selon `ALLOWED_DOMAINS` et `EMAIL_DOMAIN_RESTRICTION`, sans autoriser implicitement les sous-domaines ou domaines ressemblants.
 - E-mail + mot de passe ; nom prérempli depuis les parties séparées par `.`, `_`, `-` ou `+`, puis modifiable.
@@ -107,7 +107,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 
 ## MCP et automatisations
 
-Le serveur MCP est disponible à **`/mcp`** avec 45 outils : projets, tickets, commentaires, relations,
+Le serveur MCP est disponible à **`/mcp`** avec 47 outils : projets, tickets, commentaires, relations,
 formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
 Les métadonnées des pièces jointes et les événements de développement sont également consultables.
 

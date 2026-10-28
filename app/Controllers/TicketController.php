@@ -13,6 +13,7 @@ final class TicketController
         $primaryRepository=empty($project['repository_connection_id'])?null:DB::one('SELECT c.id,c.provider,c.repository FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? AND c.id=?',[$project['id'],$project['repository_connection_id']]);
         $projects = Project::all();
         $members = Project::members();
+        $projectTeams=\App\Models\Team::forProject((int)$project['id']);
         $parents = DB::all(
             'SELECT id,number,title,type FROM tickets WHERE project_id=? AND id<>? AND archived=0 ORDER BY number DESC LIMIT 500',
             [$project['id'], $ticket['id']],
@@ -47,6 +48,7 @@ final class TicketController
                 'project',
                 'projects',
                 'members',
+                'projectTeams',
                 'parents',
                 'comments',
                 'attachments',
@@ -94,6 +96,7 @@ final class TicketController
                     'title',
                     'priority',
                     'assignee_id',
+                    'team_id',
                     'due_date',
                     'start_date',
                     'flagged',

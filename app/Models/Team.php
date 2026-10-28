@@ -9,6 +9,8 @@ final class Team
     {
         DB::transaction(function () use ($id) {
             self::find($id);
+            // Keep tickets and their individual owners, and invalidate stale edit forms.
+            DB::run('UPDATE tickets SET team_id=NULL,version=version+1,updated_at=UTC_TIMESTAMP() WHERE team_id=?',[$id]);
             DB::run('DELETE FROM teams WHERE id=?', [$id]);
         });
     }
@@ -46,6 +48,43 @@ final class Team
     {
         return DB::one('SELECT * FROM teams WHERE id=? FOR UPDATE', [$id]) ??
             throw new \InvalidArgumentException('Équipe introuvable.');
+    }
+
+    public static function forProject(int $project): array
+    {
+        return DB::all('SELECT t.* FROM teams t JOIN team_projects tp ON tp.team_id=t.id WHERE tp.project_id=? ORDER BY t.name,t.id',[$project]);
+    }
+
+    public static function setProjectTeams(int $project,array $ids): void
+    {
+        DB::transaction(function() use($project,$ids) {
+            if (!DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$project])) throw new \InvalidArgumentException('Projet introuvable.');
+            $selected=[];
+            foreach($ids as $id) {
+                if ((!is_string($id) && !is_int($id)) || !ctype_digit((string)$id) || (int)$id<1) throw new \InvalidArgumentException('Équipe invalide.');
+                $selected[]=(int)$id;
+            }
+            $selected=array_values(array_unique($selected)); sort($selected);
+            foreach($selected as $id) self::find($id);
+            $current=array_map('intval',array_column(self::forProject($project),'id'));
+            foreach(array_diff($current,$selected) as $id) {
+                if (DB::one('SELECT id FROM tickets WHERE project_id=? AND team_id=? LIMIT 1',[$project,$id])) throw new \InvalidArgumentException('Réaffectez les tickets de cette équipe avant de la retirer du projet (y compris les tickets archivés).');
+            }
+            foreach(array_diff($current,$selected) as $id) {
+                DB::run('DELETE FROM team_projects WHERE team_id=? AND project_id=?',[$id,$project]);
+            }
+            foreach(array_diff($selected,$current) as $id) DB::run('INSERT INTO team_projects(team_id,project_id) VALUES(?,?)',[$id,$project]);
+        });
+    }
+
+    public static function projectMembership(int $team,int $project,bool $add): void
+    {
+        DB::transaction(function() use($team,$project,$add) {
+            if (!DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$project])) throw new \InvalidArgumentException('Projet introuvable.');
+            self::find($team);
+            $ids=array_map('intval',array_column(self::forProject($project),'id'));
+            self::setProjectTeams($project,$add?[...$ids,$team]:array_values(array_diff($ids,[$team])));
+        });
     }
 
     public static function membership(int $team, int $user, bool $add): void

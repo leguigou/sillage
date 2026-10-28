@@ -8,5 +8,6 @@
  <label>Dépôt Git principal<select name="repository_connection_id"><option value="">Aucun dépôt principal</option><?php foreach($repositoryCatalog as $repository): ?><option value="<?= (int)$repository['id'] ?>" <?= (int)($project['repository_connection_id']??0)===(int)$repository['id']?'selected':'' ?>><?= e(ucfirst($repository['provider']).' · '.$repository['repository']) ?></option><?php endforeach; ?></select></label>
  <p class="help-text">Choisir un dépôt existant le lie au projet et réutilise sa connexion partagée. Un dépôt peut servir à plusieurs projets. Les autres dépôts déjà liés au projet sont conservés.</p>
  <a href="/development?project=<?= (int)$project['id'] ?>" class="text-button">Gérer les dépôts liés ou connecter un nouveau dépôt</a>
+ <?php require ROOT.'/app/Views/partials/project-teams.php'; ?>
  <button class="button primary">Enregistrer le projet</button>
 </form></dialog>

@@ -11,6 +11,7 @@ final class Project
                 DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$id]);
             }
             $old = $id ? self::find($id) : null;
+            if (array_key_exists('team_ids',$input) && !is_array($input['team_ids'])) throw new \InvalidArgumentException('Liste d’équipes invalide.');
             if (array_key_exists('repository_connection_id',$input) && $input['repository_connection_id']!==null && $input['repository_connection_id']!=='') {
                 $repositoryId=filter_var($input['repository_connection_id'],FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
                 if ($repositoryId===false || !DB::one('SELECT id FROM connections WHERE id=?',[$repositoryId])) throw new \InvalidArgumentException('Choisissez une connexion Git existante.');
@@ -43,6 +44,7 @@ final class Project
             }
             try {
                 if ($id) {
+                    if (array_key_exists('team_ids',$input)) Team::setProjectTeams($id,$input['team_ids']);
                     DB::run('UPDATE projects SET name=?,description=?,color=? WHERE id=?', [
                         $name,
                         $description,
@@ -61,6 +63,7 @@ final class Project
                     [$name, $key, $description, $color],
                 );
                 if (!empty($input['repository_connection_id'])) RepositoryConnection::attach($newId,(int)$input['repository_connection_id'],true);
+                if (array_key_exists('team_ids',$input)) Team::setProjectTeams($newId,(array)$input['team_ids']);
                 return $newId;
             } catch (\PDOException $e) {
                 if (($e->errorInfo[1] ?? 0) === 1062) {
@@ -95,6 +98,7 @@ final class Project
         if (!$p) {
             throw new \InvalidArgumentException('Projet introuvable.');
         }
+        $p['team_ids']=array_map('intval',array_column(Team::forProject($id),'id'));
         return $p;
     }
     public static function members(): array

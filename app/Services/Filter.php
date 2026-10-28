@@ -13,6 +13,7 @@ final class Filter
         'type' => 't.type',
         'priority' => 't.priority',
         'assignee' => 'a.name',
+        'team' => 'tm.name',
         'reporter' => 'u.name',
         'due' => 't.due_date',
         'start' => 't.start_date',
@@ -70,6 +71,14 @@ final class Filter
             } else {
                 $sql[] = 't.assignee_id=?';
                 $params[] = (int) $input['assignee'];
+            }
+        }
+        if (($input['team']??'')!=='') {
+            if ($input['team']==='none') $sql[]='t.team_id IS NULL';
+            else {
+                $id=$input['team'];
+                if ((!is_int($id) && !is_string($id)) || !ctype_digit((string)$id) || (int)$id<1) throw new \InvalidArgumentException('Filtre équipe invalide.');
+                $sql[]='t.team_id=?'; $params[]=(int)$id;
             }
         }
         if (!empty($input['hide_done'])) {

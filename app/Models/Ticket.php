@@ -27,7 +27,7 @@ final class Ticket
     public static function find(int $id): array
     {
         $t = DB::one(
-            'SELECT t.*,p.project_key,p.name project_name,a.name assignee_name,u.name reporter_name FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id WHERE t.id=?',
+            'SELECT t.*,p.project_key,p.name project_name,a.name assignee_name,u.name reporter_name,tm.name team_name FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id LEFT JOIN teams tm ON tm.id=t.team_id WHERE t.id=?',
             [$id],
         );
         if (!$t) {
@@ -70,6 +70,13 @@ final class Ticket
             ])
         ) {
             throw new \InvalidArgumentException('Personne assignée introuvable.');
+        }
+        $rawTeam=$input['team_id']??null;
+        $team=null;
+        if ($rawTeam!==null && $rawTeam!=='') {
+            if ((!is_int($rawTeam) && !is_string($rawTeam)) || !ctype_digit((string)$rawTeam) || (int)$rawTeam<1) throw new \InvalidArgumentException('Équipe invalide.');
+            $team=(int)$rawTeam;
+            if (!DB::one('SELECT team_id FROM team_projects WHERE team_id=? AND project_id=?',[$team,$project])) throw new \InvalidArgumentException('Cette équipe ne participe pas au projet.');
         }
         $parent = filter_var($input['parent_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
         if ($parent) {
@@ -135,6 +142,7 @@ final class Ticket
             'status' => $status,
             'priority' => $priority,
             'assignee_id' => $assignee,
+            'team_id' => $team,
             'parent_id' => $parent,
             'labels' => json_encode($labels, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             'start_date' => $start,
@@ -150,15 +158,15 @@ final class Ticket
         ?int $reporter,
         ?string $external = null,
     ): int {
-        $data = self::validate($input, $project);
-        return DB::transaction(function () use ($project, $data, $reporter, $external) {
+        return DB::transaction(function () use ($project, $input, $reporter, $external) {
             $p = DB::one('SELECT * FROM projects WHERE id=? FOR UPDATE', [$project]);
             if (!$p) {
                 throw new \InvalidArgumentException('Projet introuvable.');
             }
+            $data = self::validate($input,$project);
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
-                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,team_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 [
                     $project,
                     $p['next_number'],
@@ -190,7 +198,7 @@ final class Ticket
             $old = self::find($id);
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
             $old = self::find($id);
-            $data = self::validate($input, (int) $old['project_id'], $id);
+            $data = self::validate(array_replace(['team_id'=>$old['team_id']],$input), (int) $old['project_id'], $id);
             $completed =
                 $data['status'] === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
             $set = implode(',', array_map(fn($k) => "$k=?", array_keys($data)));
@@ -232,6 +240,7 @@ final class Ticket
             'status',
             'priority',
             'assignee_id',
+            'team_id',
             'parent_id',
             'labels',
             'start_date',

@@ -30,6 +30,16 @@ final class TeamController
         redirect('/settings#teams');
     }
 
+    public function project(string $id): void
+    {
+        Auth::admin();
+        $action=(string)($_POST['action']??'');
+        if (!in_array($action,['add','remove'],true)) throw new \InvalidArgumentException('Action invalide.');
+        Team::projectMembership((int)$id,(int)($_POST['project_id']??0),$action==='add');
+        flash('Projets de l’équipe mis à jour.');
+        redirect('/settings#teams');
+    }
+
     public function delete(string $id): void
     {
         Auth::admin();

@@ -85,6 +85,7 @@ final class Tools
             'status' => $enum(array_keys(Ticket::STATUSES)),
             'priority' => $enum(array_keys(Ticket::PRIORITIES)),
             'assignee_id' => $nullableId,
+            'team_id' => $nullableId,
             'parent_id' => $nullableId,
             'labels' => $labels,
             'start_date' => ['type' => ['string', 'null'], 'maxLength' => 10],
@@ -126,6 +127,7 @@ final class Tools
             'description' => $str(2000),
             'color' => $str(7),
             'repository_connection_id' => $nullableId,
+            'team_ids' => ['type'=>'array','items'=>$id,'uniqueItems'=>true],
         ];
         $add(
             'projects_create',
@@ -139,7 +141,7 @@ final class Tools
             'Modifier le nom, la description, la couleur ou le dépôt Git principal d’un projet. Une connexion existante peut être partagée.',
             'admin',
             $obj(
-                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId],
+                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId,'team_ids'=>['type'=>'array','items'=>$id,'uniqueItems'=>true]],
                 ['id'],
             ),
             fn($a) => Project::find(Project::save($a, $a['id'])),
@@ -162,6 +164,7 @@ final class Tools
             'priority' => $enum(array_keys(Ticket::PRIORITIES)),
             'type' => $enum(array_keys(Ticket::TYPES)),
             'assignee' => ['type' => ['string', 'integer']],
+            'team' => ['type'=>['string','integer']],
             'hide_done' => $bool,
             'flagged' => $bool,
             'label' => $str(40),
@@ -175,6 +178,7 @@ final class Tools
                 'created',
                 'updated',
                 'assignee',
+                'team',
                 'type',
                 'estimated_hours',
             ]),
@@ -584,14 +588,14 @@ final class Tools
         );
         $add(
             'teams_list',
-            'Lister les équipes et leur nombre de membres.',
+            'Lister les équipes, leurs nombres de membres, projets et tickets actifs ; filtrer par projet.',
             'read',
-            $obj($page),
+            $obj(['project_id'=>$id]+$page),
             fn($a) => self::page(
                 'teams',
-                't.*,(SELECT COUNT(*) FROM team_members m WHERE m.team_id=t.id) member_count',
-                'teams t',
-                [],
+                't.*,(SELECT COUNT(*) FROM team_members m WHERE m.team_id=t.id) member_count,(SELECT COUNT(*) FROM team_projects tp WHERE tp.team_id=t.id) project_count,(SELECT COUNT(*) FROM tickets k WHERE k.team_id=t.id AND k.archived=0) ticket_count',
+                'teams t'.(isset($a['project_id'])?' WHERE EXISTS(SELECT 1 FROM team_projects tp WHERE tp.team_id=t.id AND tp.project_id=?)':''),
+                isset($a['project_id'])?[$a['project_id']]:[],
                 $a,
                 't.id',
             ),
@@ -634,8 +638,25 @@ final class Tools
             },
         );
         $add(
+            'teams_projects_list',
+            'Lister les projets auxquels une équipe participe.',
+            'read',
+            $obj(['id'=>$id]+$page,['id']),
+            function($a) {
+                Team::find($a['id']);
+                return self::page('projects','p.*','team_projects tp JOIN projects p ON p.id=tp.project_id WHERE tp.team_id=?',[$a['id']],$a,'p.id');
+            },
+        );
+        $add(
+            'teams_project_membership',
+            'Associer ou retirer une équipe d’un projet. Le retrait exige de réaffecter ses tickets, y compris archivés.',
+            'admin',
+            $obj(['team_id'=>$id,'project_id'=>$id,'add'=>$bool],['team_id','project_id','add']),
+            function($a) { Team::projectMembership($a['team_id'],$a['project_id'],$a['add']); return ['ok'=>true]; },
+        );
+        $add(
             'teams_delete',
-            'Supprimer une équipe ; les comptes et les tickets sont conservés.',
+            'Supprimer une équipe et libérer ses affectations ; les comptes et les tickets sont conservés.',
             'admin',
             $obj(['id' => $id], ['id']),
             function ($a) {
@@ -689,6 +710,7 @@ final class Tools
                     'priorities' => Query::aggregate($pid, $f, 'priority'),
                     'types' => Query::aggregate($pid, $f, 'type'),
                     'assignees' => Query::aggregate($pid, $f, 'assignee'),
+                    'teams' => Query::teamWorkload($pid,$f),
                 ];
             },
         );
