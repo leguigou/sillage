@@ -21,7 +21,7 @@ final class DevelopmentController
         }
         if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) json_response(['ok'=>true,'preserved'=>$token==='']);
         flash($token===''?'Le jeton enregistré a été conservé.':'Le nouveau jeton a été vérifié et enregistré.');
-        redirect('/development?project='.(int)$connection['project_id']);
+        redirect('/development?project=' . \App\Models\RepositoryConnection::contextProject((int)$id,(int)($_POST['project_id']??0)));
     }
 
     public function repositories(): void
@@ -33,7 +33,7 @@ final class DevelopmentController
         $page = filter_var($_POST['page'] ?? 1, FILTER_VALIDATE_INT);
         if ($page === false) throw new \InvalidArgumentException('Page de dépôts invalide.');
         $result = Development::discover($provider,(string)($_POST['token']??''),$page,trim((string)($_POST['workspace']??'')));
-        $connected = array_map('strtolower', array_column(DB::all('SELECT repository FROM connections WHERE project_id=? AND provider=?',[$pid,$provider]),'repository'));
+        $connected = array_map('strtolower', array_column(DB::all('SELECT c.repository FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? AND c.provider=?',[$pid,$provider]),'repository'));
         foreach ($result['repositories'] as &$repository) $repository['connected'] = in_array(strtolower($repository['repository']),$connected,true);
         json_response($result);
     }
@@ -46,14 +46,12 @@ final class DevelopmentController
         $provider = (string) ($_POST['provider'] ?? '');
         $repo = Development::repository($provider, (string) ($_POST['repository'] ?? ''));
         $token = Development::accessToken((string) ($_POST['token'] ?? ''));
-        if (
-            DB::one(
-                'SELECT id FROM connections WHERE project_id=? AND provider=? AND repository=?',
-                [$pid, $provider, $repo],
-            )
-        ) {
-            if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>true,'repository'=>$repo]);
-            throw new \InvalidArgumentException('Ce dépôt est déjà connecté.');
+        $shared = DB::one('SELECT id FROM connections WHERE provider=? AND repository=? ORDER BY id LIMIT 1',[$provider,$repo]);
+        if ($shared) {
+            \App\Models\RepositoryConnection::attach($pid,(int)$shared['id']);
+            if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>true,'repository'=>$repo,'shared'=>true]);
+            flash('La connexion Git existante est liée au projet ; son jeton partagé est conservé.');
+            redirect('/development?project='.$pid);
         }
         $cipher = Security::encrypt($token);
         $hook = bin2hex(random_bytes(32));
@@ -63,6 +61,7 @@ final class DevelopmentController
             'INSERT INTO connections(project_id,provider,repository,secret_cipher,webhook_cipher) VALUES(?,?,?,?,?)',
             [$pid, $provider, $repo, $cipher, Security::encrypt($hook)],
         );
+        \App\Models\RepositoryConnection::attach($pid,$id);
         $_SESSION['webhook_setups'][] = ['repository'=>$repo,'url' => url('/webhooks/' . $id), 'secret' => $hook];
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>false,'repository'=>$repo,'id'=>$id]);
         flash('Dépôt connecté. Configurez le webhook avec le secret affiché une seule fois.');
@@ -75,18 +74,22 @@ final class DevelopmentController
         if (!$c) {
             throw new \InvalidArgumentException('Connexion introuvable.');
         }
-        $n = Development::sync($c);
-        flash($n . ' pull requests examinées (première page de 50 maximum).');
-        redirect('/development?project=' . $c['project_id']);
+        $kind=(string)($_POST['kind']??'pull_request');
+        $page=max(1,(int)($_POST['page']??1));
+        $n = Development::sync($c,$kind,$page);
+        flash($n . ' éléments synchronisés · '.\App\Services\DevelopmentPayload::KINDS[$kind].' · page '.$page.' (50 maximum par page).');
+        redirect('/development?project=' . \App\Models\RepositoryConnection::contextProject((int)$id,(int)($_POST['project_id']??0)));
     }
     public function disconnect(string $id): void
     {
         Auth::admin();
-        DB::run('DELETE FROM connections WHERE id=?', [(int) $id]);
+        $project=(int)($_POST['project_id']??0);
+        if (!$project) $project=\App\Models\RepositoryConnection::contextProject((int)$id);
+        \App\Models\RepositoryConnection::detach($project,(int)$id);
         flash(
-            'Connexion supprimée. Révoquez également le jeton chez le fournisseur si nécessaire.',
+            'Dépôt détaché de ce projet. Les connexions partagées avec d’autres projets sont conservées.',
         );
-        redirect('/development');
+        redirect('/development?project='.$project);
     }
     public function webhook(string $id): void
     {
@@ -116,46 +119,16 @@ final class DevelopmentController
         if (strcasecmp($repo, $c['repository']) !== 0) {
             json_response(['error' => 'Repository mismatch'], 403);
         }
-        DB::transaction(function () use ($c, $data) {
-            $pr = $data['pull_request'] ?? ($data['pullrequest'] ?? null);
-            if ($pr) {
-                Development::ingest(
-                    $c,
-                    'pr:' . ($pr['number'] ?? $pr['id']),
-                    'pull_request',
-                    ($pr['title'] ?? '') .
-                        ' ' .
-                        ($pr['head']['ref'] ?? ($pr['source']['branch']['name'] ?? '')),
-                    $pr['html_url'] ?? ($pr['links']['html']['href'] ?? ''),
-                    !empty($pr['merged']) ? 'merged' : $pr['state'] ?? '',
-                    $pr['updated_at'] ?? ($pr['updated_on'] ?? 'now'),
-                );
-            }
-            foreach (array_slice($data['commits'] ?? [], 0, 100) as $commit) {
-                Development::ingest(
-                    $c,
-                    'commit:' . ($commit['id'] ?? ''),
-                    'commit',
-                    ($commit['message'] ?? '') . ' ' . ($data['ref'] ?? ''),
-                    $commit['url'] ?? '',
-                    'committed',
-                    $commit['timestamp'] ?? 'now',
-                );
-            }
-            foreach (array_slice($data['push']['changes'] ?? [], 0, 50) as $change) {
-                foreach (array_slice($change['commits'] ?? [], 0, 100) as $commit) {
-                    Development::ingest(
-                        $c,
-                        'commit:' . ($commit['hash'] ?? ''),
-                        'commit',
-                        $commit['message'] ?? '',
-                        $commit['links']['html']['href'] ?? '',
-                        'committed',
-                        $commit['date'] ?? 'now',
-                    );
-                };
-            }
-        });
+        try {
+            $event=(string)($_SERVER['HTTP_X_GITHUB_EVENT']??$_SERVER['HTTP_X_EVENT_KEY']??'');
+            $events=\App\Services\DevelopmentPayload::webhook($c['provider'],$event,$data,$c['repository']);
+            if (count($events)>250) throw new \InvalidArgumentException('Trop d’éléments dans cette livraison ; utilisez la synchronisation paginée.');
+            DB::transaction(function() use($c,$events) {
+                foreach($events as $item) \App\Models\DevelopmentEvent::save($c,$item,true);
+            });
+        } catch (\InvalidArgumentException $error) {
+            json_response(['error'=>$error->getMessage()],400);
+        }
         json_response(['ok' => true]);
     }
 }

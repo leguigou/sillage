@@ -138,14 +138,12 @@ final class WorkspaceController
             'SELECT f.*,u.name reporter_name FROM public_forms f JOIN users u ON u.id=f.reporter_id WHERE project_id=? ORDER BY f.id DESC',
             [$project['id']],
         );
-        $connections = DB::all(
-            'SELECT id,provider,repository,last_sync_at FROM connections WHERE project_id=? ORDER BY id',
+        $connections = \App\Models\RepositoryConnection::forProject((int)$project['id']);
+        $repositoryCatalog = $user['role']==='admin' ? \App\Models\RepositoryConnection::all() : [];
+        $events = \App\Models\DevelopmentEvent::withTickets(DB::all(
+            'SELECT d.*,c.provider,c.repository FROM development_events d JOIN connections c ON c.id=d.connection_id JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY d.occurred_at DESC,d.id DESC LIMIT 100',
             [$project['id']],
-        );
-        $events = DB::all(
-            'SELECT d.*,c.provider,c.repository,t.number,p.project_key FROM development_events d JOIN connections c ON c.id=d.connection_id JOIN projects p ON p.id=c.project_id LEFT JOIN tickets t ON t.id=d.ticket_id WHERE c.project_id=? ORDER BY d.occurred_at DESC LIMIT 100',
-            [$project['id']],
-        );
+        ),(int)$project['id']);
         $title = match ($section) {
             'board' => 'Tableau',
             'list' => 'Liste',
@@ -186,11 +184,19 @@ final class WorkspaceController
                 'rules',
                 'forms',
                 'connections',
+                'repositoryCatalog',
                 'events',
                 'title',
                 'error',
             ),
         );
+    }
+    public function updateProject(string $id): void
+    {
+        Auth::admin();
+        Project::save($_POST,(int)$id);
+        flash('Projet et dépôt principal enregistrés.');
+        redirect('/?project='.(int)$id);
     }
     public function project(): void
     {

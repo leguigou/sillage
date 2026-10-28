@@ -102,7 +102,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 - Le workflow comporte quatre états fixes. La configuration de nouveaux états, types et champs arbitraires, le designer libre de widgets, la gestion fine des capacités, les sprints, GitLab, les agents IA, scans de vulnérabilités et métriques DORA ne sont pas implémentés.
 - La liste affiche 50 tickets par page. Les regroupements et la hiérarchie portent sur la page examinée. Le tableau et la chronologie affichent au maximum 1 000 tickets avec un message de couverture ; les statistiques agrègent tous les tickets filtrés.
 - L’import est limité à 500 lignes / 2 Mo, l’export à 10 000 tickets et une pièce jointe à 10 Mo. Les fichiers restent hors du dossier public et sont téléchargés via un contrôleur authentifié.
-- La synchronisation de développement examine la première page de 50 PR. Les webhooks reçus complètent l’historique ; cette vue ne garantit pas la récupération rétroactive de tous les événements.
+- La synchronisation de développement importe une page de 50 branches, commits ou PR au choix. Les webhooks reçus complètent l’historique ; cette vue ne garantit pas la récupération rétroactive de tous les événements.
 - Les connecteurs sont testés au niveau de leurs contrats et signatures avec des fixtures. Aucune connexion réelle à un compte GitHub ou Bitbucket n’est revendiquée sans les jetons du propriétaire.
 
 ## MCP et automatisations
@@ -231,3 +231,6 @@ Sous Windows, les appels GitHub/Bitbucket utilisent les certificats de confiance
 
 
 Le bouton **Vérifier le jeton et lister les dépôts** charge les dépôts accessibles par pages de 100 (Bitbucket : workspace requis). Cochez ceux à connecter, jusqu’à 20 par envoi ; le jeton n’est pas enregistré lors de cette simple découverte. **Configurer** affiche les dépôts déjà enregistrés pour le fournisseur et permet de remplacer leur jeton après vérification. Laisser le champ vide conserve le jeton existant ; celui-ci n’est jamais renvoyé au navigateur.
+
+
+Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **Paramètres du projet → Dépôt Git principal**, sélectionnez une connexion existante. Les fiches tickets affichent désormais les branches, commits et pull requests associés à leur clé. Les webhooks peuvent déclencher des règles propres au projet, notamment lors de la fusion d’une PR. Voir [le guide du suivi Git](docs/developpement.md). Builds et déploiements restent prévus pour une étape ultérieure.

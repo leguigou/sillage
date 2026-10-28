@@ -125,6 +125,7 @@ final class Tools
             'key' => $str(10),
             'description' => $str(2000),
             'color' => $str(7),
+            'repository_connection_id' => $nullableId,
         ];
         $add(
             'projects_create',
@@ -135,10 +136,10 @@ final class Tools
         );
         $add(
             'projects_update',
-            'Modifier le nom, la description ou la couleur d’un projet.',
+            'Modifier le nom, la description, la couleur ou le dépôt Git principal d’un projet. Une connexion existante peut être partagée.',
             'admin',
             $obj(
-                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7)],
+                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId],
                 ['id'],
             ),
             fn($a) => Project::find(Project::save($a, $a['id'])),
@@ -474,7 +475,7 @@ final class Tools
             },
             true,
         );
-        $conditions = $obj(array_intersect_key($ticketFields, array_flip(Automation::CONDITIONS)));
+        $conditions = $obj(array_intersect_key($ticketFields, array_flip(Automation::CONDITIONS)) + ['development_repository'=>$str(200)]);
         $actions = $obj(
             array_intersect_key($ticketFields, array_flip(Automation::ACTIONS)) + [
                 'comment' => $str(10000),
@@ -771,20 +772,20 @@ final class Tools
                 $offset = $a['offset'] ?? 0;
                 return [
                     'connections' => DB::all(
-                        'SELECT id,provider,repository,last_sync_at FROM connections WHERE project_id=? ORDER BY id',
+                        'SELECT c.id,c.provider,c.repository,c.last_sync_at FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY c.id',
                         [$a['project_id']],
                     ),
                     'total' => (int) DB::one(
-                        'SELECT COUNT(*) n FROM development_events d JOIN connections c ON c.id=d.connection_id WHERE c.project_id=?',
+                        'SELECT COUNT(*) n FROM development_events d JOIN project_connections pc ON pc.connection_id=d.connection_id WHERE pc.project_id=?',
                         [$a['project_id']],
                     )['n'],
-                    'events' => DB::all(
-                        'SELECT d.* FROM development_events d JOIN connections c ON c.id=d.connection_id WHERE c.project_id=? ORDER BY d.id DESC LIMIT ' .
+                    'events' => \App\Models\DevelopmentEvent::withTickets(DB::all(
+                        'SELECT d.* FROM development_events d JOIN project_connections pc ON pc.connection_id=d.connection_id WHERE pc.project_id=? ORDER BY d.id DESC LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,
                         [$a['project_id']],
-                    ),
+                    ),$a['project_id']),
                 ];
             },
         );

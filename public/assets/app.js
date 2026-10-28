@@ -859,7 +859,7 @@ $$('[data-connect-repositories]').forEach((form) => {
         const item = document.createElement('li'); results.append(item);
         try {
           const result = await post(form.action, { project_id: $('[name="project_id"]', form).value, provider: selectedProvider, repository: repo, token: key });
-          item.textContent = `${result.repository} : ${result.existing ? 'déjà connecté' : 'connexion enregistrée'}.`;
+          item.textContent = `${result.repository} : ${result.shared ? 'connexion partagée liée au projet' : result.existing ? 'déjà connecté' : 'connexion enregistrée'}.`;
           connected++; review.hidden = false;
         } catch (error) { failures.push(repo); item.textContent = `${repo} : ${error.message}`; item.classList.add('danger'); }
       }
@@ -887,4 +887,9 @@ $$('[data-connection-update]').forEach((form) => form.addEventListener('submit',
     status.textContent = result.preserved ? 'Le jeton enregistré a été conservé.' : 'Le nouveau jeton a été vérifié et enregistré.';
   } catch (error) { status.textContent = error.message; status.classList.add('danger'); }
   finally { button.disabled = false; input.disabled = false; }
+}));
+
+$$('[data-development-open]').forEach((button) => button.addEventListener('click', () => {
+  const details = document.getElementById(button.dataset.developmentOpen);
+  if (details) { details.open = true; details.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }
 }));

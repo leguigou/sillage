@@ -11,6 +11,11 @@ final class Project
                 DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$id]);
             }
             $old = $id ? self::find($id) : null;
+            if (array_key_exists('repository_connection_id',$input) && $input['repository_connection_id']!==null && $input['repository_connection_id']!=='') {
+                $repositoryId=filter_var($input['repository_connection_id'],FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+                if ($repositoryId===false || !DB::one('SELECT id FROM connections WHERE id=?',[$repositoryId])) throw new \InvalidArgumentException('Choisissez une connexion Git existante.');
+                $input['repository_connection_id']=$repositoryId;
+            }
             $name = trim((string) ($input['name'] ?? ($old['name'] ?? '')));
             $key = strtoupper(trim((string) ($input['key'] ?? ($old['project_key'] ?? ''))));
             $description = (string) ($input['description'] ?? ($old['description'] ?? ''));
@@ -44,12 +49,19 @@ final class Project
                         $color,
                         $id,
                     ]);
+                    if (array_key_exists('repository_connection_id',$input)) {
+                        $connection=(int)($input['repository_connection_id']??0);
+                        if ($connection) RepositoryConnection::attach($id,$connection,true);
+                        else DB::run('UPDATE projects SET repository_connection_id=NULL WHERE id=?',[$id]);
+                    }
                     return $id;
                 }
-                return DB::insert(
+                $newId = DB::insert(
                     'INSERT INTO projects(name,project_key,description,color) VALUES(?,?,?,?)',
                     [$name, $key, $description, $color],
                 );
+                if (!empty($input['repository_connection_id'])) RepositoryConnection::attach($newId,(int)$input['repository_connection_id'],true);
+                return $newId;
             } catch (\PDOException $e) {
                 if (($e->errorInfo[1] ?? 0) === 1062) {
                     throw new \InvalidArgumentException('Cette clé de projet existe déjà.');
@@ -61,6 +73,7 @@ final class Project
     public static function deleteEmpty(int $id): void
     {
         self::find($id);
+        if (DB::one('SELECT connection_id FROM project_connections WHERE project_id=? LIMIT 1',[$id])) throw new \InvalidArgumentException('Détachez les dépôts Git avant de supprimer un projet vide.');
         try {
             DB::run('DELETE FROM projects WHERE id=?', [$id]);
         } catch (\PDOException $e) {

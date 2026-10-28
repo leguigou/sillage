@@ -53,6 +53,7 @@ if (($argv[1] ?? '') === 'fixtures') {
             ],
         );
     }
+    DB::run('INSERT IGNORE INTO project_connections(project_id,connection_id) SELECT project_id,id FROM connections WHERE project_id IS NOT NULL');
     echo "Fixtures HTTP isolées prêtes.\n";
     exit();
 }
@@ -382,6 +383,7 @@ try {
     require __DIR__ . '/ticket_conversation.php';
     require __DIR__ . '/company_branding.php';
     require __DIR__ . '/development_connections.php';
+    require __DIR__ . '/development_tracking.php';
 } finally {
     DB::connection()->rollBack();
 }

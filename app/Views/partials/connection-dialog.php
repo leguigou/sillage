@@ -14,7 +14,7 @@
   <small>Seuls les dépôts cochés seront connectés. La lecture des pull requests sera vérifiée à l’enregistrement.</small>
  </section>
  <details data-manual-repositories><summary>Saisir des dépôts manuellement</summary><label>Dépôts<textarea name="repository" rows="3" maxlength="10000" autocomplete="off" spellcheck="false" placeholder="organisation/mon-projet"></textarea><small>Un dépôt ou une URL par ligne. Vous pouvez combiner cette saisie avec la sélection ci-dessus, jusqu’à 20 dépôts par envoi.</small></label></details>
- <p class="help-text">Le jeton n’est pas enregistré lors de la recherche. À la connexion, il sera chiffré côté serveur pour chaque dépôt sélectionné.</p>
+ <p class="help-text">Le jeton n’est pas enregistré lors de la recherche. Les nouvelles connexions conservent le jeton chiffré côté serveur. Un dépôt déjà configuré réutilise sa connexion partagée ; son jeton se remplace dans « Configurer ».</p>
  <p class="connection-feedback" role="status" aria-live="polite" data-connection-status></p><ul class="connection-results" data-connection-results></ul>
  <a class="button subtle" data-connection-review hidden href="/development?project=<?= (int)$project['id'] ?>">Voir les connexions et configurer les webhooks</a>
  <button class="button primary" data-connection-submit>Vérifier et connecter la sélection</button>

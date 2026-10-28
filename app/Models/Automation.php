@@ -9,8 +9,12 @@ final class Automation
         'ticket.created' => 'Ticket créé',
         'ticket.updated' => 'Ticket modifié',
         'ticket.status_changed' => 'État modifié',
+        'development.branch_created' => 'Branche Git créée',
+        'development.commit_pushed' => 'Commit reçu',
+        'development.pull_request_opened' => 'Pull request ouverte',
+        'development.pull_request_merged' => 'Pull request fusionnée',
     ];
-    public const CONDITIONS = ['type', 'status', 'priority', 'assignee_id', 'flagged'];
+    public const CONDITIONS = ['type', 'status', 'priority', 'assignee_id', 'flagged', 'development_repository'];
     public const ACTIONS = [
         'status',
         'priority',
@@ -79,9 +83,14 @@ final class Automation
             if (isset($conditions['type']) && !isset(Ticket::TYPES[$conditions['type']])) {
                 throw new \InvalidArgumentException('Type de condition invalide.');
             }
+            foreach (['development_repository'=>200] as $field=>$max) {
+                if (array_key_exists($field,$conditions) && (!str_starts_with($event,'development.') || !is_string($conditions[$field]) || trim($conditions[$field])==='' || mb_strlen($conditions[$field])>$max)) {
+                    throw new \InvalidArgumentException('La condition de dépôt nécessite un événement de développement et un texte non vide.');
+                }
+            }
             foreach (
                 [
-                    'conditions' => array_diff_key($conditions, ['type' => true]),
+                    'conditions' => array_diff_key($conditions, ['type' => true,'development_repository'=>true]),
                     'actions' => array_diff_key($actions, ['comment' => true]),
                 ]
                 as $kind => $fields
@@ -188,6 +197,7 @@ final class Automation
         int $ticket,
         ?int $actor,
         bool $statusChanged = false,
+        array $context = [],
     ): void {
         $current = Ticket::find($ticket);
         $events = [$event];
@@ -208,11 +218,12 @@ final class Automation
             $r = self::hydrate($row);
             $matches = true;
             foreach ($r['conditions'] as $field => $value) {
+                $actual = str_starts_with($field,'development_') ? ($context[$field]??null) : ($current[$field]??null);
                 if (
                     !in_array($field, self::CONDITIONS, true) ||
-                    ($current[$field] === null
+                    ($actual === null
                         ? $value !== null
-                        : (string) $current[$field] !== (string) $value)
+                        : (string) $actual !== (string) $value)
                 ) {
                     $matches = false;
                     break;

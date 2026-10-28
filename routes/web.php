@@ -55,6 +55,7 @@ foreach (
     $r->add('GET', '/' . $section, fn() => $work->show($section));
 }
 $r->add('POST', '/projects', [$work, 'project'])
+    ->add('POST', '/projects/{id}/update', [$work, 'updateProject'])
     ->add('POST', '/views', [$work, 'saveView'])
     ->add('POST', '/views/{id}/delete', [$work, 'deleteView']);
 $r->add('POST', '/rules', [$work, 'rule'])

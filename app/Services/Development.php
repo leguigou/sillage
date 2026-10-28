@@ -132,71 +132,24 @@ final class Development
         }
         return $data;
     }
-    public static function ingest(
-        array $connection,
-        string $key,
-        string $kind,
-        string $title,
-        string $url,
-        string $state,
-        string $date,
-    ): void {
-        if (!preg_match('#^https://(github\.com|bitbucket\.org)/#D', $url)) {
-            $url = '';
-        }
-        $p = DB::one('SELECT project_key FROM projects WHERE id=?', [$connection['project_id']]);
-        $ticket = null;
-        if (preg_match('/\b' . preg_quote($p['project_key'], '/') . '-(\d+)\b/i', $title, $m)) {
-            $ticket = DB::one('SELECT id FROM tickets WHERE project_id=? AND number=?', [
-                $connection['project_id'],
-                (int) $m[1],
-            ]);
-        }
-        try {
-            $time = (new \DateTimeImmutable($date))
-                ->setTimezone(new \DateTimeZone('UTC'))
-                ->format('Y-m-d H:i:s');
-        } catch (\Exception) {
-            $time = gmdate('Y-m-d H:i:s');
-        }
-        DB::run(
-            'INSERT INTO development_events(connection_id,ticket_id,external_key,kind,title,external_url,state,occurred_at) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE ticket_id=VALUES(ticket_id),title=VALUES(title),state=VALUES(state),occurred_at=VALUES(occurred_at)',
-            [
-                $connection['id'],
-                $ticket['id'] ?? null,
-                mb_substr($key, 0, 190),
-                $kind,
-                mb_substr($title, 0, 500),
-                $url,
-                $state,
-                $time,
-            ],
-        );
-    }
-    public static function sync(array $c): int
+    public static function sync(array $c, string $kind = 'pull_request', int $page = 1): int
     {
-        $github = $c['provider'] === 'github';
-        $data = self::request(
-            $c,
-            $github ? 'pulls?state=all&per_page=50' : 'pullrequests?state=OPEN&pagelen=50',
-        );
-        $items = $github ? $data : $data['values'] ?? [];
-        $n = 0;
-        foreach ($items as $pr) {
-            self::ingest(
-                $c,
-                'pr:' . ($pr['number'] ?? $pr['id']),
-                'pull_request',
-                ($pr['title'] ?? '') .
-                    ' ' .
-                    ($pr['head']['ref'] ?? ($pr['source']['branch']['name'] ?? '')),
-                $pr['html_url'] ?? ($pr['links']['html']['href'] ?? ''),
-                !empty($pr['merged_at']) ? 'merged' : $pr['state'] ?? '',
-                $pr['updated_at'] ?? ($pr['updated_on'] ?? 'now'),
-            );
-            $n++;
+        if (!isset(DevelopmentPayload::KINDS[$kind]) || $page<1 || $page>10000) throw new \InvalidArgumentException('Type ou page de synchronisation invalide.');
+        $github=$c['provider']==='github';
+        $resource=$github ? match($kind) { 'branch'=>'branches?per_page=50', 'commit'=>'commits?per_page=50', default=>'pulls?state=all&per_page=50' }
+            : match($kind) { 'branch'=>'refs/branches?pagelen=50', 'commit'=>'commits?pagelen=50', default=>'pullrequests?state=OPEN&state=MERGED&state=DECLINED&pagelen=50' };
+        $data=self::request($c,$resource.'&page='.$page,8);
+        $items=$github?$data:($data['values']??null);
+        if (!is_array($items) || !array_is_list($items) || count($items)>50) throw new \InvalidArgumentException('Réponse de synchronisation invalide.');
+        $events=[];
+        foreach($items as $item) {
+            if (!is_array($item)) throw new \InvalidArgumentException('Élément de synchronisation invalide.');
+            $events[]=DevelopmentPayload::object($c['provider'],$kind,$item,$c['repository']);
         }
-        DB::run('UPDATE connections SET last_sync_at=UTC_TIMESTAMP() WHERE id=?', [$c['id']]);
-        return $n;
+        DB::transaction(function() use($c,$events) {
+            foreach($events as $event) \App\Models\DevelopmentEvent::save($c,$event,false);
+            DB::run('UPDATE connections SET last_sync_at=UTC_TIMESTAMP() WHERE id=?',[$c['id']]);
+        });
+        return count($events);
     }
 }

@@ -1,5 +1,5 @@
 """End-to-end HTTP checks against the isolated sillage_test Apache host."""
-import http.cookiejar, urllib.request, urllib.parse, re, json, uuid
+import http.cookiejar, urllib.request, urllib.parse, re, json, uuid, hashlib
 import http_workflows_support as http_support
 from http_workflows_support import BASE, call, token, upload, signed_webhook, check, get_token, mail_for, passed_count
 status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'private page requires login')
@@ -51,12 +51,13 @@ status,body,_=call('/development'); connection=re.search(r'action="/connections/
 check(connection is not None,'isolated webhook fixture available')
 exec((__import__('pathlib').Path(__file__).parent/'http_connections.py').read_text(encoding='utf-8'))
 ticket_key=json.loads(call('/export?project='+pid+'&q='+marker+'&format=json')[1])[0]['key']
-payload={'repository':{'full_name':'qa/repo'},'ref':'refs/heads/'+ticket_key+'-qa','commits':[{'id':marker,'message':ticket_key+' '+marker,'url':'https://github.com/qa/repo/commit/'+marker,'timestamp':'2026-10-26T12:00:00Z'}]}
+payload={'repository':{'full_name':'qa/repo'},'ref':'refs/heads/'+ticket_key+'-qa','commits':[{'id':hashlib.sha1(marker.encode()).hexdigest(),'message':ticket_key+' '+marker,'url':'https://github.com/qa/repo/commit/'+marker,'timestamp':'2026-10-26T12:00:00Z'}]}
 hook='/webhooks/'+connection.group(1)
 check(signed_webhook(hook,payload,False)[0]==401,'invalid webhook signature rejected')
 check(signed_webhook(hook,payload)[0]==200,'signed webhook ingested')
 check(signed_webhook(hook,payload)[0]==200,'duplicate delivery accepted idempotently')
 check(call('/development')[1].count(ticket_key+' '+marker)==1,'duplicate commit not duplicated')
+exec((__import__('pathlib').Path(__file__).parent/'http_git_tracking.py').read_text(encoding='utf-8'))
 status,body,_=call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Formulaire '+marker,'description':'Collecte isolée','ticket_type':'bug','fields[]':['title','description','priority'],'required[]':['description']})
 link=re.search(r'(http://127\.0\.0\.1:8089/f/[a-f0-9]{64})',body); check(status==200 and link is not None,'one-time public form link')
 public_path=link.group(1).replace(BASE,''); public_client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -70,6 +71,7 @@ check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'
 check(call('/teams',{'_csrf':csrf,'name':'Forbidden team'})[0]==403,'viewer cannot manage teams')
 check(call('/connections/'+connection.group(1)+'/update',{'_csrf':csrf,'token':''})[0]==403,'viewer cannot update provider credentials')
 check(call('/connections/repositories',{'_csrf':csrf,'project_id':pid,'provider':'github','token':'synthetic-token'},True)[0]==403,'viewer cannot discover repositories')
+check(call('/projects/'+pid+'/update',{'_csrf':csrf,'name':'Interdit'},True)[0]==403,'viewer cannot change project repository settings')
 check(call('/users/1',{'_csrf':csrf,'role':'admin','active':'1'})[0]==403,'viewer cannot manage accounts')
 call('/logout',{'_csrf':csrf})
 auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@example.com'
