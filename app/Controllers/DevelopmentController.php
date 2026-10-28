@@ -6,41 +6,65 @@ use App\Models\Project;
 use App\Services\Development;
 final class DevelopmentController
 {
+    public function update(string $id): void
+    {
+        Auth::admin();
+        $connection = DB::one('SELECT * FROM connections WHERE id=?',[(int)$id]);
+        if (!$connection) throw new \InvalidArgumentException('Connexion introuvable.');
+        $token = trim((string)($_POST['token']??''));
+        if ($token !== '') {
+            $replacement = Security::encrypt(Development::accessToken($token));
+            Development::verifyConnection(array_replace($connection,['secret_cipher'=>$replacement]));
+            if (DB::run('UPDATE connections SET secret_cipher=? WHERE id=? AND BINARY secret_cipher=?',[$replacement,(int)$id,$connection['secret_cipher']])->rowCount() !== 1) {
+                throw new \InvalidArgumentException('Cette connexion a changé. Rechargez la page avant de réessayer.');
+            }
+        }
+        if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) json_response(['ok'=>true,'preserved'=>$token==='']);
+        flash($token===''?'Le jeton enregistré a été conservé.':'Le nouveau jeton a été vérifié et enregistré.');
+        redirect('/development?project='.(int)$connection['project_id']);
+    }
+
+    public function repositories(): void
+    {
+        Auth::admin();
+        $pid = (int) ($_POST['project_id'] ?? 0);
+        Project::find($pid);
+        $provider = (string) ($_POST['provider'] ?? '');
+        $page = filter_var($_POST['page'] ?? 1, FILTER_VALIDATE_INT);
+        if ($page === false) throw new \InvalidArgumentException('Page de dépôts invalide.');
+        $result = Development::discover($provider,(string)($_POST['token']??''),$page,trim((string)($_POST['workspace']??'')));
+        $connected = array_map('strtolower', array_column(DB::all('SELECT repository FROM connections WHERE project_id=? AND provider=?',[$pid,$provider]),'repository'));
+        foreach ($result['repositories'] as &$repository) $repository['connected'] = in_array(strtolower($repository['repository']),$connected,true);
+        json_response($result);
+    }
+
     public function connect(): void
     {
         Auth::admin();
         $pid = (int) $_POST['project_id'];
         Project::find($pid);
         $provider = (string) ($_POST['provider'] ?? '');
-        $repo = trim((string) ($_POST['repository'] ?? ''));
-        $token = trim((string) ($_POST['token'] ?? ''));
-        if (
-            !in_array($provider, ['github', 'bitbucket'], true) ||
-            !preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#D', $repo) ||
-            strlen($token) < 10 ||
-            strlen($token) > 4000
-        ) {
-            throw new \InvalidArgumentException(
-                'Fournisseur, dépôt (organisation/nom) et jeton requis.',
-            );
-        }
-        $cipher = Security::encrypt($token);
-        $hook = bin2hex(random_bytes(32));
-        $c = ['provider' => $provider, 'repository' => $repo, 'secret_cipher' => $cipher];
-        Development::request($c, '');
+        $repo = Development::repository($provider, (string) ($_POST['repository'] ?? ''));
+        $token = Development::accessToken((string) ($_POST['token'] ?? ''));
         if (
             DB::one(
                 'SELECT id FROM connections WHERE project_id=? AND provider=? AND repository=?',
                 [$pid, $provider, $repo],
             )
         ) {
+            if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>true,'repository'=>$repo]);
             throw new \InvalidArgumentException('Ce dépôt est déjà connecté.');
         }
+        $cipher = Security::encrypt($token);
+        $hook = bin2hex(random_bytes(32));
+        $c = ['provider' => $provider, 'repository' => $repo, 'secret_cipher' => $cipher];
+        Development::verifyConnection($c);
         $id = DB::insert(
             'INSERT INTO connections(project_id,provider,repository,secret_cipher,webhook_cipher) VALUES(?,?,?,?,?)',
             [$pid, $provider, $repo, $cipher, Security::encrypt($hook)],
         );
-        $_SESSION['webhook_setup'] = ['url' => url('/webhooks/' . $id), 'secret' => $hook];
+        $_SESSION['webhook_setups'][] = ['repository'=>$repo,'url' => url('/webhooks/' . $id), 'secret' => $hook];
+        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>false,'repository'=>$repo,'id'=>$id]);
         flash('Dépôt connecté. Configurez le webhook avec le secret affiché une seule fois.');
         redirect('/development?project=' . $pid);
     }

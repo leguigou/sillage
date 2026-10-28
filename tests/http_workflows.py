@@ -49,6 +49,7 @@ status,body,_=call('/export?project='+pid+'&q='+csv_marker+'&format=json'); chec
 check('aperçu a expiré' in call('/import',mapping)[1],'CSV import preview cannot be replayed')
 status,body,_=call('/development'); connection=re.search(r'action="/connections/(\d+)/sync"',body)
 check(connection is not None,'isolated webhook fixture available')
+exec((__import__('pathlib').Path(__file__).parent/'http_connections.py').read_text(encoding='utf-8'))
 ticket_key=json.loads(call('/export?project='+pid+'&q='+marker+'&format=json')[1])[0]['key']
 payload={'repository':{'full_name':'qa/repo'},'ref':'refs/heads/'+ticket_key+'-qa','commits':[{'id':marker,'message':ticket_key+' '+marker,'url':'https://github.com/qa/repo/commit/'+marker,'timestamp':'2026-10-26T12:00:00Z'}]}
 hook='/webhooks/'+connection.group(1)
@@ -67,6 +68,8 @@ check(call('/webhooks/999',{},True)[0]==404,'unknown webhook rejected'); check(c
 call('/logout',{'_csrf':csrf}); csrf,_=get_token('/login'); status,body,_=call('/login',{'_csrf':csrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'})
 check(status==200,'viewer signs in'); csrf=token(body); check(call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot create tickets'); check(call('/forms',{'_csrf':csrf,'project_id':pid,'title':'Must not exist'})[0]==403,'viewer cannot publish forms')
 check(call('/teams',{'_csrf':csrf,'name':'Forbidden team'})[0]==403,'viewer cannot manage teams')
+check(call('/connections/'+connection.group(1)+'/update',{'_csrf':csrf,'token':''})[0]==403,'viewer cannot update provider credentials')
+check(call('/connections/repositories',{'_csrf':csrf,'project_id':pid,'provider':'github','token':'synthetic-token'},True)[0]==403,'viewer cannot discover repositories')
 check(call('/users/1',{'_csrf':csrf,'role':'admin','active':'1'})[0]==403,'viewer cannot manage accounts')
 call('/logout',{'_csrf':csrf})
 auth_email='qa.auth.'+uuid.uuid4().hex[:8]+'@example.com'

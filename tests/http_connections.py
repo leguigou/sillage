@@ -1,0 +1,22 @@
+"""Connection validation uses synthetic tokens and an existing isolated fixture, never a real account credential."""
+connection_csrf,_=get_token('/development')
+connection_fields={'_csrf':connection_csrf,'project_id':pid,'provider':'github','repository':'personne@example.com','token':'synthetic-invalid-token'}
+status,connection_body,_=call('/connections',connection_fields,True)
+check(status==422 and 'adresse e-mail' in json.loads(connection_body)['error'],'connection email autofill gets actionable inline error')
+check(call('/connections',dict(connection_fields,repository='qa/repo',token='Bearer secret'),True)[0]==422,'connection rejects prefixed or spaced token')
+status,connection_body,_=call('/connections',dict(connection_fields,repository='https://github.com/qa/repo.git'),True)
+connection_result=json.loads(connection_body)
+check(status==200 and connection_result['existing'] and connection_result['repository']=='qa/repo','existing repository URL recognized without duplicate connection')
+check('synthetic-invalid-token' not in connection_body and 'secret' not in connection_body,'connection response never echoes credential or webhook secret')
+check(call('/connections',dict(connection_fields,repository='https://bitbucket.org/qa/repo'),True)[0]==422,'connection cannot send credential to mismatched provider URL')
+check(call('/connections/repositories',{'project_id':pid,'provider':'github','token':'synthetic-token'},True)[0]==403,'repository discovery requires CSRF')
+check(call('/connections/repositories',dict(connection_fields,page='bad'),True)[0]==422,'repository discovery rejects invalid page before external call')
+check(call('/connections/repositories',dict(connection_fields,provider='bitbucket',workspace=''),True)[0]==422,'repository discovery explains required Bitbucket workspace')
+_,connection_page,_=call('/development?project='+pid)
+check('id="provider-settings-github"' in connection_page and 'value="qa/repo" readonly' in connection_page,'provider configuration shows existing repository metadata')
+connection_update='/connections/'+connection.group(1)+'/update'
+check(call(connection_update,{'token':''},True)[0]==403,'connection update requires CSRF')
+status,connection_body,_=call(connection_update,{'_csrf':connection_csrf,'token':''},True)
+check(status==200 and json.loads(connection_body)['preserved'],'blank replacement keeps the existing encrypted token')
+check('secret' not in connection_body and 'synthetic' not in connection_body,'connection settings never return stored token')
+check(call(connection_update,{'_csrf':connection_csrf,'token':'short'},True)[0]==422,'invalid replacement is refused without changing connection')

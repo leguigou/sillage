@@ -223,3 +223,11 @@ Les administrateurs peuvent modifier **Paramètres → Identité de l’entrepri
 
 
 Chaque compte, y compris en lecture seule, peut ajouter, remplacer ou retirer sa **photo de profil** dans **Paramètres → Votre profil**. Formats PNG/JPEG/WebP, 2 Mo et 4 096 × 4 096 pixels maximum, avec aperçu rond avant enregistrement. Elle remplace les initiales dans le profil, le menu, les filtres, l’annuaire, les équipes, les commentaires et les cartes du tableau. Les photos sont stockées dans MySQL et accessibles uniquement aux utilisateurs connectés ; leur retrait rétablit les initiales. Migration additive : `007_user_avatars.sql`.
+
+
+Dans **Développement → Connecter un dépôt**, indiquez jusqu’à 20 dépôts, un par ligne, avec un même jeton autorisé à y accéder. Les formes `organisation/projet`, URL HTTPS du fournisseur et URL SSH de copie sont acceptées. Sillage vérifie l’accès au dépôt puis la lecture des pull requests avant d’enregistrer chaque connexion. Le formulaire affiche sa progression et le résultat par dépôt ; ceux déjà connectés sont reconnus et seuls ceux en erreur restent à reprendre. Les connexions réussies disposent chacune de leur URL et secret de webhook, affichés lors de l’ouverture des résultats. Une opération peut être arrêtée après le dépôt en cours.
+
+Sous Windows, les appels GitHub/Bitbucket utilisent les certificats de confiance natifs lorsque cURL le permet, avec vérification HTTPS active. Les erreurs de certificat, réseau, jeton refusé ou dépôt inaccessible sont affichées dans le formulaire. Sous Linux, le magasin de certificats du serveur reste utilisé.
+
+
+Le bouton **Vérifier le jeton et lister les dépôts** charge les dépôts accessibles par pages de 100 (Bitbucket : workspace requis). Cochez ceux à connecter, jusqu’à 20 par envoi ; le jeton n’est pas enregistré lors de cette simple découverte. **Configurer** affiche les dépôts déjà enregistrés pour le fournisseur et permet de remplacer leur jeton après vérification. Laisser le champ vide conserve le jeton existant ; celui-ci n’est jamais renvoyé au navigateur.

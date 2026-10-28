@@ -381,6 +381,7 @@ try {
     require __DIR__ . '/timeline_calendar.php';
     require __DIR__ . '/ticket_conversation.php';
     require __DIR__ . '/company_branding.php';
+    require __DIR__ . '/development_connections.php';
 } finally {
     DB::connection()->rollBack();
 }

@@ -755,6 +755,7 @@ if (connectionProvider) {
     const repository = $('[name="repository"]', connectionProvider.form);
     repository.placeholder = provider === 'github' ? 'proprietaire/nom-du-depot' : 'workspace/nom-du-depot';
     if (changed) $('[name="token"]', connectionProvider.form).value = '';
+    connectionProvider.dispatchEvent(new Event('provider-selected'));
   };
   connectionProvider.addEventListener('change', () => updateProviderGuide(true));
   $$('[data-connection-provider]').forEach((button) => button.addEventListener('click', () => {
@@ -764,3 +765,126 @@ if (connectionProvider) {
   }));
   updateProviderGuide();
 }
+
+$$('[data-connect-repositories]').forEach((form) => {
+  const status = $('[data-connection-status]', form), results = $('[data-connection-results]', form);
+  const submit = $('[data-connection-submit]', form), review = $('[data-connection-review]', form);
+  const repository = $('[name="repository"]', form), provider = $('[name="provider"]', form);
+  const token = $('[name="token"]', form), dialog = form.closest('dialog'), workspace = $('[name="workspace"]', form);
+  const discover = $('[data-discover-repositories]', form), more = $('[data-load-repositories]', form);
+  const discoveryStatus = $('[data-discovery-status]', form), picker = $('[data-repository-picker]', form);
+  const choices = $('[data-repository-choices]', form), counter = $('[data-repository-count]', form);
+  const search = $('[data-repository-search]', form), selected = new Set(), loaded = new Set();
+  const stop = document.createElement('button');
+  stop.type = 'button'; stop.className = 'button subtle'; stop.textContent = 'Arrêter après le dépôt en cours'; stop.hidden = true;
+  submit.before(stop);
+  let busy = false, stopped = false, listing = false, page = 0, generation = 0, lastProvider = provider.value;
+  const selectedCount = () => { counter.textContent = `${loaded.size} dépôt(s) chargé(s) · ${selected.size} sélectionné(s) sur 20 maximum`; };
+  const resetDiscovery = () => {
+    generation++; selected.clear(); loaded.clear(); page = 0;
+    choices.replaceChildren(); picker.hidden = true; more.hidden = true;
+    discoveryStatus.textContent = ''; selectedCount();
+    $('[data-bitbucket-workspace]', form).hidden = provider.value !== 'bitbucket';
+  };
+  token.addEventListener('input', resetDiscovery); workspace.addEventListener('input', resetDiscovery);
+  const providerChanged = () => { if (provider.value !== lastProvider) { lastProvider = provider.value; resetDiscovery(); } };
+  provider.addEventListener('change', providerChanged); provider.addEventListener('provider-selected', providerChanged);
+  $('[data-bitbucket-workspace]', form).hidden = provider.value !== 'bitbucket';
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLocaleLowerCase();
+    $$('[data-repository-option]', choices).forEach((row) => { row.hidden = !row.dataset.repositoryOption.toLocaleLowerCase().includes(q); });
+  });
+  async function loadRepositories(nextPage) {
+    if (busy || listing) return;
+    if (!token.value.trim() || !token.reportValidity()) { discoveryStatus.textContent = 'Collez votre jeton d’accès avant de charger les dépôts.'; return; }
+    if (nextPage === 1) { resetDiscovery(); search.value = ''; }
+    const currentGeneration = generation;
+    listing = true; discoveryStatus.classList.remove('danger'); discoveryStatus.textContent = 'Vérification du jeton et chargement des dépôts…';
+    [discover, more, submit, provider, token, workspace].forEach((control) => { control.disabled = true; });
+    try {
+      const result = await post('/connections/repositories', { project_id: $('[name="project_id"]', form).value, provider: provider.value, token: token.value.trim(), workspace: workspace.value.trim(), page: nextPage });
+      if (generation !== currentGeneration) return;
+      if (!Array.isArray(result.repositories)) throw new Error('La liste de dépôts reçue est invalide.');
+      page = result.page; picker.hidden = false;
+      for (const item of result.repositories) {
+        if (loaded.has(item.repository)) continue;
+        loaded.add(item.repository);
+        const label = document.createElement('label'), checkbox = document.createElement('input'), text = document.createElement('span');
+        label.className = 'repository-option'; label.dataset.repositoryOption = item.repository;
+        checkbox.type = 'checkbox'; checkbox.value = item.repository; checkbox.disabled = item.connected === true;
+        checkbox.setAttribute('aria-label', item.repository); checkbox.dataset.repositoryChoice = '';
+        text.textContent = item.repository;
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked && selected.size >= 20) { checkbox.checked = false; discoveryStatus.textContent = 'Vous pouvez sélectionner 20 dépôts par envoi.'; return; }
+          if (checkbox.checked) selected.add(item.repository); else selected.delete(item.repository);
+          selectedCount();
+        });
+        label.append(checkbox, text);
+        if (item.connected === true || item.private === true) {
+          const badge = document.createElement('small'); badge.textContent = item.connected === true ? 'Déjà connecté' : 'Privé'; label.append(badge);
+        }
+        label.hidden = !item.repository.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase());
+        choices.append(label);
+      }
+      more.hidden = result.has_more !== true; selectedCount();
+      discoveryStatus.textContent = loaded.size ? 'Jeton accepté pour la lecture de la liste. Cochez les dépôts à connecter.' : 'Jeton accepté, mais aucun dépôt renvoyé. Vérifiez les dépôts autorisés et les éventuelles approbations de votre organisation.';
+    } catch (error) { discoveryStatus.textContent = error.message; discoveryStatus.classList.add('danger'); }
+    finally { listing = false; [discover, more, submit, provider, token, workspace].forEach((control) => { control.disabled = false; }); }
+  }
+  discover.addEventListener('click', () => loadRepositories(1));
+  more.addEventListener('click', () => loadRepositories(page + 1));
+  stop.addEventListener('click', () => { stopped = true; stop.disabled = true; stop.textContent = 'Arrêt après la vérification en cours…'; });
+  form.addEventListener('invalid', (event) => {
+    status.textContent = event.target === token ? 'Collez votre jeton d’accès complet avant de vérifier.' : 'Vérifiez les champs du formulaire.';
+    status.classList.add('danger');
+  }, true);
+  dialog.addEventListener('cancel', (event) => { if (busy) { event.preventDefault(); stop.click(); } });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy || listing) return;
+    const repositories = [...new Set([...selected, ...repository.value.split(/[\r\n,;]+/).map((value) => value.trim()).filter(Boolean)])];
+    status.classList.remove('danger'); results.replaceChildren();
+    if (!repositories.length || repositories.length > 20) {
+      status.textContent = 'Cochez entre 1 et 20 dépôts dans la liste, ou renseignez-les manuellement.'; status.classList.add('danger'); return;
+    }
+    const key = token.value.trim(), selectedProvider = provider.value;
+    const controls = [submit, provider, repository, token, workspace, discover, more, search, $('[data-close]', form), ...$$('[data-repository-choice]:not(:disabled)', choices)];
+    busy = true; stopped = false; stop.hidden = false; stop.disabled = false; stop.textContent = 'Arrêter après le dépôt en cours';
+    form.setAttribute('aria-busy', 'true'); controls.forEach((control) => { if (control) control.disabled = true; });
+    const failures = []; let connected = 0;
+    try {
+      for (const [index, repo] of repositories.entries()) {
+        if (stopped) { failures.push(...repositories.slice(index)); break; }
+        status.textContent = `Vérification du dépôt ${index + 1} sur ${repositories.length}…`; submit.textContent = 'Vérification en cours…';
+        const item = document.createElement('li'); results.append(item);
+        try {
+          const result = await post(form.action, { project_id: $('[name="project_id"]', form).value, provider: selectedProvider, repository: repo, token: key });
+          item.textContent = `${result.repository} : ${result.existing ? 'déjà connecté' : 'connexion enregistrée'}.`;
+          connected++; review.hidden = false;
+        } catch (error) { failures.push(repo); item.textContent = `${repo} : ${error.message}`; item.classList.add('danger'); }
+      }
+      if (!failures.length) { location.assign(review.href); return; }
+      selected.clear(); $$('[data-repository-choice]', choices).forEach((checkbox) => { checkbox.checked = false; }); selectedCount();
+      repository.value = failures.join('\n'); $('[data-manual-repositories]', form).open = true;
+      status.textContent = `${stopped ? 'Vérification interrompue. ' : ''}${connected ? connected + ' dépôt(s) connecté(s). ' : ''}${failures.length} dépôt(s) ${stopped ? 'à reprendre' : 'à corriger'}. Les détails sont affichés ci-dessous.`;
+      status.classList.add('danger');
+    } finally {
+      busy = false; form.removeAttribute('aria-busy'); controls.forEach((control) => { if (control) control.disabled = false; }); stop.hidden = true;
+      submit.textContent = 'Vérifier et connecter la sélection';
+    }
+  });
+});
+
+$$('[data-connection-update]').forEach((form) => form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = $('button', form), input = $('[name="token"]', form), status = $('[data-update-status]', form);
+  if (button.disabled) return;
+  button.disabled = true; input.disabled = true; status.classList.remove('danger');
+  status.textContent = input.value.trim() ? 'Vérification du nouveau jeton…' : 'Conservation du jeton enregistré…';
+  try {
+    const result = await post(form.action, { token: input.value.trim() });
+    input.value = '';
+    status.textContent = result.preserved ? 'Le jeton enregistré a été conservé.' : 'Le nouveau jeton a été vérifié et enregistré.';
+  } catch (error) { status.textContent = error.message; status.classList.add('danger'); }
+  finally { button.disabled = false; input.disabled = false; }
+}));

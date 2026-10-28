@@ -85,6 +85,8 @@ $r->add('POST', '/forms', [$forms, 'save'])
     ->add('POST', '/forms/{id}/toggle', [$forms, 'toggle'])
     ->add('POST', '/forms/{id}/rotate', [$forms, 'rotate']);
 $r->add('GET', '/f/{token}', [$forms, 'show'])->add('POST', '/f/{token}', [$forms, 'submit']);
+$r->add('POST', '/connections/repositories', [$dev, 'repositories']);
+$r->add('POST', '/connections/{id}/update', [$dev, 'update']);
 $r->add('POST', '/connections', [$dev, 'connect'])
     ->add('POST', '/connections/{id}/sync', [$dev, 'sync'])
     ->add('POST', '/connections/{id}/delete', [$dev, 'disconnect']);
