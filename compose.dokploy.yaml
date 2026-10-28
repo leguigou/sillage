@@ -23,6 +23,11 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - MAIL_TRANSPORT=${MAIL_TRANSPORT:-mail}
       - MAIL_FROM=${MAIL_FROM}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_STARTTLS=${SMTP_STARTTLS:-on}
       - SESSION_SECURE=true
       - UPLOAD_MAX_MB=10
     volumes:
@@ -31,14 +36,11 @@ services:
       sillage-db:
         condition: service_healthy
     restart: unless-stopped
-    # Migrations idempotentes à chaque démarrage, puis Apache au premier plan.
+    # Relais SMTP optionnel, migrations idempotentes, puis Apache au premier plan.
     command:
       - sh
-      - -c
-      - >-
-        chown -R www-data:www-data storage &&
-        php bin/console.php migrate &&
-        exec apache2-foreground
+      - /var/www/html/deploy/entrypoint-dokploy.sh
+      - app
   sillage-db:
     image: mysql:8.4
     environment:
@@ -72,6 +74,11 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - MAIL_TRANSPORT=${MAIL_TRANSPORT:-mail}
       - MAIL_FROM=${MAIL_FROM}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_STARTTLS=${SMTP_STARTTLS:-on}
       - SESSION_SECURE=true
     volumes:
       - sillage_storage:/var/www/html/storage
@@ -81,10 +88,8 @@ services:
     restart: unless-stopped
     command:
       - sh
-      - -c
-      - >-
-        sleep 20;
-        while true; do php bin/console.php notifications:send >> /proc/1/fd/1 2>&1; sleep 60; done
+      - /var/www/html/deploy/entrypoint-dokploy.sh
+      - worker
 volumes:
   sillage_mysql:
     name: sillage_mysql
