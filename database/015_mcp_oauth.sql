@@ -1,0 +1,43 @@
+CREATE TABLE IF NOT EXISTS oauth_clients (
+ id VARCHAR(64) PRIMARY KEY,
+ name VARCHAR(120) NOT NULL,
+ redirect_uri VARCHAR(1000) NOT NULL,
+ auth_method VARCHAR(32) NOT NULL,
+ secret_hash CHAR(64) NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS oauth_codes (
+ code_hash CHAR(64) PRIMARY KEY,
+ client_id VARCHAR(64) NOT NULL,
+ user_id BIGINT UNSIGNED NOT NULL,
+ auth_version INT UNSIGNED NOT NULL,
+ redirect_uri VARCHAR(1000) NOT NULL,
+ resource VARCHAR(500) NOT NULL,
+ scopes JSON NOT NULL,
+ challenge CHAR(43) NOT NULL,
+ expires_at DATETIME NOT NULL,
+ FOREIGN KEY(client_id) REFERENCES oauth_clients(id) ON DELETE CASCADE,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ INDEX(expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS oauth_grants (
+ id CHAR(32) PRIMARY KEY,
+ client_id VARCHAR(64) NOT NULL,
+ user_id BIGINT UNSIGNED NOT NULL,
+ auth_version INT UNSIGNED NOT NULL,
+ resource VARCHAR(500) NOT NULL,
+ scopes JSON NOT NULL,
+ refresh_hash CHAR(64) NULL,
+ expires_at DATETIME NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ last_used_at DATETIME NULL,
+ FOREIGN KEY(client_id) REFERENCES oauth_clients(id) ON DELETE CASCADE,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS oauth_refresh_history (
+ token_hash CHAR(64) PRIMARY KEY,
+ grant_id CHAR(32) NOT NULL,
+ FOREIGN KEY(grant_id) REFERENCES oauth_grants(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE mcp_tokens ADD COLUMN oauth_grant_id CHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+ ADD FOREIGN KEY(oauth_grant_id) REFERENCES oauth_grants(id) ON DELETE CASCADE;

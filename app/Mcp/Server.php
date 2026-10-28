@@ -28,26 +28,6 @@ final class Server
             $status,
         );
     }
-    private static function origin(string $url): ?string
-    {
-        $p = parse_url($url);
-        if (
-            !$p ||
-            !isset($p['scheme'], $p['host']) ||
-            !in_array(strtolower($p['scheme']), ['http', 'https'], true) ||
-            isset($p['user']) ||
-            isset($p['pass']) ||
-            isset($p['query']) ||
-            isset($p['fragment'])
-        ) {
-            return null;
-        }
-        return strtolower($p['scheme']) .
-            '://' .
-            strtolower($p['host']) .
-            ':' .
-            ($p['port'] ?? (strtolower($p['scheme']) === 'https' ? 443 : 80));
-    }
     public static function handle(): never
     {
         header('Cache-Control: no-store');
@@ -55,41 +35,7 @@ final class Server
         $requestId = null;
         try {
             Company::settings();
-            $base = url();
-            $origin = self::origin($base);
-            $scheme = strtolower((string) parse_url($base, PHP_URL_SCHEME));
-            $localHttp =
-                env('APP_ENV') === 'local' &&
-                in_array(
-                    strtolower((string) parse_url($base, PHP_URL_HOST)),
-                    ['localhost', '127.0.0.1', '::1', '[::1]'],
-                    true,
-                ) &&
-                in_array(
-                    $_SERVER['REMOTE_ADDR'] ?? '',
-                    ['127.0.0.1', '::1', '::ffff:127.0.0.1'],
-                    true,
-                );
-            if (!$origin || ($scheme !== 'https' && !$localHttp)) {
-                self::send(['error' => 'Le MCP exige une URL HTTPS en production.'], 503);
-            }
-            $host = self::origin(
-                parse_url($base, PHP_URL_SCHEME) . '://' . ($_SERVER['HTTP_HOST'] ?? ''),
-            );
-            if ($host !== $origin) {
-                self::send(['error' => 'Hôte non autorisé.'], 403);
-            }
-            if (
-                isset($_SERVER['HTTP_ORIGIN']) &&
-                (self::origin($_SERVER['HTTP_ORIGIN']) !== $origin ||
-                    !in_array(
-                        parse_url($_SERVER['HTTP_ORIGIN'], PHP_URL_PATH),
-                        [null, '', '/'],
-                        true,
-                    ))
-            ) {
-                self::send(['error' => 'Origine non autorisée.'], 403);
-            }
+            if ($error=Endpoint::error()) self::send(['error'=>$error['message']],$error['status']);
             $authorization =
                 $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
             $raw = preg_match('/^(?i:Bearer) +(slg_mcp_[a-f0-9]{64})$/D', $authorization, $match)
@@ -97,7 +43,7 @@ final class Server
                 : '';
             $user = McpToken::authenticate($raw);
             if (!$user) {
-                header('WWW-Authenticate: Bearer realm="Sillage MCP"');
+                header('WWW-Authenticate: Bearer realm="Sillage MCP", resource_metadata="'.url('/.well-known/oauth-protected-resource/mcp').'", scope="read"');
                 self::send(['error' => 'Clé MCP absente, expirée, supprimée ou invalidée.'], 401);
             }
             $method = $_SERVER['REQUEST_METHOD'] ?? '';

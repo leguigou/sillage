@@ -56,6 +56,8 @@ final class Tools
                     'name' => $name,
                     'description' => $description,
                     'inputSchema' => $schema,
+                    'securitySchemes'=>[['type'=>'oauth2','scopes'=>[$scope]]],
+                    '_meta'=>['securitySchemes'=>[['type'=>'oauth2','scopes'=>[$scope]]]],
                     'annotations' => [
                         'readOnlyHint' => $readOnly,
                         'destructiveHint' => $destructive,

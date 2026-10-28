@@ -43,8 +43,7 @@ URL : https://votre-instance/mcp
 Authorization : Bearer <votre_clé>
 ```
 
-Le format du fichier de configuration dépend du client. Ce serveur propose des clés personnelles ; il ne fournit pas de serveur OAuth ni de connexion automatique OAuth.
-Un client exigeant exclusivement OAuth doit utiliser un autre mode de connexion compatible avec un en-tête Bearer.
+Le format du fichier de configuration dépend du client. Pour ChatGPT et les clients utilisant OAuth, suivre [le guide OAuth](oauth.md). Les clés personnelles restent disponibles pour les clients acceptant un Bearer configuré manuellement.
 Ne pas placer la clé dans l’URL, un fichier versionné ou une capture d’écran. HTTPS est requis ; HTTP est accepté uniquement en mode local sur une adresse de boucle locale.
 Apache doit transmettre l’en-tête Authorization à PHP ; les configurations Apache livrées le prévoient.
 

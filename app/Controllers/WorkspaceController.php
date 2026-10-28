@@ -62,7 +62,7 @@ final class WorkspaceController
         $mcpTokens =
             $section === 'settings'
                 ? DB::all(
-                    'SELECT id,name,fingerprint,scopes,auth_version,expires_at,last_used_at,created_at FROM mcp_tokens WHERE user_id=? ORDER BY id DESC',
+                    'SELECT id,name,fingerprint,scopes,auth_version,expires_at,last_used_at,created_at FROM mcp_tokens WHERE user_id=? AND oauth_grant_id IS NULL ORDER BY id DESC',
                     [$user['id']],
                 )
                 : [];

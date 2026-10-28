@@ -43,8 +43,9 @@ final class AuthController
                 $u['id'],
             ]);
         }
+        $return=$_SESSION['oauth_after_login']??'/';
         Auth::login($u);
-        redirect('/');
+        redirect(is_string($return) && str_starts_with($return,'/oauth/authorize?') && strlen($return)<=8192?$return:'/');
     }
     public function register(): void
     {

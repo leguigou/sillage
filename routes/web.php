@@ -29,6 +29,12 @@ $r->add('POST','/llm/profiles/test',[$llm,'probe'])
     ->add('POST','/llm/profiles',[$llm,'save'])
     ->add('POST','/llm/profiles/{id}/action',[$llm,'action'])
     ->add('POST','/llm/assist',[$llm,'assist']);
+$oauth=new \App\Controllers\OAuthController();
+$r->add('GET','/oauth/authorize',[$oauth,'authorize'])
+    ->add('POST','/oauth/authorize',[$oauth,'consent'])
+    ->add('POST','/oauth/clients',[$oauth,'createClient'])
+    ->add('POST','/oauth/clients/{id}/delete',[$oauth,'deleteClient'])
+    ->add('POST','/oauth/grants/{id}/revoke',[$oauth,'revokeGrant']);
 $auth = new AuthController();
 $work = new WorkspaceController();
 $tickets = new TicketController();

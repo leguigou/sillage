@@ -54,8 +54,8 @@ final class McpToken
             return null;
         }
         $row = DB::one(
-            'SELECT k.id token_id,k.scopes,k.auth_version token_version,u.id,u.name,u.email,u.role,u.auth_version FROM mcp_tokens k JOIN users u ON u.id=k.user_id WHERE k.token_hash=? AND (k.expires_at IS NULL OR k.expires_at>UTC_TIMESTAMP()) AND u.active=1 AND u.verified_at IS NOT NULL',
-            [hash('sha256', $raw)],
+            'SELECT k.id token_id,k.scopes,k.auth_version token_version,u.id,u.name,u.email,u.role,u.auth_version,g.scopes grant_scopes FROM mcp_tokens k JOIN users u ON u.id=k.user_id LEFT JOIN oauth_grants g ON g.id=k.oauth_grant_id WHERE k.token_hash=? AND (k.expires_at IS NULL OR k.expires_at>UTC_TIMESTAMP()) AND u.active=1 AND u.verified_at IS NOT NULL AND (k.oauth_grant_id IS NULL OR (g.id IS NOT NULL AND g.expires_at>UTC_TIMESTAMP() AND g.auth_version=u.auth_version AND g.resource=?))',
+            [hash('sha256', $raw),url('/mcp')],
         );
         if (!$row || (int) $row['token_version'] !== (int) $row['auth_version']) {
             return null;
@@ -66,14 +66,19 @@ final class McpToken
                 self::availableScopes($row['role']),
             ),
         );
+        if ($row['grant_scopes']!==null) $row['scopes']=array_values(array_intersect($row['scopes'],json_decode($row['grant_scopes'],true,32,JSON_THROW_ON_ERROR)));
+        unset($row['grant_scopes']);
         return $row;
     }
     public static function touch(int $id): void
     {
         DB::run('UPDATE mcp_tokens SET last_used_at=UTC_TIMESTAMP() WHERE id=?', [$id]);
+        DB::run('UPDATE oauth_grants g JOIN mcp_tokens k ON k.oauth_grant_id=g.id SET g.last_used_at=UTC_TIMESTAMP() WHERE k.id=?',[$id]);
     }
     public static function remove(int $id, int $owner): void
     {
+        $row=DB::one('SELECT oauth_grant_id FROM mcp_tokens WHERE id=? AND user_id=?',[$id,$owner]);
+        if (!empty($row['oauth_grant_id'])) { DB::run('DELETE FROM oauth_grants WHERE id=? AND user_id=?',[$row['oauth_grant_id'],$owner]);return; }
         if (
             !DB::run('DELETE FROM mcp_tokens WHERE id=? AND user_id=?', [$id, $owner])->rowCount()
         ) {

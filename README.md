@@ -120,7 +120,7 @@ Le menu **Automatisations** permet de créer, modifier, suspendre ou supprimer d
 avec déclenchement à la création/modification d’un ticket ou au changement d’état, conditions et journal d’exécution.
 Ces règles sont exécutées par les modèles métier, que le ticket provienne du site, d’un formulaire, d’un CSV ou du MCP.
 
-Voir [le guide MCP, ses droits et son catalogue](docs/mcp.md).
+Voir [le guide MCP, ses droits et son catalogue](docs/mcp.md) et [la connexion OAuth à ChatGPT](docs/oauth.md).
 
 ## Structure MVC
 
