@@ -1,6 +1,22 @@
 <?php
 function icon(string $name, string $class=''): string {
     $paths=[
+        'folder'=>'<path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9H3z"/>',
+        'task'=>'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>',
+        'bug'=>'<rect x="7" y="7" width="10" height="13" rx="5"/><path d="M9 7V5a3 3 0 0 1 6 0v2M12 8v12M3 9l4 2m10 0 4-2M3 16l4-1m10 0 4 1M5 21l3-3m8 0 3 3"/>',
+        'story'=>'<path d="M5 3h14v18l-7-4-7 4zM9 7h6M9 11h6"/>',
+        'epic'=>'<path d="m13 2-9 12h7l-1 8 10-13h-7z"/>',
+        'subtask'=>'<rect x="3" y="3" width="11" height="11" rx="2"/><rect x="10" y="10" width="11" height="11" rx="2"/><path d="m13 15 2 2 3-4"/>',
+        'globe'=>'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
+        'cart'=>'<path d="M2 3h3l3 13h11l3-9H6M9 20h.01M18 20h.01"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
+        'support'=>'<path d="M4 13v-1a8 8 0 0 1 16 0v1M20 17v1a3 3 0 0 1-3 3h-4"/><rect x="2" y="11" width="5" height="7" rx="2"/><rect x="17" y="11" width="5" height="7" rx="2"/>',
+        'server'=>'<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M16 7h2M16 18h2"/>',
+        'rocket'=>'<path d="M9 15c-2-5 2-11 12-12 0 10-7 14-12 12Zm0 0-4 4M8 9 3 10v5l5-1m7 2-1 5h-5l1-5M3 21l3-1-2-2z"/><circle cx="16" cy="8" r="2"/>',
+        'target'=>'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+        'up'=>'<path d="m6 15 6-6 6 6"/>',
+        'up-double'=>'<path d="m6 12 6-6 6 6m-12 6 6-6 6 6"/>',
+        'down-double'=>'<path d="m6 6 6 6 6-6m-12 6 6 6 6-6"/>',
+        'equal'=>'<path d="M5 9h14M5 15h14"/>',
         'panel'=>'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16m6-11-3 3 3 3"/>',
         'grid'=>'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
         'list'=>'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
@@ -39,3 +55,19 @@ function icon(string $name, string $class=''): string {
 function avatar(?string $name, string $extra='', ?int $userId=null): string { $image=\App\Models\UserAvatar::url($userId); $parts=preg_split('/\s+/u',trim($name??'')); $initials=$name?mb_substr($parts[0],0,1).(count($parts)>1?mb_substr(end($parts),0,1):''):'–'; return '<span class="avatar '.e($extra).'" title="'.e($name??'Non assigné').'">'.($image?'<img class="avatar-image" src="'.e($image).'" alt="'.e($name).'">':e($initials)).'</span>'; }
 
 function blocked_badge(bool $blocked): string { return $blocked?'<span class="blocked-badge" title="Un obstacle empêche d’avancer sur ce ticket">'.icon('flag').'<span>Bloqué</span></span>':''; }
+
+/** Render the same persisted project identity in each view; no position-based palette. */
+function project_mark(array $project,string $variant='compact'): string {
+    $color=(string)($project['color']??'#7166eb');
+    if (!preg_match('/^#[a-f0-9]{6}$/iD',$color)) $color='#7166eb';
+    $tile=$variant==='tile';
+    $symbol=$project['icon']??'folder';
+    if (!isset(\App\Models\Appearance::ICONS[$symbol])) $symbol='folder';
+    return '<span class="project-mark '.($tile?'project-tile':'project-symbol').'" data-project-id="'.(int)$project['id'].'" data-mark-icon="'.e($symbol).'" data-project-color="'.e(strtolower($color)).'" aria-hidden="true">'.icon($symbol).'</span>';
+}
+
+function work_mark(string $kind,string $key): string {
+    $mark=\App\Models\Appearance::mark($kind,$key);
+    $labels=$kind==='type'?\App\Models\Ticket::TYPES:\App\Models\Ticket::PRIORITIES;
+    return '<span class="work-mark '.($kind==='type'?'type-icon':'priority-mark').'" data-mark-kind="'.e($kind).'" data-mark-key="'.e($key).'" data-mark-icon="'.e($mark['icon']).'" data-mark-color="'.e($mark['color']).'" role="img" aria-label="'.e($labels[$key]).'" title="'.e($labels[$key]).'">'.icon($mark['icon']).'</span>';
+}

@@ -156,4 +156,5 @@ exec((__import__('pathlib').Path(__file__).parent/'http_llm.py').read_text(encod
 exec((__import__('pathlib').Path(__file__).parent/'http_notifications.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_oauth.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_paused_tickets.py').read_text(encoding='utf-8'))
+exec((__import__('pathlib').Path(__file__).parent/'http_appearance.py').read_text(encoding='utf-8'))
 print('\n',passed_count(),'HTTP checks passed against isolated test database.')

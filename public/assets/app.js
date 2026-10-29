@@ -2,6 +2,45 @@
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const csrfToken = $('meta[name="csrf-token"]')?.content;
+function initAppearanceMarks(root = document) {
+  $$('[data-project-color],[data-mark-color]', root).forEach(mark => {
+    const color = mark.dataset.projectColor || mark.dataset.markColor;
+    if (!/^#[a-f0-9]{6}$/i.test(color)) return;
+    mark.style.setProperty(mark.dataset.projectColor ? '--project-color' : '--mark-color', color);
+    const channels = [1,3,5].map(offset => parseInt(color.slice(offset,offset+2),16)/255)
+      .map(value => value <= .04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
+    const luminance = channels[0]*.2126 + channels[1]*.7152 + channels[2]*.0722;
+    mark.style.setProperty('--mark-ink', luminance > .179 ? '#000000' : '#ffffff');
+  });
+}
+function updateAppearancePicker(picker) {
+  const selected = $('input[type="radio"]:checked',picker), color = $('input[type="color"]',picker)?.value;
+  if (!selected || !/^#[a-f0-9]{6}$/i.test(color)) return;
+  const source = selected.nextElementSibling.querySelector('svg');
+  const targets = [$('[data-appearance-preview]',picker),$('summary .work-mark',picker.closest('[data-appearance-row]') || picker)].filter(Boolean);
+  targets.forEach(target => {
+    target.replaceChildren(source.cloneNode(true));
+    target.dataset.markColor = color;
+    target.dataset.markIcon = selected.value;
+  });
+  $('[data-appearance-name]',picker).textContent = selected.getAttribute('aria-label');
+  $$('[data-appearance-color]',picker).forEach(button => button.setAttribute('aria-pressed',String(button.dataset.appearanceColor===color)));
+  initAppearanceMarks(picker.closest('[data-appearance-row]') || picker);
+}
+function initAppearancePickers(root = document) { $$('[data-appearance-picker]',root).forEach(updateAppearancePicker); }
+initAppearanceMarks();
+initAppearancePickers();
+document.addEventListener('input',event => {
+  const picker = event.target.closest('[data-appearance-picker]');
+  if(picker) updateAppearancePicker(picker);
+});
+document.addEventListener('click',event => {
+  const button = event.target.closest('[data-appearance-color]');
+  if(!button) return;
+  const picker = button.closest('[data-appearance-picker]');
+  $('input[type="color"]',picker).value = button.dataset.appearanceColor;
+  updateAppearancePicker(picker);
+});
 function syncSidebar() {
   const sidebar = $('.sidebar'),
     button = $('[data-mobile-menu]');
@@ -221,7 +260,13 @@ async function quick(row, field, value) {
     version: row.dataset.version,
   });
   $$(`[data-ticket-id="${row.dataset.ticketId}"]`).forEach(
-    (r) => (r.dataset.version = data.ticket.version),
+    (r) => {
+      r.dataset.version = data.ticket.version;
+      r.dataset.priority = data.ticket.priority;
+      const mark=$('.priority-mark',r), templates=$('#priority-mark-templates');
+      const next=templates && $$('[data-mark-key]',templates.content).find(el=>el.dataset.markKey===data.ticket.priority);
+      if(mark && next) { mark.replaceWith(next.cloneNode(true));initAppearanceMarks(r); }
+    },
   );
   if (Number(data.ticket.version) > previousVersion + 1) {
     sessionStorage.setItem(
@@ -232,6 +277,35 @@ async function quick(row, field, value) {
   }
   return data;
 }
+document.addEventListener('submit',async event=>{
+  const form=event.target;
+  if(!form.matches('#project-settings-dialog form') || event.defaultPrevented) return;
+  event.preventDefault();
+  const button=$('button[type="submit"],button.primary',form);
+  if(form.getAttribute('aria-busy')==='true') return;
+  form.setAttribute('aria-busy','true');button.disabled=true;
+  try {
+    const response=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{Accept:'application/json'}});
+    if(response.redirected || !(response.headers.get('content-type')||'').includes('application/json')) throw new Error('Votre session a expiré. Rechargez la page.');
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error || 'Enregistrement impossible.');
+    const project=data.project, selected=$$('input[type="radio"]',form).find(input=>input.value===project.icon);
+    const svg=selected?.nextElementSibling.querySelector('svg');
+    $$('[data-project-id]').filter(mark=>mark.dataset.projectId===String(project.id)).forEach(mark=>{
+      mark.dataset.projectColor=project.color;mark.dataset.markIcon=project.icon;
+      if(svg) mark.replaceChildren(svg.cloneNode(true));
+      const link=mark.closest('a');
+      const name=link && $('.project-name,strong',link);
+      if(name) name.textContent=project.name;
+      if(link?.classList.contains('settings-project')) $('small',link).textContent=project.description;
+      if(link?.classList.contains('project-link')) { link.title=project.name;link.setAttribute('aria-label',project.name); }
+      const crumb=mark.closest('.project-crumb');
+      if(crumb) crumb.replaceChildren(mark,document.createTextNode(project.name));
+    });
+    initAppearanceMarks();form.closest('dialog').close();toast('Projet enregistré.');
+  } catch(error) { toast(error.message || 'Connexion interrompue. Vérifiez l’état avant de réessayer.',true); }
+  finally { form.removeAttribute('aria-busy');button.disabled=false; }
+});
 $$('[data-quick-field]').forEach((input) =>
   input.addEventListener('change', async () => {
     const row = input.closest('[data-ticket-id]');

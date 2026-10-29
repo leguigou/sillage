@@ -201,6 +201,10 @@ final class WorkspaceController
         Auth::admin();
         if (isset($_POST['teams_present'])) $_POST['team_ids']=$_POST['team_ids']??[];
         Project::save($_POST,(int)$id);
+        if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) {
+            $saved=Project::find((int)$id);
+            json_response(['project'=>array_intersect_key($saved,array_flip(['id','name','description','color','icon']))]);
+        }
         flash('Projet, équipes et dépôt principal enregistrés.');
         redirect('/?project='.(int)$id);
     }

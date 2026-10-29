@@ -1,0 +1,26 @@
+<?php
+use App\Models\{Appearance,Project,Ticket};
+$appearanceOriginal=Appearance::get();
+check(array_keys($appearanceOriginal['marks']['type'])===array_keys(Ticket::TYPES) && array_keys($appearanceOriginal['marks']['priority'])===array_keys(Ticket::PRIORITIES),'chaque type et priorité possède un repère visuel');
+$visualProject=Project::save(['name'=>'Identité personnalisée','key'=>'VIS'.strtoupper(bin2hex(random_bytes(2))),'icon'=>'globe','color'=>'#A125B3']);
+$visualSaved=Project::find($visualProject);
+check($visualSaved['icon']==='globe' && $visualSaved['color']==='#a125b3','identité de projet persistée et couleur normalisée');
+Project::save(['name'=>'Identité conservée'],$visualProject);
+check(Project::find($visualProject)['icon']==='globe' && Project::find($visualProject)['color']==='#a125b3','modification partielle conserve pictogramme et couleur');
+rejects(fn()=>Project::save(['icon'=>'<svg onload=alert(1)>'],$visualProject),'SVG arbitraire refusé dans le projet');
+rejects(fn()=>Project::save(['color'=>['#ffffff']],$visualProject),'couleur structurée refusée');
+$visualInput=$appearanceOriginal;
+$visualInput['marks']['type']['bug']=['icon'=>'target','color'=>'#1A3456'];
+Appearance::save($visualInput);
+check(Appearance::mark('type','bug')===['icon'=>'target','color'=>'#1a3456'],'apparence du bug enregistrée sans changer sa clé métier');
+rejects(fn()=>Appearance::save($visualInput),'configuration obsolète refusée');
+$visualCurrent=Appearance::get();
+$visualInvalid=$visualCurrent;$visualInvalid['marks']['priority']['low']['color']='red;display:none';
+rejects(fn()=>Appearance::save($visualInvalid),'injection CSS refusée avant écriture');
+$visualInvalid=$visualCurrent;unset($visualInvalid['marks']['type']['task']);
+rejects(fn()=>Appearance::save($visualInvalid),'configuration incomplète refusée');
+$visualInvalid=$visualCurrent;$visualInvalid['marks']['type']['custom']=['icon'=>'bug','color'=>'#abcdef'];
+rejects(fn()=>Appearance::save($visualInvalid),'type métier inconnu refusé');
+check(Appearance::get()===$visualCurrent,'les erreurs ne modifient pas les réglages');
+$visualRestore=['version'=>$visualCurrent['version'],'marks'=>$appearanceOriginal['marks']];
+Appearance::save($visualRestore);

@@ -3,7 +3,7 @@
   'use strict';
   if (location.pathname !== '/settings') return;
   const busy = new Set();
-  const regions = new Set(['profile','company','email-preferences','notifications','mcp','oauth','teams','users','llm']);
+  const regions = new Set(['profile','company','email-preferences','notifications','mcp','oauth','teams','users','llm','appearance']);
   function updateRegion(id, page) {
     const current = document.getElementById(id), incoming = page.getElementById(id);
     if (!current || !incoming) throw new Error('La section n’est plus disponible. Rechargez les paramètres.');
@@ -13,6 +13,8 @@
       if (opened.includes(el.querySelector('summary')?.textContent)) el.open = true;
     });
     initSettingsPreviews(current);
+    initAppearanceMarks(current);
+    initAppearancePickers(current);
   }
   function apply(id, page) {
     if (!page.querySelector('.settings-shortcuts')) throw new Error('Votre session a expiré. Reconnectez-vous avant de réessayer.');

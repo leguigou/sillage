@@ -398,6 +398,7 @@ try {
     require __DIR__ . '/persistent_login.php';
     require __DIR__ . '/oauth.php';
     require __DIR__ . '/paused_tickets.php';
+    require __DIR__ . '/appearance.php';
 } finally {
     DB::connection()->rollBack();
 }

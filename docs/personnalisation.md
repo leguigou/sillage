@@ -51,6 +51,16 @@ La migration additive `006_company_branding.sql` crée une table contenant les m
 Pour une autre société, démarrer avec une base et un stockage vides. Changer le nom d’une installation existante ne retire pas ses données,
 ses utilisateurs ou ses pièces jointes. Le nom affiché est une personnalisation, pas une frontière entre sociétés.
 
+## Pictogrammes et couleurs
+
+Dans **Paramètres du projet → Identité du projet**, un administrateur choisit un pictogramme et une couleur. Le même choix apparaît dans le menu, le fil d’Ariane et l’annuaire des projets. Le sélecteur est également disponible à la création du projet. Les couleurs déjà enregistrées sont conservées ; les projets existants reçoivent le pictogramme Dossier.
+
+Dans **Paramètres → Pictogrammes et couleurs**, un administrateur personnalise les cinq types de tickets et les cinq priorités. Chaque repère dispose de 24 pictogrammes SVG, d’une palette et d’une couleur personnalisée. L’aperçu se met à jour avant enregistrement. Ces réglages sont communs à tous les projets de l’installation ; ils changent l’affichage sans modifier les types ou priorités des tickets. Les icônes sont accompagnées de libellés accessibles ; le contraste du pictogramme est calculé selon sa couleur.
+
+La liste, le tableau, la chronologie et la fiche utilisent le même rendu. Les priorités se distinguent désormais par des flèches ou le symbole égal. Une modification rapide de priorité dans la liste met aussi son pictogramme à jour. Les paramètres du projet et les repères communs s’enregistrent par AJAX. Un conflit de version des repères communs affiche une erreur et conserve la saisie.
+
+La migration additive **017_appearance.sql** ajoute l’icône des projets et les réglages visuels dans MySQL. Déployer les fichiers puis lancer `php bin/console.php migrate` avant utilisation en production. Les sauvegardes SQL incluent ces réglages. Les requêtes de modification exigent un administrateur et un jeton CSRF ; les pictogrammes proviennent exclusivement de la bibliothèque embarquée.
+
 ## Périmètre SaaS
 
 Ce modèle permet d’exploiter plusieurs installations isolées avec le même produit.

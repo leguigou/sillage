@@ -1,8 +1,8 @@
 <?php use App\Models\Ticket; ?>
 <section class="panel ticket-facts"><div class="ticket-facts-heading"><h2>Informations</h2><?= blocked_badge((bool)$ticket['flagged']) ?></div><dl class="ticket-meta">
   <dt>État</dt><dd><?= e(Ticket::STATUSES[$ticket['status']]) ?></dd>
-  <dt>Type</dt><dd><?= e(Ticket::TYPES[$ticket['type']]) ?></dd>
-  <dt>Priorité</dt><dd><?= e(Ticket::PRIORITIES[$ticket['priority']]) ?></dd>
+  <dt>Type</dt><dd class="ticket-mark-label"><?= work_mark('type',$ticket['type']) ?><?= e(Ticket::TYPES[$ticket['type']]) ?></dd>
+  <dt>Priorité</dt><dd class="ticket-mark-label"><?= work_mark('priority',$ticket['priority']) ?><?= e(Ticket::PRIORITIES[$ticket['priority']]) ?></dd>
   <dt>Personne assignée</dt><dd><?= e($ticket['assignee_name']??'Non assigné') ?></dd>
   <dt>Équipe responsable</dt><dd><?= e($ticket['team_name']??'Sans équipe') ?></dd>
   <dt>Avancement</dt><dd><?= (int)$ticket['progress_percent'] ?> %</dd>

@@ -20,16 +20,16 @@ final class Project
             $name = trim((string) ($input['name'] ?? ($old['name'] ?? '')));
             $key = strtoupper(trim((string) ($input['key'] ?? ($old['project_key'] ?? ''))));
             $description = (string) ($input['description'] ?? ($old['description'] ?? ''));
-            $color = (string) ($input['color'] ?? ($old['color'] ?? '#7166eb'));
+            $appearance=Appearance::validate($input['icon']??($old['icon']??'folder'),$input['color']??($old['color']??'#7166eb'));
+            $color=$appearance['color'];
             if (
                 !$name ||
                 mb_strlen($name) > 120 ||
                 !preg_match('/^[A-Z][A-Z0-9]{1,9}$/D', $key) ||
-                mb_strlen($description) > 2000 ||
-                !preg_match('/^#[a-f0-9]{6}$/iD', $color)
+                mb_strlen($description) > 2000
             ) {
                 throw new \InvalidArgumentException(
-                    'Nom, clé de 2 à 10 lettres/chiffres, description ou couleur de projet invalide.',
+                    'Nom, clé de 2 à 10 lettres/chiffres ou description de projet invalide.',
                 );
             }
             if ($old && $old['project_key'] !== $key) {
@@ -45,10 +45,11 @@ final class Project
             try {
                 if ($id) {
                     if (array_key_exists('team_ids',$input)) Team::setProjectTeams($id,$input['team_ids']);
-                    DB::run('UPDATE projects SET name=?,description=?,color=? WHERE id=?', [
+                    DB::run('UPDATE projects SET name=?,description=?,color=?,icon=? WHERE id=?', [
                         $name,
                         $description,
                         $color,
+                        $appearance['icon'],
                         $id,
                     ]);
                     if (array_key_exists('repository_connection_id',$input)) {
@@ -59,8 +60,8 @@ final class Project
                     return $id;
                 }
                 $newId = DB::insert(
-                    'INSERT INTO projects(name,project_key,description,color) VALUES(?,?,?,?)',
-                    [$name, $key, $description, $color],
+                    'INSERT INTO projects(name,project_key,description,color,icon) VALUES(?,?,?,?,?)',
+                    [$name, $key, $description, $color, $appearance['icon']],
                 );
                 if (!empty($input['repository_connection_id'])) RepositoryConnection::attach($newId,(int)$input['repository_connection_id'],true);
                 if (array_key_exists('team_ids',$input)) Team::setProjectTeams($newId,(array)$input['team_ids']);

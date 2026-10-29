@@ -21,7 +21,7 @@ $scale=$calendar['scale']; $start=$calendar['start']; $days=$calendar['days']; $
   </div></div>
   <?php foreach($tickets as $ticket): $bar=$ticket['start_date']?TimelineCalendar::bar($calendar,$ticket['start_date'],$ticket['due_date']):null; ?>
   <div class="timeline-row" data-ticket-id="<?= (int)$ticket['id'] ?>" data-version="<?= (int)$ticket['version'] ?>" data-start-date="<?= e($ticket['start_date']) ?>" data-due-date="<?= e($ticket['due_date']) ?>">
-   <a href="<?= e(ticket_url((int)$ticket['id'])) ?>" class="timeline-task"><span class="type-icon type-<?= e($ticket['type']) ?>"><?= $ticket['type']==='epic'?'ϟ':'✓' ?></span><span><small><?= e($ticket['key']) ?><?= blocked_badge((bool)$ticket['flagged']) ?></small><?= e($ticket['title']) ?></span></a>
+   <a href="<?= e(ticket_url((int)$ticket['id'])) ?>" class="timeline-task"><?= work_mark('type',$ticket['type']) ?><span><small><?= e($ticket['key']) ?><?= blocked_badge((bool)$ticket['flagged']) ?></small><?= e($ticket['title']) ?></span></a>
    <div class="timeline-track" data-timeline-origin="<?= e($origin) ?>" data-timeline-days="<?= $days ?>">
     <?php if($calendar['todayLeft']!==null): ?><span class="timeline-today-line" data-timeline-left="<?= $calendar['todayLeft'] ?>" aria-hidden="true"></span><?php endif; ?>
     <?php if($bar): ?><a class="timeline-bar status-<?= e($ticket['status']) ?>" href="<?= e(ticket_url((int)$ticket['id'])) ?>" data-timeline-left="<?= $bar['left'] ?>" data-timeline-width="<?= $bar['width'] ?>" title="<?= e($ticket['title'].' · '.$bar['range'].($bar['clippedStart']?' · Commence avant la période':'').($bar['clippedEnd']?' · Se termine après la période':'')) ?>"><?= $bar['clippedStart']?'‹ ':'' ?><?= e($ticket['title']) ?><?= $bar['clippedEnd']?' ›':'' ?></a>
