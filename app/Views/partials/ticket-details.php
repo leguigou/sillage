@@ -1,7 +1,7 @@
 <?php use App\Models\Ticket; ?>
 <section class="panel ticket-facts"><div class="ticket-facts-heading"><h2>Informations</h2><?= blocked_badge((bool)$ticket['flagged']) ?></div><dl class="ticket-meta">
-  <dt>État</dt><dd><?= e(Ticket::STATUSES[$ticket['status']]) ?></dd>
-  <dt>Type</dt><dd class="ticket-mark-label"><?= work_mark('type',$ticket['type']) ?><?= e(Ticket::TYPES[$ticket['type']]) ?></dd>
+  <dt>État</dt><dd><?= status_badge($ticket['status'],(int)$project['id']) ?></dd>
+  <dt>Type</dt><dd class="ticket-mark-label"><?= work_mark('type',$ticket['type'],(int)$project['id']) ?><?= e(\App\Models\Workflow::label('type',(int)$project['id'],$ticket['type'])) ?></dd>
   <dt>Priorité</dt><dd class="ticket-mark-label"><?= work_mark('priority',$ticket['priority']) ?><?= e(Ticket::PRIORITIES[$ticket['priority']]) ?></dd>
   <dt>Personne assignée</dt><dd><?= e($ticket['assignee_name']??'Non assigné') ?></dd>
   <dt>Équipe responsable</dt><dd><?= e($ticket['team_name']??'Sans équipe') ?></dd>
@@ -15,6 +15,6 @@
 <?php if($ticket['status']==='paused'): ?><p class="help-text ticket-pause-note">Mis de côté pour plus tard. Ce ticket reste accessible avec le filtre « En pause ».</p><?php endif; ?>
 <?php if($canEdit && !$ticket['archived']): ?><form method="post" action="/tickets/<?= (int)$ticket['id'] ?>/pause" class="ticket-pause-action"><?= csrf() ?><?= ticket_context() ?><input type="hidden" name="_return" value="<?= e(ticket_url((int)$ticket['id'])) ?>"><input type="hidden" name="version" value="<?= (int)$ticket['version'] ?>"><input type="hidden" name="action" value="<?= $ticket['status']==='paused'?'resume':'pause' ?>"><button class="button subtle"><?= icon($ticket['status']==='paused'?'arrow':'clock') ?><?= $ticket['status']==='paused'?'Reprendre le ticket':'Mettre en pause' ?></button></form><?php endif; ?>
 </section>
-<section class="panel"><h3>Suivi du ticket</h3><dl class="ticket-meta">
+<?php $following=App\Models\TicketFollow::get((int)$ticket['id'],(int)$user['id']); ?><section class="panel"><h3>Suivi du ticket</h3><form action="/tickets/<?= (int)$ticket['id'] ?>/follow" method="post" class="stack" data-ticket-follow><?= csrf() ?><?= ticket_context() ?><input type="hidden" name="action" value="<?= $following['following']?'unfollow':'follow' ?>"><button class="button subtle" aria-pressed="<?= $following['following']?'true':'false' ?>"><?= icon('bell') ?><span data-follow-label><?= $following['following']?'Ne plus suivre':'Suivre ce ticket' ?></span></button><small data-follow-count><?= $following['count'] ?> personne(s) suivent ce ticket</small></form><dl class="ticket-meta">
   <dt>Projet</dt><dd><?= e($project['name']) ?></dd><dt>Rapporteur</dt><dd><?= e($ticket['reporter_name']??'Externe') ?></dd><dt>Créé le</dt><dd><?= e(substr($ticket['created_at'],0,16)) ?></dd><dt>Mis à jour le</dt><dd><?= e(substr($ticket['updated_at'],0,16)) ?></dd><?php if($ticket['external_email']): ?><dt>Contact externe</dt><dd><?= e($ticket['external_email']) ?></dd><?php endif; ?>
 </dl></section>

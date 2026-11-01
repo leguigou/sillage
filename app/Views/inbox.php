@@ -1,0 +1,15 @@
+<?php use App\Models\ProjectEmail; $inboxQuery=['project'=>(int)$project['id'],'unread'=>$onlyUnread?'1':null]; ?>
+<section class="inbox-page" data-inbox>
+ <div class="panel-header"><div><h1>Notifications</h1><p>Mentions et nouvelles des tickets que vous suivez ou qui vous concernent.</p></div><form method="post" action="/notifications/read-all" data-inbox-all><?= csrf() ?><button class="button subtle" <?= !$inbox['unread']?'disabled':'' ?>>Tout marquer comme lu</button></form></div>
+ <nav class="inbox-filters" aria-label="Filtrer les notifications"><a class="button <?= !$onlyUnread?'primary':'subtle' ?>" href="<?= e(query_url('/notifications',$inboxQuery,['unread'=>null])) ?>">Toutes</a><a class="button <?= $onlyUnread?'primary':'subtle' ?>" href="<?= e(query_url('/notifications',$inboxQuery,['unread'=>1])) ?>">Non lues <span data-inbox-count><?= $inbox['unread'] ?></span></a><span class="help-text"><?= $inbox['total'] ?> notification(s) · Tous les projets</span></nav>
+ <div class="inbox-entries">
+ <?php foreach($inbox['rows'] as $notice): ?><article class="panel inbox-entry <?= $notice['read_at']?'':'is-unread' ?>" data-inbox-id="<?= (int)$notice['id'] ?>">
+ <div class="inbox-symbol"><?= icon($notice['mentioned']?'user':'bell') ?></div><div class="inbox-content"><div class="inbox-metadata"><strong><?= e($notice['project_key'].'-'.$notice['number']) ?></strong><span><?= e($notice['project_name']) ?></span><time datetime="<?= e($notice['created_at'].'Z') ?>"><?= e($notice['created_at']) ?> UTC</time></div>
+ <form method="post" action="/notifications/<?= (int)$notice['id'] ?>/state"><?= csrf() ?><?= ticket_context() ?><input type="hidden" name="action" value="open"><button class="inbox-title"><?= e($notice['title']) ?></button></form>
+ <p><?= e($notice['actor_name']??'Le système') ?><?= $notice['mentioned']?' vous a mentionné · ':' · ' ?><?= e(implode(' · ',array_map(fn($event)=>ProjectEmail::EVENTS[$event]??$event,$notice['events']))) ?></p></div>
+ <form method="post" action="/notifications/<?= (int)$notice['id'] ?>/state" data-inbox-state><?= csrf() ?><input type="hidden" name="action" value="<?= $notice['read_at']?'unread':'read' ?>"><button class="button subtle small-button"><?= $notice['read_at']?'Marquer non lu':'Marquer comme lu' ?></button></form>
+ </article><?php endforeach; ?>
+ <?php if(!$inbox['rows']): ?><div class="panel empty-state"><?= icon('bell') ?><h2><?= $onlyUnread?'Tout est lu.':'Aucune notification pour le moment.' ?></h2><p>Suivez un ticket pour recevoir ses prochaines nouvelles.</p></div><?php endif; ?>
+ </div>
+ <nav class="inbox-pagination" aria-label="Pages des notifications"><?php if($inbox['page']>1): ?><a class="button subtle" href="<?= e(query_url('/notifications',$inboxQuery,['page'=>$inbox['page']-1])) ?>">Précédent</a><?php endif; ?><span>Page <?= $inbox['page'] ?> / <?= $inbox['pages'] ?></span><?php if($inbox['page']<$inbox['pages']): ?><a class="button subtle" href="<?= e(query_url('/notifications',$inboxQuery,['page'=>$inbox['page']+1])) ?>">Suivant</a><?php endif; ?></nav>
+</section>

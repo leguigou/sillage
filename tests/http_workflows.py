@@ -157,4 +157,5 @@ exec((__import__('pathlib').Path(__file__).parent/'http_notifications.py').read_
 exec((__import__('pathlib').Path(__file__).parent/'http_oauth.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_paused_tickets.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_appearance.py').read_text(encoding='utf-8'))
+exec((__import__('pathlib').Path(__file__).parent/'http_workflow_inbox.py').read_text(encoding='utf-8'))
 print('\n',passed_count(),'HTTP checks passed against isolated test database.')

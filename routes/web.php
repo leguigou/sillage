@@ -15,6 +15,13 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$inbox=new \App\Controllers\InboxController();
+$r->add('GET','/notifications',[$inbox,'index'])
+    ->add('GET','/notifications/count',[$inbox,'count'])
+    ->add('POST','/notifications/read-all',[$inbox,'readAll'])
+    ->add('POST','/notifications/{id}/state',[$inbox,'read'])
+    ->add('POST','/tickets/{id}/follow',[$inbox,'follow']);
+$r->add('POST','/projects/{id}/workflow',[new \App\Controllers\WorkflowController(),'save']);
 $r->add('POST', '/appearance', [new \App\Controllers\AppearanceController(), 'save']);
 $r->add('GET', '/avatars/{id}/{digest}', [new \App\Controllers\AvatarController(), 'image']);
 $company = new CompanyController();

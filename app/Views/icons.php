@@ -66,8 +66,13 @@ function project_mark(array $project,string $variant='compact'): string {
     return '<span class="project-mark '.($tile?'project-tile':'project-symbol').'" data-project-id="'.(int)$project['id'].'" data-mark-icon="'.e($symbol).'" data-project-color="'.e(strtolower($color)).'" aria-hidden="true">'.icon($symbol).'</span>';
 }
 
-function work_mark(string $kind,string $key): string {
-    $mark=\App\Models\Appearance::mark($kind,$key);
-    $labels=$kind==='type'?\App\Models\Ticket::TYPES:\App\Models\Ticket::PRIORITIES;
+function work_mark(string $kind,string $key,int $project=0): string {
+    $mark=$kind==='type'&&$project?\App\Models\Workflow::mark('type',$project,$key):\App\Models\Appearance::mark($kind,$key);
+    $labels=$kind==='type'?\App\Models\Workflow::labels('type',$project):\App\Models\Ticket::PRIORITIES;
     return '<span class="work-mark '.($kind==='type'?'type-icon':'priority-mark').'" data-mark-kind="'.e($kind).'" data-mark-key="'.e($key).'" data-mark-icon="'.e($mark['icon']).'" data-mark-color="'.e($mark['color']).'" role="img" aria-label="'.e($labels[$key]).'" title="'.e($labels[$key]).'">'.icon($mark['icon']).'</span>';
+}
+
+function status_badge(string $key,int $project): string {
+    $color=\App\Models\Workflow::mark('status',$project,$key)['color'];
+    return '<span class="pill workflow-status" data-status-color="'.e($color).'">'.e(\App\Models\Workflow::label('status',$project,$key)).'</span>';
 }

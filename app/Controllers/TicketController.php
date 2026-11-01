@@ -137,7 +137,7 @@ final class TicketController
             $t = Ticket::find((int) $id);
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$t['project_id']]);
             $status = (string) ($_POST['status'] ?? '');
-            if (!isset(Ticket::STATUSES[$status])) {
+            if (!isset(\App\Models\Workflow::labels('status',(int)$t['project_id'],true)[$status])) {
                 throw new \InvalidArgumentException('État invalide.');
             }
             $before = (int) ($_POST['before_id'] ?? 0);

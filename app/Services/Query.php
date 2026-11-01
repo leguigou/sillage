@@ -40,6 +40,7 @@ final class Query
         foreach ($rows as &$row) {
             $row['key'] = $row['project_key'] . '-' . $row['number'];
             $row['labels_array'] = json_decode($row['labels'], true);
+            $row=\App\Models\Workflow::decorate($row);
         }
         return $rows;
     }
@@ -51,7 +52,7 @@ final class Query
     public static function teamWorkload(int $project,array $filters): array
     {
         [$where,$args]=Filter::where($project,$filters);
-        return DB::all("SELECT t.team_id,COALESCE(tm.name,'Sans équipe') name,COUNT(*) total,SUM(t.status='done') done,AVG(t.progress_percent) progress,SUM(t.estimated_hours) hours".self::JOIN."WHERE $where GROUP BY t.team_id,tm.name ORDER BY name,t.team_id",$args);
+        return DB::all("SELECT t.team_id,COALESCE(tm.name,'Sans équipe') name,COUNT(*) total,SUM(".\App\Models\Workflow::categorySql()."='done') done,AVG(t.progress_percent) progress,SUM(t.estimated_hours) hours".self::JOIN."WHERE $where GROUP BY t.team_id,tm.name ORDER BY name,t.team_id",$args);
     }
     public static function aggregate(int $project, array $filters, string $field): array
     {
@@ -63,9 +64,11 @@ final class Query
             default => 't.status',
         };
         [$w, $p] = Filter::where($project, $filters);
-        return DB::all(
+        $rows=DB::all(
             "SELECT $col label,COUNT(*) n" . self::JOIN . "WHERE $w GROUP BY $col ORDER BY n DESC",
             $p,
         );
+        if (in_array($field,['status','type','priority'],true)) foreach($rows as &$row) $row['color']=$field==='priority'?\App\Models\Appearance::mark('priority',$row['label'])['color']:\App\Models\Workflow::mark($field,$project,$row['label'])['color'];
+        return $rows;
     }
 }

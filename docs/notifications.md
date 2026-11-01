@@ -1,5 +1,7 @@
 # Notifications e-mail par projet
 
+La boîte personnelle, les @mentions et les abonnements sont décrits dans [Suivi et notifications](suivi-notifications.md). Les destinataires e-mail « Personnes qui suivent le ticket » et « Personnes mentionnées (commentaires) » complètent les règles ci-dessous, sans activer automatiquement les politiques déjà enregistrées.
+
 Dans **Paramètres → Notifications e-mail**, choisir le projet puis **Afficher ce projet**. Le lien **Configurer les notifications e-mail du projet** est aussi disponible dans les paramètres du projet. Seuls les administrateurs modifient cette politique.
 
 Les notifications restent désactivées pour un projet sans configuration explicite. Activer le projet, cocher les destinataires de chaque événement et enregistrer. Une ligne vide désactive l’événement. Les choix recommandés peuvent être rétablis avant enregistrement :

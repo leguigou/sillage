@@ -1,0 +1,47 @@
+CREATE TABLE project_workflows (
+ project_id BIGINT UNSIGNED PRIMARY KEY,
+ version INT UNSIGNED NOT NULL DEFAULT 1,
+ restricted BOOLEAN NOT NULL DEFAULT FALSE,
+ transitions_json JSON NOT NULL,
+ FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE workflow_items (
+ project_id BIGINT UNSIGNED NOT NULL,
+ kind VARCHAR(8) NOT NULL,
+ code VARCHAR(20) NOT NULL,
+ label VARCHAR(80) NOT NULL,
+ category VARCHAR(20) NOT NULL,
+ icon VARCHAR(32) NULL,
+ color CHAR(7) NULL,
+ position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+ enabled BOOLEAN NOT NULL DEFAULT TRUE,
+ PRIMARY KEY(project_id,kind,code),
+ FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE ticket_followers (
+ ticket_id BIGINT UNSIGNED NOT NULL,
+ user_id BIGINT UNSIGNED NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(ticket_id,user_id),
+ INDEX(user_id,ticket_id),
+ FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE ticket_notifications (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ ticket_id BIGINT UNSIGNED NOT NULL,
+ actor_id BIGINT UNSIGNED NULL,
+ comment_id BIGINT UNSIGNED NULL,
+ source_key VARCHAR(60) NOT NULL,
+ events_json JSON NOT NULL,
+ mentioned BOOLEAN NOT NULL DEFAULT FALSE,
+ read_at DATETIME NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY notification_source(user_id,ticket_id,source_key),
+ INDEX(user_id,read_at,id),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+ FOREIGN KEY(actor_id) REFERENCES users(id) ON DELETE SET NULL,
+ FOREIGN KEY(comment_id) REFERENCES comments(id) ON DELETE SET NULL
+) ENGINE=InnoDB;

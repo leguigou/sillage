@@ -79,7 +79,7 @@ puis utiliser **`DEMARRER-BASE-EXTERNE.cmd`**. Ce mode ne lance ni serveur MySQL
 | Fiche ticket         | Modification protégée contre les écritures concurrentes, commentaires, pièces jointes privées, tickets enfants et relations associé/bloque/doublon. Archivage et restauration.                                                                                       |
 | Liste                | Recherche, tri, colonnes visibles, regroupements, hiérarchie, modification directe, sélection et modification groupée.                                                                                                                                               |
 | Filtres              | Modes simple et avancé, expressions inspirées de JQL, vues personnelles enregistrées. Les expressions non prises en charge sont explicitement refusées.                                                                                                              |
-| Tableau              | Quatre étapes : À faire, En cours, En revue, Terminé. Déplacement des cartes entre colonnes et réordonnancement, création dans la colonne, regroupement, largeur et défilement configurables.                                                                        |
+| Tableau              | Colonnes configurables par projet, avec contrôle des passages autorisés. Déplacement des cartes entre colonnes et réordonnancement, création dans la colonne, regroupement, largeur et défilement configurables.                                                                        |
 | Dashboard            | Tickets créés/mis à jour/terminés, prochaines échéances, états, priorités, types, répartition par personne, activité et progression des Epics. Liens vers les listes concernées.                                                                                     |
 | Rapports             | Quatre graphiques calculés sur l’ensemble des résultats filtrés, indépendamment de la pagination.                                                                                                                                                                    |
 | Chronologie          | Semaines/mois/trimestres, périodes précédente/suivante, planification, déplacement des barres, poignée pour ajuster l’échéance, dépendances visuelles et modification depuis la fiche.                                                                               |
@@ -99,7 +99,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 ### Limites explicites
 
 - Le langage de recherche **n’est pas le JQL complet**. Champs documentés dans le dialogue ; `AND`, `OR`, comparaisons, `IN`, `IS EMPTY`, `~` et parenthèses. Pas de fonctions Jira ni de `ORDER BY` dans l’expression : le tri utilise les en-têtes.
-- Le workflow comporte quatre états fixes. La configuration de nouveaux états, types et champs arbitraires, le designer libre de widgets, la gestion fine des capacités, les sprints, GitLab, les agents IA, scans de vulnérabilités et métriques DORA ne sont pas implémentés.
+- Les statuts et types sont configurables par projet avec catégories métier et transitions contrôlées ; voir [les circuits](docs/circuits.md). Les champs arbitraires, le designer libre de widgets, la gestion fine des capacités, les sprints, GitLab, les agents IA, scans de vulnérabilités et métriques DORA ne sont pas implémentés.
 - La liste affiche 50 tickets par page. Les regroupements et la hiérarchie portent sur la page examinée. Le tableau et la chronologie affichent au maximum 1 000 tickets avec un message de couverture ; les statistiques agrègent tous les tickets filtrés.
 - L’import est limité à 500 lignes / 2 Mo, l’export à 10 000 tickets et une pièce jointe à 10 Mo. Les fichiers restent hors du dossier public et sont téléchargés via un contrôleur authentifié.
 - La synchronisation de développement importe une page de 50 branches, commits ou PR au choix. Les webhooks reçus complètent l’historique ; cette vue ne garantit pas la récupération rétroactive de tous les événements.
@@ -107,7 +107,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 
 ## MCP et automatisations
 
-Le serveur MCP est disponible à **`/mcp`** avec 50 outils : projets, tickets, commentaires, relations,
+Le serveur MCP est disponible à **`/mcp`** avec 55 outils : projets, tickets, commentaires, relations,
 formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
 Les métadonnées des pièces jointes et les événements de développement sont également consultables.
 
@@ -121,6 +121,12 @@ avec déclenchement à la création/modification d’un ticket ou au changement 
 Ces règles sont exécutées par les modèles métier, que le ticket provienne du site, d’un formulaire, d’un CSV ou du MCP.
 
 Voir [le guide MCP, ses droits et son catalogue](docs/mcp.md) et [la connexion OAuth à ChatGPT](docs/oauth.md).
+
+## Circuits et collaboration
+
+Dans **Paramètres → Circuit du projet**, configurer les statuts, les types, leurs pictogrammes/couleurs et l’ordre des colonnes, puis les passages autorisés. Les catégories conservent le fonctionnement des rapports, des notifications et de la pause. Les contrôles s’appliquent aussi aux automatisations, imports et MCP. Voir [le guide des circuits](docs/circuits.md).
+
+La conversation propose les **@mentions** avec choix explicite d’un collaborateur. Le bouton **Suivre ce ticket** abonne le compte connecté, y compris en lecture seule. La cloche ouvre une **boîte personnelle** paginée, avec filtres Toutes/Non lues et changements de lecture par AJAX. Les notifications internes restent indépendantes des e-mails ; les politiques e-mail du projet peuvent aussi cibler abonnés et personnes mentionnées. Voir [le guide du suivi et des notifications](docs/suivi-notifications.md).
 
 ## Structure MVC
 

@@ -39,6 +39,7 @@ function ticket_url(int $id,string $fragment=''): string
 {
     return App\Services\TicketNavigation::ticket($id,$fragment);
 }
+function query_url(string $path,array $query,array $changes=[]): string { return $path.'?'.http_build_query(array_replace($query,$changes)); }
 function ticket_context(): string
 {
     $source=App\Services\TicketNavigation::current();

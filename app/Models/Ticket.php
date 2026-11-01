@@ -36,7 +36,7 @@ final class Ticket
         }
         $t['key'] = $t['project_key'] . '-' . $t['number'];
         $t['labels_array'] = json_decode($t['labels'], true);
-        return $t;
+        return Workflow::decorate($t);
     }
     public static function activity(int $project, ?int $ticket, ?int $user, string $message): void
     {
@@ -60,7 +60,9 @@ final class Ticket
         $type = (string) ($input['type'] ?? 'task');
         $status = (string) ($input['status'] ?? 'todo');
         $priority = (string) ($input['priority'] ?? 'medium');
-        if (!isset(self::TYPES[$type], self::STATUSES[$status], self::PRIORITIES[$priority])) {
+        $typeDefinition=Workflow::item('type',$project,$type);
+        $statusDefinition=Workflow::item('status',$project,$status);
+        if (!$typeDefinition['enabled'] || !$statusDefinition['enabled'] || !isset(self::PRIORITIES[$priority])) {
             throw new \InvalidArgumentException('Type, état ou priorité invalide.');
         }
         $assignee = filter_var($input['assignee_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
@@ -105,7 +107,7 @@ final class Ticket
                     : null;
             }
         }
-        if ($type === 'subtask' && !$parent) {
+        if ($typeDefinition['category'] === 'subtask' && !$parent) {
             throw new \InvalidArgumentException('Une sous-tâche doit avoir un parent.');
         }
         $start = Security::date($input['start_date'] ?? null);
@@ -164,6 +166,7 @@ final class Ticket
             if (!$p) {
                 throw new \InvalidArgumentException('Projet introuvable.');
             }
+            Workflow::reset();
             $data = self::validate($input,$project);
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
@@ -175,7 +178,7 @@ final class Ticket
                     $reporter,
                     $external,
                     $p['next_number'] * 100,
-                    $data['status'] === 'done' ? gmdate('Y-m-d H:i:s') : null,
+                    Workflow::category('status',$project,$data['status']) === 'done' ? gmdate('Y-m-d H:i:s') : null,
                 ],
             );
             if ($data['status']==='paused') DB::run('UPDATE tickets SET paused_from_status=? WHERE id=?',['todo',$id]);
@@ -200,11 +203,13 @@ final class Ticket
         DB::transaction(function () use ($id, $input, $actor, $version, $automate) {
             $old = self::find($id);
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
+            Workflow::reset();
             $old = self::find($id);
             $data = self::validate(array_replace(['team_id'=>$old['team_id']],$input), (int) $old['project_id'], $id);
+            Workflow::assertTransition((int)$old['project_id'],$old['status'],$data['status'],$old['paused_from_status']??null);
             $resume=$data['status']==='paused'?($old['status']==='paused'?($old['paused_from_status']??'todo'):$old['status']):null;
             $completed =
-                $data['status'] === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
+                Workflow::category('status',(int)$old['project_id'],$data['status']) === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
             $set = implode(',', array_map(fn($k) => "$k=?", array_keys($data)));
             $s = DB::run(
                 "UPDATE tickets SET $set,completed_at=?,paused_from_status=?,updated_at=UTC_TIMESTAMP(),version=version+1 WHERE id=? AND version=?",
@@ -221,7 +226,7 @@ final class Ticket
                 $actor,
                 'a mis à jour le ticket' .
                     ($old['status'] !== $data['status']
-                        ? ' · ' . self::STATUSES[$data['status']]
+                        ? ' · ' . Workflow::label('status',(int)$old['project_id'],$data['status'])
                         : ''),
             );
             if ($automate) {
@@ -270,12 +275,13 @@ final class Ticket
         DB::transaction(function() use($id,$paused,$actor,$version) {
             $ticket=self::find($id);
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$ticket['project_id']]);
+            Workflow::reset();
             $ticket=self::find($id);
             if ((int)$ticket['version']!==$version) throw new \InvalidArgumentException('Ce ticket a changé. Rechargez-le avant de modifier sa pause.');
             if ($ticket['archived']) throw new \InvalidArgumentException('Restaurez le ticket archivé avant de modifier sa pause.');
             if (($ticket['status']==='paused')===$paused) return;
             $status=$paused?'paused':($ticket['paused_from_status']??'todo');
-            if (!isset(self::STATUSES[$status]) || (!$paused && $status==='paused')) $status='todo';
+            if (!isset(Workflow::labels('status',(int)$ticket['project_id'],true)[$status]) || (!$paused && $status==='paused')) $status='todo';
             self::patch($id,['status'=>$status],$actor,$version);
         });
     }
@@ -317,6 +323,8 @@ final class Ticket
                     'Le commentaire doit contenir entre 1 et 10 000 caractères.',
                 );
             }
+            $mentions=\App\Services\Mentions::ids($body,$format);
+            \App\Services\Mentions::people($mentions);
             $comment = DB::insert('INSERT INTO comments(ticket_id,user_id,body,body_format) VALUES(?,?,?,?)', [
                 $id,
                 $actor,
@@ -329,7 +337,7 @@ final class Ticket
                 (int) $actor,
                 'a ajouté un commentaire',
             );
-            \App\Services\Notifications::enqueue(self::find($id),['commented'],$actor);
+            \App\Services\Notifications::enqueue(self::find($id),['commented'],$actor,[],null,$mentions,$comment);
             return $comment;
         });
     }

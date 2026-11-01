@@ -3,10 +3,10 @@ const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const csrfToken = $('meta[name="csrf-token"]')?.content;
 function initAppearanceMarks(root = document) {
-  $$('[data-project-color],[data-mark-color]', root).forEach(mark => {
-    const color = mark.dataset.projectColor || mark.dataset.markColor;
+  $$('[data-project-color],[data-mark-color],[data-status-color]', root).forEach(mark => {
+    const color = mark.dataset.projectColor || mark.dataset.markColor || mark.dataset.statusColor;
     if (!/^#[a-f0-9]{6}$/i.test(color)) return;
-    mark.style.setProperty(mark.dataset.projectColor ? '--project-color' : '--mark-color', color);
+    mark.style.setProperty(mark.dataset.projectColor ? '--project-color' : (mark.dataset.statusColor?'--status-color':'--mark-color'), color);
     const channels = [1,3,5].map(offset => parseInt(color.slice(offset,offset+2),16)/255)
       .map(value => value <= .04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
     const luminance = channels[0]*.2126 + channels[1]*.7152 + channels[2]*.0722;
@@ -263,6 +263,13 @@ async function quick(row, field, value) {
     (r) => {
       r.dataset.version = data.ticket.version;
       r.dataset.priority = data.ticket.priority;
+      r.dataset.status = data.ticket.status;
+      const statusSelect=$('[data-quick-field="status"]',r);
+      if(statusSelect && data.ticket.status_options) {
+        statusSelect.replaceChildren(...Object.entries(data.ticket.status_options).map(([value,label])=>new Option(label,value,false,value===data.ticket.status)));
+        statusSelect.dataset.statusColor=data.ticket.status_color;
+        statusSelect.className='status-select workflow-status';initAppearanceMarks(r);
+      }
       const mark=$('.priority-mark',r), templates=$('#priority-mark-templates');
       const next=templates && $$('[data-mark-key]',templates.content).find(el=>el.dataset.markKey===data.ticket.priority);
       if(mark && next) { mark.replaceWith(next.cloneNode(true));initAppearanceMarks(r); }
@@ -314,7 +321,7 @@ $$('[data-quick-field]').forEach((input) =>
       await quick(row, input.dataset.quickField, input.value);
       toast('Modification enregistrée.');
       if (input.dataset.quickField === 'status') {
-        input.className = `status-select status-${input.value}`;
+        input.className = 'status-select workflow-status';
         row.dataset.status = input.value;
       }
       applyRules();
@@ -434,7 +441,7 @@ function applyPreferences() {
       ? new Date(c.dataset.completed.replace(' ', 'T') + 'Z').getTime()
       : null;
     c.hidden = Boolean(
-      age && completed && c.dataset.status === 'done' && Date.now() - completed > age * 86400000,
+      age && completed && c.dataset.statusCategory === 'done' && Date.now() - completed > age * 86400000,
     );
   });
 }
@@ -504,7 +511,6 @@ $$('[data-donut]').forEach((container) => {
   }
   const total = rows.reduce((s, r) => s + Number(r.n), 0);
   if (!total) return;
-  const colors = { todo: '#b4b5c7', progress: '#9c8bea', review: '#e7b778', done: '#7db7a4' };
   const circumference = 2 * Math.PI * 46;
   let offset = 0;
   rows.forEach((row) => {
@@ -514,7 +520,7 @@ $$('[data-donut]').forEach((container) => {
       cx: 60,
       cy: 60,
       r: 46,
-      stroke: colors[row.label] || '#9686d9',
+      stroke: /^#[a-f0-9]{6}$/i.test(row.color || '') ? row.color : '#7166eb',
       'stroke-dasharray': `${Math.max(0, length - 3)} ${circumference}`,
       'stroke-dashoffset': -offset,
     }).forEach(([key, value]) => c.setAttribute(key, value));

@@ -3,14 +3,15 @@
   'use strict';
   if (location.pathname !== '/settings') return;
   const busy = new Set();
-  const regions = new Set(['profile','company','email-preferences','notifications','mcp','oauth','teams','users','llm','appearance']);
+  const regions = new Set(['profile','company','email-preferences','notifications','mcp','oauth','teams','users','llm','appearance','workflow']);
   function updateRegion(id, page) {
     const current = document.getElementById(id), incoming = page.getElementById(id);
     if (!current || !incoming) throw new Error('La section n’est plus disponible. Rechargez les paramètres.');
-    const opened = [...current.querySelectorAll('details[open]')].map(el => el.querySelector('summary')?.textContent);
+    const detailKey=el=>el.dataset.settingsKey || el.querySelector('summary')?.textContent;
+    const opened = [...current.querySelectorAll('details[open]')].map(detailKey);
     current.replaceChildren(...incoming.childNodes);
     current.querySelectorAll('details').forEach(el => {
-      if (opened.includes(el.querySelector('summary')?.textContent)) el.open = true;
+      if (opened.includes(detailKey(el))) el.open = true;
     });
     initSettingsPreviews(current);
     initAppearanceMarks(current);
@@ -42,6 +43,15 @@
       if(opener) { if(nextOpener) opener.replaceWith(nextOpener); else opener.remove(); }
       else if(nextOpener) document.querySelector('.topbar-actions').prepend(nextOpener);
     }
+    if(id==='workflow') {
+      const vocabulary=JSON.parse(document.getElementById('workflow-data').textContent);
+      for(const kind of ['status','type']) {
+        document.querySelectorAll(`#ticket-dialog select[name="${kind}"]`).forEach(select=>{
+          const selected=select.value;
+          select.replaceChildren(...Object.entries(vocabulary[kind]).map(([value,label])=>new Option(label,value,false,value===selected)));
+        });
+      }
+    }
     document.dispatchEvent(new CustomEvent('sillage:settings-updated',{detail:{id}}));
     window.scrollTo(position);
   }
@@ -61,7 +71,8 @@
   document.addEventListener('submit',async event=>{
     const form=event.target, region=form.closest('section.panel[id]');
     if(event.defaultPrevented || form.method.toLowerCase()!=='post' || !region || !regions.has(region.id)) return;
-    const action=new URL(form.action,location.href);
+    // A successful control named "action" shadows HTMLFormElement.action.
+    const action=new URL(form.getAttribute('action') || location.href,location.href);
     if(action.origin!==location.origin) return;
     event.preventDefault();
     if(busy.has(region.id)) return;

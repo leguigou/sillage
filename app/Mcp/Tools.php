@@ -83,8 +83,8 @@ final class Tools
         $ticketFields = [
             'title' => $str(240),
             'description' => $str(100000),
-            'type' => $enum(array_keys(Ticket::TYPES)),
-            'status' => $enum(array_keys(Ticket::STATUSES)),
+            'type' => $str(20)+['description'=>'Clé du type dans project_workflow_get.'],
+            'status' => $str(20)+['description'=>'Clé du statut dans project_workflow_get ; transitions vérifiées côté serveur.'],
             'priority' => $enum(array_keys(Ticket::PRIORITIES)),
             'assignee_id' => $nullableId,
             'team_id' => $nullableId,
@@ -110,8 +110,8 @@ final class Tools
                 'company' => Company::name(),
                 'user' => ['id' => $user['id'], 'name' => $user['name'], 'role' => $user['role']],
                 'scopes' => $user['scopes'],
-                'statuses' => Ticket::STATUSES,
-                'types' => Ticket::TYPES,
+                'statuses' => \App\Models\Workflow::labels('status'),
+                'types' => \App\Models\Workflow::labels('type'),
                 'priorities' => Ticket::PRIORITIES,
                 'automation_events' => Automation::EVENTS,
             ],
@@ -123,6 +123,13 @@ final class Tools
             $obj($page),
             fn($a) => self::page('projects', '*', 'projects', [], $a, 'id'),
         );
+        $add('project_workflow_get','Lire les statuts, types, catégories et transitions d’un projet.','read',$obj(['project_id'=>$id],['project_id']),function($a){Project::find($a['project_id']);return \App\Models\Workflow::get($a['project_id']);});
+        $add('project_workflow_save','Configurer le circuit d’un projet avec sa version courante. add_item crée une clé immuable ; save_item modifie un élément. Pour les transitions, fournir toutes les arêtes autorisées.','admin',
+            $obj(['project_id'=>$id,'version'=>['type'=>'integer','minimum'=>0],'action'=>$enum(['add_item','save_item','transitions']),'kind'=>$enum(['status','type']),'code'=>$str(20),'label'=>$str(80),'category'=>$str(20),'icon'=>$str(32),'color'=>$str(7),'position'=>['type'=>'integer','minimum'=>0,'maximum'=>999],'enabled'=>$bool,'restricted'=>$bool,'edges'=>['type'=>'array','maxItems'=>900,'items'=>$obj(['from'=>$str(20),'to'=>$str(20)],['from','to'])]],['project_id','version','action']),
+            function($a){if(isset($a['edges'])){$a['transitions']=[];foreach($a['edges'] as $edge)$a['transitions'][$edge['from']][]=$edge['to'];}return \App\Models\Workflow::save($a['project_id'],$a);});
+        $add('tickets_follow','Suivre ou ne plus suivre un ticket avec le compte connecté.','write',$obj(['id'=>$id,'follow'=>$bool],['id','follow']),fn($a)=>\App\Models\TicketFollow::set($a['id'],(int)$user['id'],$a['follow']));
+        $add('notifications_list','Mes notifications personnelles et leur état de lecture, tous projets.','read',$obj(['unread_only'=>$bool,'page'=>['type'=>'integer','minimum'=>1]],[]),fn($a)=>\App\Models\TicketNotification::page((int)$user['id'],$a['unread_only']??false,$a['page']??1));
+        $add('notifications_mark','Marquer une de mes notifications comme lue ou non lue.','write',$obj(['id'=>$id,'read'=>$bool],['id','read']),fn($a)=>\App\Models\TicketNotification::mark($a['id'],(int)$user['id'],$a['read']));
         $projectProperties = [
             'name' => $str(),
             'key' => $str(10),
@@ -178,9 +185,9 @@ final class Tools
         $filters = $obj([
             'q' => $str(240),
             'jql' => $str(4000),
-            'status' => $enum(array_keys(Ticket::STATUSES)),
+            'status' => $str(20),
             'priority' => $enum(array_keys(Ticket::PRIORITIES)),
-            'type' => $enum(array_keys(Ticket::TYPES)),
+            'type' => $str(20),
             'assignee' => ['type' => ['string', 'integer']],
             'team' => ['type'=>['string','integer']],
             'hide_done' => $bool,
@@ -428,7 +435,7 @@ final class Tools
                     'project_id' => $id,
                     'title' => $str(160),
                     'description' => $str(5000),
-                    'ticket_type' => $enum(['task', 'story', 'bug', 'epic']),
+                    'ticket_type' => $str(20),
                     'fields' => ['type' => 'array', 'items' => $enum($formFields), 'maxItems' => 5],
                     'required' => [
                         'type' => 'array',

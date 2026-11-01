@@ -8,6 +8,7 @@ final class Filter
     private int $pos = 0;
     private int $depth = 0;
     private bool $mentionsPaused = false;
+    private int $project = 0;
     public const FIELDS = [
         'title' => 't.title',
         'status' => 't.status',
@@ -50,8 +51,8 @@ final class Filter
                     ? $input[$field]
                     : explode(',', (string) $input[$field]);
                 $allowed = match ($field) {
-                    'status' => Ticket::STATUSES,
-                    'type' => Ticket::TYPES,
+                    'status' => \App\Models\Workflow::labels('status',$project),
+                    'type' => \App\Models\Workflow::labels('type',$project),
                     default => Ticket::PRIORITIES,
                 };
                 if (array_diff($values, array_keys($allowed))) {
@@ -83,7 +84,7 @@ final class Filter
             }
         }
         if (!empty($input['hide_done'])) {
-            $sql[] = "t.status<>'done'";
+            $sql[] = \App\Models\Workflow::categorySql()."<>'done'";
         }
         if (!empty($input['flagged'])) {
             $sql[] = 't.flagged=1';
@@ -98,7 +99,7 @@ final class Filter
         }
         $jqlPaused=false;
         if (!empty($input['jql'])) {
-            $parser=new self();
+            $parser=new self();$parser->project=$project;
             [$extra, $args] = $parser->parse((string) $input['jql']);
             $jqlPaused=$parser->mentionsPaused;
             $sql[] = $extra;
@@ -118,15 +119,15 @@ final class Filter
         if (!is_array($status)) $status=explode(',',(string)$status);
         return in_array('paused',$status,true)||$jqlPaused?'all':'active';
     }
-    public static function pauseMode(array $input): string
+    public static function pauseMode(array $input,int $project=0): string
     {
-        $parser=new self();
+        $parser=new self();$parser->project=$project;
         if (!empty($input['jql'])) $parser->parse((string)$input['jql']);
         return self::resolvePauseMode($input,$parser->mentionsPaused);
     }
-    public static function visibleStatuses(array $input): array
+    public static function visibleStatuses(array $input,int $project=0): array
     {
-        $statuses=Ticket::STATUSES;$mode=self::pauseMode($input);
+        $statuses=\App\Models\Workflow::labels('status',$project,true);$mode=self::pauseMode($input,$project);
         if ($mode==='active') unset($statuses['paused']);
         elseif ($mode==='only') $statuses=['paused'=>$statuses['paused']];
         return $statuses;
@@ -279,8 +280,8 @@ final class Filter
             $raw = stripcslashes(substr($raw, 1, -1));
         }
         $options = match ($field) {
-            'status' => Ticket::STATUSES,
-            'type' => Ticket::TYPES,
+            'status' => \App\Models\Workflow::labels('status',$this->project),
+            'type' => \App\Models\Workflow::labels('type',$this->project),
             'priority' => Ticket::PRIORITIES,
             default => [],
         };

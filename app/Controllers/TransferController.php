@@ -152,8 +152,8 @@ final class TransferController
             }
             foreach (
                 [
-                    'type' => Ticket::TYPES,
-                    'status' => Ticket::STATUSES,
+                    'type' => \App\Models\Workflow::labels('type',(int)$preview['project_id'],true),
+                    'status' => \App\Models\Workflow::labels('status',(int)$preview['project_id'],true),
                     'priority' => Ticket::PRIORITIES,
                 ]
                 as $field => $options

@@ -13,9 +13,9 @@ final class FormattingRule
         $title = trim((string) ($input['title'] ?? ''));
         $color = (string) ($input['color'] ?? '');
         $options = [
-            'status' => Ticket::STATUSES,
+            'status' => Workflow::labels('status',$project,true),
             'priority' => Ticket::PRIORITIES,
-            'type' => Ticket::TYPES,
+            'type' => Workflow::labels('type',$project,true),
             'flagged' => ['0' => 'Non', '1' => 'Oui'],
         ];
         if (

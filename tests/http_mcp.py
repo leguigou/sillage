@@ -151,6 +151,7 @@ saved=tool('views_save',{'project_id':pid,'name':'Vue MCP','filters':{'q':marker
 check(any(v['id']==saved['id'] for v in tool('views_list',{'project_id':pid})['views']),'MCP personal view persisted')
 tool('views_delete',{'id':saved['id']})
 tool('tickets_attachments',{'id':t['id']});tool('development_list',{'project_id':pid})
+exec(pathlib.Path(__file__).with_name('http_mcp_workflow.py').read_text(encoding='utf-8'))
 accounts=tool('users_list',{'limit':1});check('password_hash' not in json.dumps(accounts),'MCP account list excludes credential hashes')
 tool('projects_delete_empty',{'id':pid},success=False)
 empty=tool('projects_create',{'name':'Empty '+marker,'key':'E'+marker});tool('projects_delete_empty',{'id':empty['id']})

@@ -22,6 +22,8 @@ if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM development_events');
     DB::run('DELETE FROM llm_profiles');
     DB::run('DELETE FROM notification_outbox');
+    DB::run('DELETE FROM ticket_notifications');
+    DB::run('DELETE FROM ticket_followers');
     DB::run('DELETE FROM project_email_settings');
     DB::run('DELETE FROM persistent_logins');
     DB::run('DELETE FROM oauth_clients');
@@ -399,6 +401,7 @@ try {
     require __DIR__ . '/oauth.php';
     require __DIR__ . '/paused_tickets.php';
     require __DIR__ . '/appearance.php';
+    require __DIR__ . '/workflow_notifications.php';
 } finally {
     DB::connection()->rollBack();
 }

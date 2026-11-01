@@ -20,13 +20,15 @@ final class Notifications
         if (!$fields) return;
         $events=[];
         if (array_intersect($fields,['assignee_id','team_id'])) $events[]='assigned';
-        if (in_array('status',$fields,true)) $events[]=$after['status']==='done'?'completed':'status';
+        if (in_array('status',$fields,true)) $events[]=\App\Models\Workflow::category('status',(int)$after['project_id'],$after['status'])==='done'?'completed':'status';
         if (array_diff($fields,['assignee_id','team_id','status'])) $events[]='updated';
         self::enqueue($after,$events,$actor,$fields,$before['assignee_id']?(int)$before['assignee_id']:null);
     }
-    public static function enqueue(array $ticket,array $events,?int $actor,array $fields=[],?int $previousAssignee=null): void
+    public static function enqueue(array $ticket,array $events,?int $actor,array $fields=[],?int $previousAssignee=null,array $mentions=[],?int $comment=null): void
     {
         if (!DB::connection()->inTransaction()) throw new \RuntimeException('La notification doit être enregistrée avec sa transaction métier.');
+        foreach($events as $event) if (!isset(ProjectEmail::EVENTS[$event])) throw new \InvalidArgumentException('Événement de notification inconnu.');
+        \App\Models\TicketNotification::emit($ticket,$events,$actor,$mentions,$comment,$previousAssignee);
         $config=ProjectEmail::get((int)$ticket['project_id']);
         if (!$config['enabled']) return;
         self::$batch??=bin2hex(random_bytes(16));
@@ -42,6 +44,8 @@ final class Notifications
                     'project_teams'=>array_column(DB::all('SELECT DISTINCT m.user_id FROM team_members m JOIN team_projects tp ON tp.team_id=m.team_id WHERE tp.project_id=?',[$ticket['project_id']]),'user_id'),
                     'admins'=>array_column(DB::all("SELECT id FROM users WHERE role='admin'"),'id'),
                     'selected'=>$config['recipients'],
+                    'followers'=>array_column(DB::all('SELECT user_id FROM ticket_followers WHERE ticket_id=?',[$ticket['id']]),'user_id'),
+                    'mentioned'=>$event==='commented'?$mentions:[],
                     default=>[],
                 };
                 foreach($ids as $id) $wanted[(int)$id][$event]=true;
@@ -61,7 +65,7 @@ final class Notifications
             $body="Bonjour ".$person['name'].",\n\n".$actorName." a fait évoluer le ticket ".$ticket['key']." dans le projet ".$ticket['project_name'].".\n\n";
             $body.=$ticket['title']."\n".implode(' · ',$eventLabels)."\n";
             if ($allFields) $body.='Champs modifiés : '.implode(', ',array_map(fn($field)=>self::FIELDS[$field],$allFields)).".\n";
-            $body.='État : '.Ticket::STATUSES[$ticket['status']]."\nResponsable : ".($ticket['assignee_name']??'Non assigné')."\nÉquipe : ".($ticket['team_name']??'Sans équipe')."\n\nConsulter le ticket (connexion requise) :\n".url('/tickets/'.$ticket['id'])."\n\nVos préférences e-mail : ".url('/settings#email-preferences')."\nL’équipe ".Company::name().' — Sillage';
+            $body.='État : '.\App\Models\Workflow::label('status',(int)$ticket['project_id'],$ticket['status'])."\nResponsable : ".($ticket['assignee_name']??'Non assigné')."\nÉquipe : ".($ticket['team_name']??'Sans équipe')."\n\nConsulter le ticket (connexion requise) :\n".url('/tickets/'.$ticket['id'])."\n\nVos préférences e-mail : ".url('/settings#email-preferences')."\nL’équipe ".Company::name().' — Sillage';
             if ($old) DB::run('UPDATE notification_outbox SET events_json=?,fields_json=?,subject=?,body=? WHERE id=?',[json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body,$old['id']]);
             else DB::run('INSERT INTO notification_outbox(batch_key,ticket_id,project_id,recipient_id,recipient_email,events_json,fields_json,subject,body) VALUES(?,?,?,?,?,?,?,?,?)',[self::$batch,$ticket['id'],$ticket['project_id'],$id,$person['email'],json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body]);
         }

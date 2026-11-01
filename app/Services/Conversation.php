@@ -6,7 +6,7 @@ use App\Core\DB;
 /** The only boundary that turns conversation HTML into trusted markup. */
 final class Conversation
 {
-    public static function clean(string $html, int $ticket): string
+    public static function clean(string $html, int $ticket,bool $publishing=true): string
     {
         if (strlen($html) > 100000) {
             throw new \InvalidArgumentException('Le commentaire est trop long.');
@@ -20,12 +20,13 @@ final class Conversation
             libxml_use_internal_errors($previous);
         }
         $images = [];
+        $mentions=Mentions::people(Mentions::ids($html,'html'),$publishing);
         foreach (DB::all("SELECT id FROM attachments WHERE ticket_id=? AND mime IN ('image/png','image/jpeg','image/webp')", [$ticket]) as $file) {
             $images[(int) $file['id']] = true;
         }
         $escape = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $nodes = 0;
-        $walk = function (\DOMNode $node, int $depth = 0) use (&$walk, &$nodes, $images, $escape): string {
+        $walk = function (\DOMNode $node, int $depth = 0) use (&$walk, &$nodes, $images, $escape,$mentions): string {
             if (++$nodes > 4000 || $depth > 30) {
                 throw new \InvalidArgumentException('La mise en forme du commentaire est trop complexe.');
             }
@@ -36,6 +37,10 @@ final class Conversation
                 return '';
             }
             $tag = strtolower($node->tagName);
+            if ($tag==='span' && $node->hasAttribute('data-mention-id')) {
+                $id=Mentions::id($node->getAttribute('data-mention-id'));
+                return isset($mentions[$id])?Mentions::span($id,$mentions[$id]):$escape($node->textContent);
+            }
             if (in_array($tag, ['script','style','iframe','object','svg','math','template','head'], true)) {
                 return '';
             }
@@ -73,10 +78,10 @@ final class Conversation
     public static function render(array $comment): string
     {
         if (($comment['body_format'] ?? 'text') !== 'html') {
-            return nl2br(e($comment['body']));
+            return Mentions::renderText($comment['body']);
         }
         try {
-            return self::clean($comment['body'], (int) $comment['ticket_id']);
+            return self::clean($comment['body'], (int) $comment['ticket_id'],false);
         } catch (\InvalidArgumentException) {
             return '<span class="muted">Contenu indisponible ou pièce jointe supprimée.</span>';
         }

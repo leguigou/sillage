@@ -6,6 +6,7 @@ namespace App\Services;
 final class TicketNavigation
 {
     private const VIEWS = [
+        '/notifications'=>'Revenir aux notifications',
         '/'=>'Revenir à la vue d’ensemble', '/list'=>'Revenir à la liste', '/all'=>'Revenir à tous les tickets',
         '/board'=>'Revenir au tableau', '/timeline'=>'Revenir à la chronologie', '/charts'=>'Revenir aux rapports',
         '/development'=>'Revenir au développement', '/forms'=>'Revenir aux formulaires',

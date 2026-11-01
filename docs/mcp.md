@@ -3,6 +3,8 @@
 Le serveur MCP est intégré à PHP/Apache, sans processus Node ni dépendance Python en production.
 Adresse locale : `http://127.0.0.1:8088/mcp`. En production : `https://votre-instance/mcp`.
 
+Le catalogue administrateur complet comporte 55 outils. `project_workflow_get` / `project_workflow_save` gèrent le [circuit du projet](circuits.md) avec contrôle de version ; les champs statut/type des tickets acceptent ses clés et respectent ses transitions. `tickets_follow`, `notifications_list` et `notifications_mark` exposent le [suivi personnel et la boîte de notifications](suivi-notifications.md). Les commentaires texte acceptent `@[user:123]` pour mentionner explicitement un membre. Après déploiement, actualiser les outils dans le client MCP pour découvrir ces ajouts.
+
 ## Créer et gérer une clé
 
 Dans **Paramètres → MCP et clés d’accès** :

@@ -80,7 +80,7 @@ final class Automation
                 );
             }
             // Reuse the ticket owner's interpretation of enums, assignees, hours and labels.
-            if (isset($conditions['type']) && !isset(Ticket::TYPES[$conditions['type']])) {
+            if (isset($conditions['type']) && !isset(Workflow::labels('type',$project,true)[$conditions['type']])) {
                 throw new \InvalidArgumentException('Type de condition invalide.');
             }
             foreach (['development_repository'=>200] as $field=>$max) {

@@ -47,6 +47,7 @@ final class PublicForm
             $link = null;
             $pid = (int) ($input['project_id'] ?? 0);
             Project::find($pid);
+            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$pid]);Workflow::reset();
             $title = trim((string) ($input['title'] ?? ''));
             if (!$title || mb_strlen($title) > 160) {
                 throw new \InvalidArgumentException(
@@ -54,7 +55,7 @@ final class PublicForm
                 );
             }
             $type = (string) ($input['ticket_type'] ?? 'task');
-            if (!isset(Ticket::TYPES[$type]) || $type === 'subtask') {
+            if (!isset(Workflow::labels('type',$pid,true)[$type]) || Workflow::category('type',$pid,$type) === 'subtask') {
                 throw new \InvalidArgumentException(
                     'Type de ticket invalide pour un formulaire externe.',
                 );

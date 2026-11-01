@@ -21,10 +21,12 @@ final class ProjectEmail
         'project_teams'=>'Toutes les équipes du projet',
         'admins'=>'Administrateurs',
         'selected'=>'Personnes choisies',
+        'followers'=>'Personnes qui suivent le ticket',
+        'mentioned'=>'Personnes mentionnées (commentaires)',
     ];
     public static function defaults(): array
     {
-        return ['created'=>['assignee','team'],'updated'=>[],'assigned'=>['assignee','team'],'status'=>['reporter','assignee'],'completed'=>['reporter','assignee','team'],'commented'=>['reporter','assignee'],'archived'=>[]];
+        return ['created'=>['assignee','team'],'updated'=>['followers'],'assigned'=>['assignee','team','followers'],'status'=>['reporter','assignee','followers'],'completed'=>['reporter','assignee','team','followers'],'commented'=>['reporter','assignee','followers','mentioned'],'archived'=>['followers']];
     }
     public static function get(int $project): array
     {
