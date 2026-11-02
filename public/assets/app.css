@@ -635,6 +635,10 @@ kbd {
   align-items: center;
   gap: 16px;
 }
+.topbar-settings[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .workspace-live {
   display: flex;
   align-items: center;
