@@ -1,7 +1,22 @@
 {
   "schema": 1,
-  "current_version": "1.5.0",
+  "current_version": "1.6.0",
   "entries": [
+    {
+      "version": "1.6.0",
+      "date": "2026-11-03",
+      "category": "features",
+      "title": "Rapports personnels et durées lisibles",
+      "summary": "Des listes adaptées à chaque action, des rapports enregistrés par utilisateur et des temps affichés en heures et minutes.",
+      "changes": [
+        "Tri croissant ou décroissant par date de création dans la liste.",
+        "Valeurs de modification groupée proposées selon le champ et les états autorisés des tickets sélectionnés.",
+        "Création, modification, copie et suppression de rapports personnels avec filtres, tri, regroupement et colonnes ordonnées.",
+        "Rapports enregistrés dans le compte et protection contre les modifications depuis un onglet périmé.",
+        "Durées inférieures à une heure en minutes et durées plus longues en heures et minutes, y compris le reste à faire.",
+        "Consultation Git allégée : les listes de fichiers détaillées sont chargées uniquement à la demande."
+      ]
+    },
     {
       "version": "1.5.0",
       "date": "2026-11-03",

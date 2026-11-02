@@ -25,3 +25,6 @@ $gpNew=GitPullRequest::eventForTicket($tbTicket,$gpId);
 check($gpNew['metadata']['details']==$gpDetails && GitPullRequest::revision($gpNew)!==$gpDetails['revision'],'webhook conserve les statistiques tout en rendant leur ancienneté détectable');
 rejects(fn()=>DevelopmentEvent::savePullRequestDetails($tbC,$gpPR,[],$gpDetails,$tbTicket),'instantané périmé ne remplace pas une révision plus récente');
 check(GitPullRequest::eventForTicket($tbTicket,$gpId)['metadata']['details']==$gpDetails,'échec de synchronisation conserve le dernier instantané complet');
+
+$gpSummary=DB::one('SELECT '.DevelopmentEvent::summaryColumns('e').' FROM development_events e WHERE e.id=?',[$gpId]);$gpSummary=DevelopmentEvent::hydrate($gpSummary);
+check(!isset($gpSummary['metadata']['details']['files']) && $gpSummary['metadata']['details']['file_count']===1,'résumé Git évite de charger les fichiers détaillés dans les vues et MCP');

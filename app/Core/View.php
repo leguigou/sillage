@@ -5,7 +5,7 @@ final class View
 {
     public static function hours(int|float|string|null $value): string
     {
-        return $value===null?'—':number_format((float)$value,2,',',' ').' h';
+        return \App\Services\Duration::label($value);
     }
     public static function render(string $template, array $data = []): void
     {

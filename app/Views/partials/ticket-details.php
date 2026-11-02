@@ -6,7 +6,7 @@
   <dt>Personne assignée</dt><dd><?= e($ticket['assignee_name']??'Non assigné') ?></dd>
   <dt>Équipe responsable</dt><dd><?= e($ticket['team_name']??'Sans équipe') ?></dd>
   <dt>Avancement</dt><dd><?= (int)$ticket['progress_percent'] ?> %</dd>
-  <dt>Temps total estimé</dt><dd><?= $ticket['estimated_hours']===null?'Non renseigné':e(number_format((float)$ticket['estimated_hours'],2,',',' ')).' h' ?></dd>
+  <dt>Temps total estimé</dt><dd><?= $ticket['estimated_hours']===null?'Non renseigné':e(App\Core\View::hours($ticket['estimated_hours'])) ?></dd>
   <dt>Temps passé</dt><dd><?= e(App\Core\View::hours($ticket['spent_hours'])) ?></dd>
   <dt>Reste à faire</dt><dd><?= $ticket['remaining_hours']===null?'Sans estimation':e(App\Core\View::hours($ticket['remaining_hours'])) ?></dd>
   <dt>Date de début</dt><dd><?= e($ticket['start_date']?:'Non renseignée') ?></dd>

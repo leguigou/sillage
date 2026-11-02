@@ -50,6 +50,7 @@ final class Filter
                 $values = is_array($input[$field])
                     ? $input[$field]
                     : explode(',', (string) $input[$field]);
+                if(!array_is_list($values) || array_filter($values,static fn($value)=>!is_string($value))) throw new \InvalidArgumentException('Liste de filtre invalide : '.$field);
                 $allowed = match ($field) {
                     'status' => \App\Models\Workflow::labels('status',$project),
                     'type' => \App\Models\Workflow::labels('type',$project),

@@ -8,6 +8,24 @@ Les trois points ouvrent un menu : ouvrir, modifier, commenter, copier le lien, 
 
 Le menu reste visible hors du conteneur défilant grâce à la couche supérieure des popovers, avec position bornée à la fenêtre. Flèches, Début/Fin et Échap permettent de l’utiliser au clavier. La copie utilise le lien canonique, sans y ajouter les filtres de la liste.
 
+La colonne **Création** permet le tri croissant ou décroissant ; le sens actif est annoncé par `aria-sort`. Les modifications groupées proposent une liste selon le champ : états communs autorisés par les tickets sélectionnés, priorités, noms des personnes avec « Non assigné », ou blocage oui/non. L’édition rapide réactualise les choix d’état utilisés par la sélection. Le serveur garde la validation de chaque ticket et l’écriture groupée atomique. Les filtres et le tri sont conservés au retour.
+
+## Rapports personnels
+
+**Mes rapports → Créer un rapport** conserve les filtres appliqués, le tri et son sens, le regroupement, la hiérarchie, les colonnes cochées et leur ordre. Le résumé reste obligatoire ; l’avancement et le reste à faire peuvent être affichés sous celui-ci. Les flèches déplacent les colonnes, sans glisser-déposer obligatoire. Le sélecteur de colonnes possède son propre défilement ; sur petit écran, la configuration passe sur une colonne.
+
+Les rapports sont enregistrés dans `saved_views`, liés au compte et au projet, et disponibles sur les autres navigateurs après connexion. Cliquer un rapport applique sa présentation ; **Modifier mon rapport** permet de le renommer et de mettre à jour ses options. **Créer une copie** enregistre un rapport séparé. Sauvegarde, copie et suppression utilisent AJAX, sans déplacement de la page ; **Afficher ce rapport** applique explicitement le rapport enregistré. La suppression ne touche pas les tickets.
+
+Les filtres se modifient depuis **Filtrer**, avant l’enregistrement. Les options d’une vue du navigateur restent disponibles, mais la configuration d’un rapport ouvert est prioritaire sur les anciennes préférences locales. Les filtres, la recherche, le tri et la navigation conservent le contexte du rapport. La configuration est validée par `ListLayout` et ne conserve ni pagination, ni paramètres de transport. L’API existante de vues reste compatible. Aucun nouvel objet de base de données n’est nécessaire.
+
+Un rapport d’un autre compte ne peut être chargé, modifié ou supprimé. Une empreinte de révision protège l’édition depuis plusieurs onglets. L’ordre de colonnes est une valeur du formulaire suivie par le gestionnaire de modales : abandonner restaure l’ordre et les cases ; une sauvegarde réussie actualise le brouillon de référence. Les erreurs conservent la saisie.
+
+## Durées
+
+`Duration::label` possède la présentation PHP des durées ; `View::hours` la réutilise dans les vues. Les nouvelles légendes d’historique utilisent la même présentation. Moins d’une heure : minutes ; au-delà : heures et minutes, par exemple `0,70 h → 42 min`, `1,7 h → 1 h 42 min`. Les minutes sont arrondies à la minute la plus proche ; une durée positive arrondie à zéro reste « < 1 min ». Zéro et absence restent distincts. La mise à jour rapide de la liste applique la même convention côté navigateur.
+
+Stockage, saisie, exports et API numériques restent en heures décimales. Le reste à faire reste calculé sur l’estimation totale multipliée par la part d’avancement restante ; les temps saisis n’en sont pas déduits. Les anciennes légendes immuables de l’historique sont conservées.
+
 ## Fermeture des modales
 
 À l’ouverture, `public/assets/dialogs.js` prend un instantané des champs éditables, cases, choix, fichiers et contenus enrichis. Il compare les valeurs actuelles au moment de fermer : revenir aux valeurs initiales supprime donc l’avertissement. Les valeurs cachées de transport, champs en lecture seule et états d’affichage ne déclenchent pas de confirmation.

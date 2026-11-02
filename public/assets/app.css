@@ -3623,3 +3623,30 @@ section[aria-busy='true'] { cursor: progress; }
 .branch-manual label{margin-top:12px}#ticket-branch-dialog select[name="branch_name"]{width:100%;text-overflow:ellipsis}
 @media(max-width:500px){.branch-search{grid-template-columns:1fr}.branch-search>.button{justify-self:start}}
 .git-history-progress:has([data-git-history-status]:empty){display:none}.git-history-progress{margin:16px 0}.git-pr-event .git-event-content{width:100%;min-width:0}.git-event-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.git-event-heading>a{overflow-wrap:anywhere}.git-pr-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px}.git-pr-summary small{flex-basis:100%}.git-lines-added,.git-lines-deleted{font-variant-numeric:tabular-nums;font-size:12px;font-weight:600;white-space:nowrap;border-radius:5px;padding:3px 6px}.git-lines-added{color:#15803d;background:color-mix(in srgb,#22c55e 12%,var(--surface))}.git-lines-deleted{color:#b91c1c;background:color-mix(in srgb,#ef4444 12%,var(--surface))}[data-theme='dark'] .git-lines-added{color:#86efac}[data-theme='dark'] .git-lines-deleted{color:#fca5a5}.git-files-dialog{width:min(780px,calc(100% - 32px))}.git-file-row{display:flex;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid var(--line)}.git-file-row>div{flex:1;min-width:0}.git-file-row strong{display:block;font-family:ui-monospace,monospace;font-size:12px;overflow-wrap:anywhere}.git-file-row small{display:block;color:var(--muted);font-size:11px;margin-top:5px;overflow-wrap:anywhere}.ticket-linked-branch{flex-wrap:wrap}.ticket-linked-branch>div:first-child{flex:1;min-width:150px}
+/* Personal reports share the modal controls and keep column ordering in one compact panel. */
+.personal-report-dialog {width:min(960px,calc(100vw - 32px))}
+.personal-report-dialog>form {gap:16px}
+.personal-report-dialog .dialog-header {margin-bottom:0}
+.personal-report-dialog [data-report-status] {margin:0;font-size:11px;line-height:1.5}
+.personal-report-dialog [data-report-status]:empty {display:none}
+.report-options-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.report-options-grid>.stack {gap:16px}
+.personal-report-dialog .report-options-grid .help-text {margin:0}
+.personal-report-dialog .report-columns {border:1px solid var(--line);border-radius:12px;padding:16px;margin:0}
+.report-columns legend {font-size:12px;padding:0 6px}
+.report-columns [data-report-columns] {max-height:270px;overflow:auto;scrollbar-gutter:stable}
+.report-column {display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
+.report-column:last-child {border:0}
+.report-column>label {flex:1;margin:0}
+.report-column .icon-button {width:30px;height:30px;border:1px solid var(--line);border-radius:7px}
+.personal-report-dialog .report-actions {flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:0;padding-top:12px;border-top:1px solid var(--line)}
+.personal-report-dialog .report-actions [data-report-delete] {margin-right:auto}
+.saved-views {flex-wrap:wrap}
+.saved-view.selected {outline:1px solid var(--accent)}
+@media(max-width:700px) {
+  .report-options-grid {grid-template-columns:1fr;gap:16px}
+  .report-columns [data-report-columns] {max-height:240px}
+  .personal-report-dialog .report-actions {justify-content:flex-start}
+}
+
+.ticket-table th[aria-sort] a{color:var(--accent);font-weight:600}

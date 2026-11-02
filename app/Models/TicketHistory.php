@@ -39,7 +39,7 @@ final class TicketHistory
             'validation_state'=>TicketClosure::VALIDATIONS[$value]??(string)$value,
             'labels'=>$value?implode(', ',$value):'—',
             'flagged','archived'=>$value?'Oui':'Non',
-            'estimated_hours'=>number_format((float)$value,2,',',' ').' h',
+            'estimated_hours'=>\App\Services\Duration::label($value),
             'progress_percent'=>$value.' %',
             default=>(string)$value,
         };

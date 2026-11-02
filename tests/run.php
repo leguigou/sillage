@@ -399,6 +399,7 @@ try {
     require __DIR__ . '/ticket_branches.php';
     require __DIR__ . '/git_branch_catalog.php';
     require __DIR__ . '/git_pull_requests.php';
+    require __DIR__ . '/personal_reports.php';
     require __DIR__ . '/team_projects.php';
     require __DIR__ . '/llm.php';
     require __DIR__ . '/notifications.php';

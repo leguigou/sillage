@@ -29,6 +29,7 @@ final class WorkspaceController
         $all = $section === 'all';
         $pid = $all ? 0 : (int) $project['id'];
         $filters = $_GET;
+        $activeView=null;
         if (!empty($_GET['view'])) {
             $view = DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=? AND project_id=?', [
                 (int) $_GET['view'],
@@ -36,6 +37,7 @@ final class WorkspaceController
                 $project['id'],
             ]);
             if ($view) {
+                $activeView=$view;
                 $filters = array_replace(
                     json_decode($view['settings'], true),
                     array_diff_key($_GET, ['view' => 1]),
@@ -45,6 +47,7 @@ final class WorkspaceController
         $error = null;
         try {
             Filter::where($pid, $filters);
+            \App\Services\ListLayout::columns($filters);
         } catch (\InvalidArgumentException $e) {
             $error = $e->getMessage();
             $filters = [];
@@ -143,10 +146,10 @@ final class WorkspaceController
         );
         $connections = \App\Models\RepositoryConnection::forProject((int)$project['id']);
         $repositoryCatalog = $user['role']==='admin' ? \App\Models\RepositoryConnection::all() : [];
-        $events = \App\Models\DevelopmentEvent::withTickets(DB::all(
-            'SELECT d.*,c.provider,c.repository FROM development_events d JOIN connections c ON c.id=d.connection_id JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY d.occurred_at DESC,d.id DESC LIMIT 100',
+        $events = $section==='development'?\App\Models\DevelopmentEvent::withTickets(DB::all(
+            'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').',c.provider,c.repository FROM development_events d JOIN connections c ON c.id=d.connection_id JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY d.occurred_at DESC,d.id DESC LIMIT 100',
             [$project['id']],
-        ),(int)$project['id']);
+        ),(int)$project['id']):[];
         $title = match ($section) {
             'board' => 'Tableau',
             'list' => 'Liste',
@@ -186,6 +189,7 @@ final class WorkspaceController
                 'limit',
                 'page',
                 'filters',
+                'activeView',
                 'views',
                 'rules',
                 'forms',
@@ -232,28 +236,43 @@ final class WorkspaceController
     {
         $u = Auth::requireUser();
         $pid = (int) ($_POST['project_id'] ?? 0);
-        $settings = json_decode(
+        try {$settings = json_decode(
             (string) ($_POST['settings'] ?? '{}'),
             true,
             64,
             JSON_THROW_ON_ERROR,
-        );
+        );} catch(\JsonException) {throw new \InvalidArgumentException('Configuration de rapport invalide.');}
         if (!is_array($settings)) {
             throw new \InvalidArgumentException('Vue invalide.');
         }
-        \App\Models\SavedView::save(
+        if(isset($_POST['report_options'])) {
+            foreach(['sort','direction','group'] as $key) $settings[$key]=$_POST[$key]??'';
+            $settings['columns']=$_POST['columns']??[];
+            $chosen=\App\Services\ListLayout::columns($settings);
+            try {$order=json_decode((string)($_POST['column_order']??'[]'),true,16,JSON_THROW_ON_ERROR);} catch(\JsonException) {throw new \InvalidArgumentException('Ordre des colonnes invalide.');}
+            $order=\App\Services\ListLayout::columns(['columns'=>$order]);
+            $settings['columns']=array_values(array_intersect($order,$chosen));
+            $settings['show_progress']=empty($_POST['show_progress'])?'0':'1';
+            $settings['hierarchy']=empty($_POST['hierarchy'])?'0':'1';
+        }
+        $id=\App\Models\SavedView::save(
             (int) $u['id'],
             $pid,
             (string) ($_POST['name'] ?? ''),
             $settings,
+            ($_POST['mode']??'')==='copy'?0:(int)($_POST['view_id']??0),
+            isset($_POST['revision'])?(string)$_POST['revision']:null,
         );
-        flash('Vue enregistrée.');
-        redirect('/list?project=' . $pid);
+        $saved=DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=?',[$id,$u['id']]);
+        if(str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) json_response(['ok'=>true,'id'=>$id,'name'=>$saved['name'],'revision'=>\App\Models\SavedView::revision($saved),'url'=>'/list?project='.$pid.'&view='.$id]);
+        flash('Rapport personnel enregistré.');
+        redirect('/list?project=' . $pid.'&view='.$id);
     }
     public function deleteView(string $id): void
     {
         $u = Auth::requireUser();
         \App\Models\SavedView::delete((int) $id, (int) $u['id']);
+        if(str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) json_response(['ok'=>true]);
         flash('Vue supprimée.');
         redirect('/list');
     }

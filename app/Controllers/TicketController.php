@@ -210,13 +210,14 @@ final class TicketController
                 $data = array_replace(
                     $t,
                     ['labels' => $t['labels_array']],
-                    [$field => $_POST['value'] ?? ''],
+                    [$field => $field==='assignee_id' && ($_POST['value']??'')==='none'?'':($_POST['value'] ?? '')],
                 );
                 Ticket::update($id, $data, (int) $u['id'], (int) $t['version']);
             }
         });
         flash(count($ids) . ' tickets modifiés.');
-        redirect('/list');
+        $return=(string)($_POST['_return']??'/list');
+        redirect(preg_match('#^/(?:list|all)(?:\?[^\r\n]*)?$#D',$return)?$return:'/list');
     }
     public function comment(string $id): void
     {

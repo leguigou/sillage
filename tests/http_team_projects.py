@@ -25,7 +25,7 @@ for path in ['/list','/board','/timeline','/charts','/']:
 _,team_html,_=call('/board?project='+team_pid+'&group=team')
 check('board-group-title' in team_html and team_marker in team_html,'kanban groups by team')
 _,team_html,_=call('/charts?project='+team_pid+'&team='+tid)
-check('Le travail par équipe' in team_html and '35 %' in team_html and '4,50' in team_html,'team report includes progress and estimated hours')
+check('Le travail par équipe' in team_html and '35 %' in team_html and '4 h 30 min' in team_html,'team report includes progress and estimated hours')
 _,team_json,_=call('/export?format=json&project='+team_pid+'&team='+tid)
 check(json.loads(team_json)[0]['team_id']==int(tid),'team filtered export retains team identity')
 check(call('/teams/'+tid+'/projects',{'project_id':team_pid2,'action':'remove'},True)[0]==403,'team project mutation requires CSRF')

@@ -231,7 +231,13 @@ async function post(path, values) {
   if (!response.ok) throw new Error(data.error || 'La modification n’a pas pu être enregistrée.');
   return data;
 }
-const ticketHoursFormatter=new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function formatTicketHours(value) {
+  if(value===null) return '—';
+  const minutes=Math.round(Number(value)*60);
+  if(!minutes) return Number(value)>0?'< 1 min':'0 min';
+  const hours=Math.floor(minutes/60),rest=minutes%60;
+  return (hours?hours.toLocaleString('fr-FR')+' h':'')+(hours&&rest?' ':'')+(rest?rest+' min':'');
+}
 function updateTicketProgress(row,ticket) {
   const meter=$('[data-progress-meter]',row);
   if(!meter) return;
@@ -240,7 +246,7 @@ function updateTicketProgress(row,ticket) {
   $('[data-progress-percent]',row).textContent=ticket.progress_percent+' %';
   $('[data-progress-remaining]',row).textContent=ticket.remaining_hours===null
     ?'Estimation manquante'
-    :'≈ '+ticketHoursFormatter.format(Number(ticket.remaining_hours))+' h restantes';
+    :'≈ '+formatTicketHours(ticket.remaining_hours)+' restantes';
 }
 async function quick(row, field, value) {
   const previousVersion = Number(row.dataset.version);
@@ -257,6 +263,7 @@ async function quick(row, field, value) {
       updateTicketProgress(r,data.ticket);
       const statusSelect=$('[data-quick-field="status"]',r);
       if(statusSelect && data.ticket.status_options) {
+        r.dataset.bulkStatuses=JSON.stringify(data.ticket.status_options);
         statusSelect.replaceChildren(...Object.entries(data.ticket.status_options).map(([value,label])=>new Option(label,value,false,value===data.ticket.status)));
         statusSelect.dataset.statusColor=data.ticket.status_color;
         statusSelect.title=data.ticket.status_label;
@@ -267,6 +274,7 @@ async function quick(row, field, value) {
       if(mark && next) { mark.replaceWith(next.cloneNode(true));initAppearanceMarks(r); }
     },
   );
+  updateBulkValues();
   if (Number(data.ticket.version) > previousVersion + 1) {
     sessionStorage.setItem(
       'sillage.notice',
@@ -418,7 +426,23 @@ function selectedTickets() {
   if (bulk) bulk.hidden = n === 0;
   const counter = $('[data-selected-count]');
   if (counter) counter.textContent = n;
+  updateBulkValues();
 }
+function updateBulkValues() {
+  const form=$('#bulk-form'),source=$('#bulk-value-options');if(!form || !source) return;
+  const field=form.elements.field.value,select=form.elements.value,previous=select.value;
+  const all=JSON.parse(source.textContent);let options=all[field]||{};
+  if(field==='status') {
+    const selected=$$('[data-select-ticket]:checked').map(input=>JSON.parse(input.closest('[data-ticket-id]').dataset.bulkStatuses));
+    if(selected.length) options=Object.fromEntries(Object.entries(selected[0]).filter(([key])=>selected.every(values=>Object.hasOwn(values,key))));
+  }
+  const entries=Object.entries(options);if(field==='assignee_id') entries.sort(([a],[b])=>a==='none'?-1:b==='none'?1:0);
+  select.replaceChildren(new Option(entries.length?'Choisir une valeur…':'Aucune valeur commune autorisée',''),...entries.map(([value,label])=>new Option(label,value)));
+  if(Object.hasOwn(options,previous)) select.value=previous;
+  $('button.primary',form).disabled=!Object.keys(options).length;
+}
+$('#bulk-form [name="field"]')?.addEventListener('change',()=>{ $('#bulk-form').elements.value.value='';updateBulkValues(); });
+updateBulkValues();
 $$('[data-select-ticket]').forEach((input) => input.addEventListener('change', selectedTickets));
 $('[data-select-all]')?.addEventListener('change', (e) => {
   $$('[data-select-ticket]').forEach((c) => (c.checked = e.target.checked));
@@ -435,6 +459,8 @@ $$('[data-enable-bulk]').forEach((b) =>
   }),
 );
 let preferences = {};
+let reportLayout=null;
+try {reportLayout=JSON.parse($('.ticket-table[data-report-layout]')?.dataset.reportLayout||'null');} catch {}
 try {
   preferences = JSON.parse(localStorage.getItem('sillage.preferences') || '{}');
 } catch {}
@@ -451,9 +477,13 @@ function applyPreferences() {
     (el) => (el.value = preferences[el.dataset.preference] || el.options[0].value),
   );
   $$('[data-column-toggle]').forEach((el) => {
-    el.checked = preferences[`column.${el.dataset.columnToggle}`] !== false;
+    const key=el.dataset.columnToggle;
+    el.checked = key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
+      ? String(reportLayout.show_progress)!=='0'
+      : reportLayout?.columns?reportLayout.columns.includes(key):preferences[`column.${key}`] !== false;
     $$(`[data-column="${el.dataset.columnToggle}"]`).forEach((cell) => (cell.hidden = !el.checked));
   });
+  $$('.table-group td').forEach(cell=>cell.colSpan=$$('.ticket-table thead th:not([hidden])').length);
   const age = Number(preferences['done-age'] || 0);
   $$('.ticket-card').forEach((c) => {
     const completed = c.dataset.completed
@@ -480,6 +510,8 @@ $$('[data-preference]').forEach((el) =>
 $$('[data-column-toggle]').forEach((el) =>
   el.addEventListener('change', () => {
     preferences[`column.${el.dataset.columnToggle}`] = el.checked;
+    if(reportLayout && el.dataset.columnToggle==='progress_percent') reportLayout.show_progress=el.checked?'1':'0';
+    else if(reportLayout?.columns) reportLayout.columns=$$('.ticket-table thead th[data-column]').map(node=>node.dataset.column).filter(key=>key==='title'||$(`[data-column-toggle="${key}"]`)?.checked);
     savePreferences();
   }),
 );

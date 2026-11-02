@@ -9,7 +9,7 @@ check(call('/releases',{'project_id':tr_pid,'name':'No CSRF'},True)[0]==403,'rel
 status,tr_html,tr_url=call('/tickets',{'_csrf':tr_csrf,'project_id':tr_pid,'title':'Validation du parcours','estimated_hours':'10','progress_percent':'60','release_id':tr_release['id']})
 tr_tid=urllib.parse.urlsplit(tr_url).path.rsplit('/',1)[-1];tr_version=int(re.search(r'name="version" value="(\d+)"',tr_html).group(1))
 check(status==200 and 'data-ticket-tab="time"' in tr_html and 'data-ticket-tab="history"' in tr_html,'time and history in dedicated ticket tabs')
-check('Version HTTP' in tr_html and '4,00 h' in tr_html,'target version and remaining effort visible')
+check('Version HTTP' in tr_html and '4 h' in tr_html,'target version and remaining effort visible')
 status,tr_body,_=call('/tickets/'+tr_tid+'/time',{'_csrf':tr_csrf,'version':tr_version,'hours':'2,5','worked_on':'2026-01-01','note':'Contrôle fonctionnel'},True)
 tr_time=json.loads(tr_body);tr_version=tr_time['ticket']['version'];tr_entry=tr_time['entry']['id']
 check(status==200 and tr_time['ticket']['spent_hours']=='2.50' and tr_time['ticket']['remaining_hours']=='4.00','time saved without redirect and independent of remaining effort')
@@ -19,7 +19,7 @@ check(tr_time['ticket']['spent_hours']=='3.00','existing worklog corrected throu
 _,tr_body,_=call('/tickets/'+tr_tid+'/time',{'_csrf':tr_csrf,'version':tr_version,'entry_id':tr_entry,'action':'delete'},True);tr_time=json.loads(tr_body);tr_version=tr_time['ticket']['version']
 check(float(tr_time['ticket']['spent_hours'])==0,'time deletion updates total')
 _,tr_html,_=call('/tickets/'+tr_tid)
-check('Temps supprimé' in tr_html and '3,00 h' in tr_html,'audit retains removed worklog values')
+check('Temps supprimé' in tr_html and '3 h' in tr_html,'audit retains removed worklog values')
 check(call('/projects/'+tr_pid+'/update',{'_csrf':tr_csrf,'require_ticket_validation':'1'},True)[0]==200,'project can require validation')
 check(call('/tickets/'+tr_tid+'/quick',{'_csrf':tr_csrf,'version':tr_version,'field':'status','value':'done'},True)[0]==422,'quick closure respects required validation')
 status,tr_body,_=call('/tickets/'+tr_tid+'/validation',{'_csrf':tr_csrf,'version':tr_version,'decision':'approved','note':'Contrôle effectué'},True);tr_ticket=json.loads(tr_body)['ticket'];tr_version=tr_ticket['version']

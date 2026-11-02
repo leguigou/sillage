@@ -49,5 +49,5 @@ final class TicketTime
             return ['entry'=>$after,'ticket'=>Ticket::find($ticket)];
         });
     }
-    private static function label(array $entry): string {return number_format((float)$entry['hours'],2,',',' ').' h · '.$entry['worked_on'].' · '.$entry['note'];}
+    private static function label(array $entry): string {return \App\Services\Duration::label($entry['hours']).' · '.$entry['worked_on'].' · '.$entry['note'];}
 }

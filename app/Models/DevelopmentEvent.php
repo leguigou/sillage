@@ -6,6 +6,11 @@ use App\Services\DevelopmentPayload;
 
 final class DevelopmentEvent
 {
+    public static function summaryColumns(string $alias): string
+    {
+        if(!preg_match('/^[a-z]$/D',$alias)) throw new \InvalidArgumentException('Alias de lecture Git invalide.');
+        return "$alias.*,JSON_REMOVE($alias.metadata_json,'$.details.files','$.details.commit_shas') AS metadata_json";
+    }
     public static function lockProjects(int $connection): array
     {
         $projects=DB::all('SELECT p.id,p.project_key FROM projects p JOIN project_connections pc ON pc.project_id=p.id WHERE pc.connection_id=? ORDER BY p.id FOR UPDATE',[$connection]);

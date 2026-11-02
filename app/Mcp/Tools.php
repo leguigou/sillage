@@ -857,7 +857,7 @@ final class Tools
                         [$a['project_id']],
                     )['n'],
                     'events' => \App\Models\DevelopmentEvent::withTickets(DB::all(
-                        'SELECT d.* FROM development_events d JOIN project_connections pc ON pc.connection_id=d.connection_id WHERE pc.project_id=? ORDER BY d.id DESC LIMIT ' .
+                        'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').' FROM development_events d JOIN project_connections pc ON pc.connection_id=d.connection_id WHERE pc.project_id=? ORDER BY d.id DESC LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,
