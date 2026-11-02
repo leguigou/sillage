@@ -1,7 +1,7 @@
 <?php $branding = App\Models\CompanyBranding::get(); ?>
 <section class="panel company-settings" id="company">
  <div class="panel-header"><div><h2>Identité de l’entreprise</h2><p>Personnalisez votre espace et les pages de connexion.</p></div><span class="company-icon company-preview"><?= App\Core\Company::mark() ?></span></div>
- <form method="post" action="/company" enctype="multipart/form-data" class="stack" data-company-form>
+ <form method="post" action="/company" enctype="multipart/form-data" class="stack settings-form" data-company-form>
   <?= csrf() ?><input type="hidden" name="version" value="<?= (int)$branding['version'] ?>"><input type="hidden" name="_return" value="/settings#company">
   <label>Nom de l’entreprise<input name="company_name" value="<?= e(App\Core\Company::name()) ?>" maxlength="120" required autocomplete="organization"></label>
   <label>Sous-titre de l’espace<input name="company_subtitle" value="<?= e($branding['subtitle']) ?>" maxlength="100" placeholder="Espace entreprise"></label>
@@ -10,6 +10,6 @@
   <p class="help-text" role="status" data-company-preview-status></p>
   <?php if($branding['logo_digest']): ?><label class="check-label"><input type="checkbox" name="remove_logo" value="1">Retirer le logo actuel et utiliser l’initiale ou le symbole</label><?php endif; ?>
   <p class="help-text">Ces informations s’appliquent à toute l’installation. Les domaines autorisés à l’inscription restent configurés dans le fichier <code>.env</code>.</p>
-  <button class="button primary">Enregistrer l’entreprise</button>
+  <div class="settings-actions"><button class="button primary">Enregistrer l’entreprise</button></div>
  </form>
 </section>

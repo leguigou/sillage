@@ -12,5 +12,5 @@
  <a href="/development?project=<?= (int)$project['id'] ?>" class="text-button">Gérer les dépôts liés ou connecter un nouveau dépôt</a>
  <a class="text-button" href="/settings?project=<?= (int)$project['id'] ?>#notifications">Configurer les notifications e-mail du projet</a>
  <?php require ROOT.'/app/Views/partials/project-teams.php'; ?>
- <button class="button primary">Enregistrer le projet</button>
+ <div class="settings-actions"><button class="button primary">Enregistrer le projet</button></div>
 </form></dialog>
