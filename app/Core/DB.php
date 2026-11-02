@@ -16,32 +16,38 @@ final class DB
     public static function connection(): PDO
     {
         if (!self::$connection) {
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 10,
-            ];
-            $sslCA = self::sslCA();
-            if ($sslCA !== '') {
-                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCA;
-                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
-            }
-            self::$connection = new PDO(
-                'mysql:host=' .
-                    env('DB_HOST', '127.0.0.1') .
-                    ';port=' .
-                    env('DB_PORT', '3306') .
-                    ';dbname=' .
-                    env('DB_DATABASE', 'sillage') .
-                    ';charset=utf8mb4',
-                env('DB_USERNAME', 'sillage'),
-                env('DB_PASSWORD'),
-                $options,
-            );
-            self::$connection->exec("SET time_zone = '+00:00'");
+            self::$connection = self::independent();
         }
         return self::$connection;
+    }
+    /** A separate autocommit connection, sharing exactly the application's MySQL/TLS configuration. */
+    public static function independent(): PDO
+    {
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 10,
+        ];
+        $sslCA = self::sslCA();
+        if ($sslCA !== '') {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCA;
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+        }
+        $connection = new PDO(
+            'mysql:host=' .
+                env('DB_HOST', '127.0.0.1') .
+                ';port=' .
+                env('DB_PORT', '3306') .
+                ';dbname=' .
+                env('DB_DATABASE', 'sillage') .
+                ';charset=utf8mb4',
+            env('DB_USERNAME', 'sillage'),
+            env('DB_PASSWORD'),
+            $options,
+        );
+        $connection->exec("SET time_zone = '+00:00'");
+        return $connection;
     }
     public static function run(string $sql, array $params = []): \PDOStatement
     {

@@ -11,3 +11,7 @@ Toute évolution fonctionnelle, correction ou modification d’interface livrée
 - Employer des descriptions en français, compréhensibles, sans secrets ni noms de société ou d’hébergement propres à une installation.
 
 Le guide de fonctionnement et de maintenance est dans `docs/versions-application.md`. Les composants visuels des paramètres sont définis dans `public/assets/settings.css` et décrits dans `docs/interface-parametres.md`.
+
+## Journaux techniques
+
+Les appels HTTP sortants des intégrations passent par `App\Services\TechnicalLog::outgoing`, en transmettant uniquement les faits de transport. Les appels entrants sont suivis au front controller ; le routeur, MCP et les webhooks fournissent leurs identités contrôlées. Réutiliser cet identifiant de corrélation et la connexion autocommit indépendante du journal. Ne jamais transmettre de corps, en-têtes, jetons, cookies, paramètres d’URL ni messages d’exception bruts au journal. Préserver le résultat et les erreurs métier si l’écriture du journal échoue. Voir `docs/journaux-techniques.md` pour la couverture, la rétention et les limites.

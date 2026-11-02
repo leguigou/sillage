@@ -103,6 +103,24 @@
 .settings-history-content>p{margin-bottom:12px;max-width:85ch}
 .settings-history-content>ul{padding-left:20px;margin:16px 0}.settings-history-content li+li{margin-top:7px}
 .settings-history-content>small{font-size:10px;overflow-wrap:anywhere}.settings-history-content code{font-size:10px}
+.technical-log-filters{display:grid;gap:16px;margin:24px 0}
+.settings-page .technical-log-filters .inline-fields:first-child{grid-template-columns:repeat(4,minmax(0,1fr))}
+.settings-page .technical-log-filters .inline-fields:nth-child(2){grid-template-columns:1fr 1fr 2fr}
+.technical-log-filters .settings-actions{margin:0}
+.technical-log-table{max-width:100%;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.technical-log-table table{width:100%;min-width:800px;border-collapse:collapse;table-layout:fixed}
+.technical-log-table th,.technical-log-table td{padding:14px 12px;vertical-align:top;font-size:12px;text-align:left;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.technical-log-table th{font-size:11px;color:var(--subtle);font-weight:500}
+.technical-log-table th:nth-child(1){width:14%}.technical-log-table th:nth-child(2){width:16%}.technical-log-table th:nth-child(3){width:34%}.technical-log-table th:nth-child(4){width:12%}.technical-log-table th:nth-child(5){width:10%}.technical-log-table th:nth-child(6){width:14%}
+.technical-log-table td>strong,.technical-log-table td>small{display:block}.technical-log-table td>small{font-size:11px;color:var(--subtle);margin-top:4px}
+.technical-log-table details{margin-top:10px}.technical-log-table summary{color:var(--accent);cursor:pointer;font-size:11px}
+.technical-log-table dl{display:grid;grid-template-columns:minmax(85px,1fr) 2fr;gap:6px 10px;margin:12px 0;font-size:11px}.technical-log-table dt{color:var(--subtle)}.technical-log-table dd{margin:0;min-width:0}
+.technical-log-table dd:first-of-type{grid-column:1/-1;font-family:ui-monospace,monospace;font-size:10px}
+.technical-log-table .settings-actions{flex-wrap:wrap}.technical-log-table .button{white-space:normal;text-align:left}
+.technical-log-table{--technical-error:#b93d37}:root[data-theme='dark'] .technical-log-table{--technical-error:#ff928a}
+.technical-log-table .pill.danger{color:var(--technical-error);background:color-mix(in srgb,var(--technical-error) 10%,transparent);border:1px solid color-mix(in srgb,var(--technical-error) 35%,transparent)}
+@media(max-width:760px){.settings-page .technical-log-filters .inline-fields:first-child,.settings-page .technical-log-filters .inline-fields:nth-child(2){grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.settings-page .technical-log-filters .inline-fields:first-child,.settings-page .technical-log-filters .inline-fields:nth-child(2){grid-template-columns:1fr}}
 
 @media(max-width:760px) {
   .settings-grid{grid-template-columns:1fr}

@@ -15,6 +15,7 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$r->add('GET','/administration/logs',[new \App\Controllers\TechnicalLogController(),'index']);
 $tracking=new \App\Controllers\TrackingController();
 $r->add('POST','/tickets/{id}/time',[$tracking,'time'])
     ->add('POST','/tickets/{id}/validation',[$tracking,'review'])

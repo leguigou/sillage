@@ -98,6 +98,7 @@ final class DevelopmentController
         if (!$c) {
             json_response(['error' => 'Not found'], 404);
         }
+        \App\Services\TechnicalLog::incoming(['provider'=>$c['provider'],'connection_id'=>(int)$c['id'],'operation'=>'webhook']);
         if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 1048576) {
             json_response(['error' => 'Payload too large'], 413);
         }
@@ -121,6 +122,7 @@ final class DevelopmentController
         }
         try {
             $event=(string)($_SERVER['HTTP_X_GITHUB_EVENT']??$_SERVER['HTTP_X_EVENT_KEY']??'');
+            \App\Services\TechnicalLog::incoming(['operation'=>in_array($event,['push','create','delete','pull_request','repo:push','pullrequest:created','pullrequest:updated','pullrequest:fulfilled','pullrequest:rejected'],true)?$event:'unknown_event']);
             $events=\App\Services\DevelopmentPayload::webhook($c['provider'],$event,$data,$c['repository']);
             if (count($events)>250) throw new \InvalidArgumentException('Trop d’éléments dans cette livraison ; utilisez la synchronisation paginée.');
             DB::transaction(function() use($c,$events) {

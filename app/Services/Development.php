@@ -29,7 +29,7 @@ final class Development
     {
         $repo = self::repository($c['provider'], $c['repository']);
         $path = ($c['provider'] === 'github' ? '/repos/' : '/2.0/repositories/') . $repo . ($resource === '' ? '' : '/' . $resource);
-        return self::http($c['provider'], Security::decrypt($c['secret_cipher']), $path, $timeout);
+        return self::http($c['provider'], Security::decrypt($c['secret_cipher']), $path, $timeout,isset($c['id'])?['connection_id'=>(int)$c['id']]:[]);
     }
 
     public static function accessToken(string $token): string
@@ -82,56 +82,61 @@ final class Development
         return ['repositories'=>$repositories,'page'=>$page,'has_more'=>$more];
     }
 
-    private static function http(string $provider, string $token, string $path, int $timeout): array
+    private static function http(string $provider, string $token, string $path, int $timeout,array $context=[]): array
     {
         $base = match ($provider) { 'github'=>'https://api.github.com', 'bitbucket'=>'https://api.bitbucket.org', default=>throw new \InvalidArgumentException('Fournisseur invalide.') };
         $url = $base . $path;
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_USERAGENT => 'Sillage/1.0',
-            CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
-            CURLOPT_PROTOCOLS_STR => 'https',
-        ]);
-        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
-            curl_setopt($ch, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-        }
-        $body = curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $errno = curl_errno($ch);
-        curl_close($ch);
-        if ($body === false) {
-            throw new \InvalidArgumentException(match ($errno) {
-                CURLE_PEER_FAILED_VERIFICATION => 'La vérification du certificat HTTPS a échoué. Configurez les certificats de confiance du serveur PHP.',
-                CURLE_OPERATION_TIMEDOUT => 'Le fournisseur ne répond pas dans le délai de ' . $timeout . ' secondes. Réessayez.',
-                CURLE_COULDNT_RESOLVE_HOST => 'Le serveur PHP ne parvient pas à résoudre le nom du fournisseur.',
-                default => 'Le serveur PHP ne parvient pas à joindre le fournisseur (erreur réseau ' . $errno . ').',
-            });
-        }
-        if ($status < 200 || $status >= 300) {
-            throw new \InvalidArgumentException(match ($status) {
-                401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
-                403 => 'Accès refusé (HTTP 403). Vérifiez les permissions, l’approbation de votre organisation et les limites d’appels du fournisseur.',
-                404 => 'Dépôt introuvable ou inaccessible avec ce jeton (HTTP 404). Vérifiez le propriétaire et le nom du dépôt.',
-                429 => 'Limite d’appels du fournisseur atteinte (HTTP 429). Réessayez plus tard.',
-                default => 'Le fournisseur a refusé la vérification (HTTP ' . $status . '). Réessayez plus tard.',
-            });
-        }
-        if (strlen($body) > 8 * 1024 * 1024) {
-            throw new \InvalidArgumentException('Réponse du fournisseur trop volumineuse.');
-        }
-        try { $data = json_decode($body, true, 128, JSON_THROW_ON_ERROR); }
-        catch (\JsonException) { throw new \InvalidArgumentException('Le fournisseur a renvoyé une réponse JSON invalide.'); }
-        if (!is_array($data)) {
-            throw new \InvalidArgumentException('Réponse du fournisseur invalide.');
-        }
-        return $data;
+        return TechnicalLog::outgoing('development',$provider,'GET',$url,function(array &$trace) use($url,$token,$timeout): array {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_USERAGENT => 'Sillage/1.0',
+                CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
+                CURLOPT_PROTOCOLS_STR => 'https',
+            ]);
+            if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+                curl_setopt($ch, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+            }
+            $body = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $errno = curl_errno($ch);
+            $trace['http_status']=$status?:null;$trace['response_bytes']=is_string($body)?strlen($body):null;
+            if ($errno) $trace['error_code']='transport:'.$errno;
+            curl_close($ch);
+            if ($body === false) {
+                throw new \InvalidArgumentException(match ($errno) {
+                    CURLE_PEER_FAILED_VERIFICATION => 'La vérification du certificat HTTPS a échoué. Configurez les certificats de confiance du serveur PHP.',
+                    CURLE_OPERATION_TIMEDOUT => 'Le fournisseur ne répond pas dans le délai de ' . $timeout . ' secondes. Réessayez.',
+                    CURLE_COULDNT_RESOLVE_HOST => 'Le serveur PHP ne parvient pas à résoudre le nom du fournisseur.',
+                    default => 'Le serveur PHP ne parvient pas à joindre le fournisseur (erreur réseau ' . $errno . ').',
+                });
+            }
+            if ($status < 200 || $status >= 300) {
+                throw new \InvalidArgumentException(match ($status) {
+                    401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
+                    403 => 'Accès refusé (HTTP 403). Vérifiez les permissions, l’approbation de votre organisation et les limites d’appels du fournisseur.',
+                    404 => 'Dépôt introuvable ou inaccessible avec ce jeton (HTTP 404). Vérifiez le propriétaire et le nom du dépôt.',
+                    429 => 'Limite d’appels du fournisseur atteinte (HTTP 429). Réessayez plus tard.',
+                    default => 'Le fournisseur a refusé la vérification (HTTP ' . $status . '). Réessayez plus tard.',
+                });
+            }
+            if (strlen($body) > 8 * 1024 * 1024) {
+                throw new \InvalidArgumentException('Réponse du fournisseur trop volumineuse.');
+            }
+            try { $data = json_decode($body, true, 128, JSON_THROW_ON_ERROR); }
+            catch (\JsonException) { throw new \InvalidArgumentException('Le fournisseur a renvoyé une réponse JSON invalide.'); }
+            if (!is_array($data)) {
+                throw new \InvalidArgumentException('Réponse du fournisseur invalide.');
+            }
+            return $data;
+        },$context);
     }
+
     public static function sync(array $c, string $kind = 'pull_request', int $page = 1): int
     {
         if (!isset(DevelopmentPayload::KINDS[$kind]) || $page<1 || $page>10000) throw new \InvalidArgumentException('Type ou page de synchronisation invalide.');

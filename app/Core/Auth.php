@@ -38,6 +38,7 @@ final class Auth
             PersistentLogin::setCookie($credential['cookie'],$credential['expires']);
             self::$cached['remember_valid']=1;
         }
+        \App\Services\TechnicalLog::actor((int)self::$cached['id']);
         return self::$cached;
     }
     public static function requireUser(): array

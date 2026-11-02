@@ -160,4 +160,5 @@ exec((__import__('pathlib').Path(__file__).parent/'http_appearance.py').read_tex
 exec((__import__('pathlib').Path(__file__).parent/'http_workflow_inbox.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_tracking.py').read_text(encoding='utf-8'))
 exec((__import__('pathlib').Path(__file__).parent/'http_application_history.py').read_text(encoding='utf-8'))
+exec((__import__('pathlib').Path(__file__).parent/'http_technical_logs.py').read_text(encoding='utf-8'))
 print('\n',passed_count(),'HTTP checks passed against isolated test database.')

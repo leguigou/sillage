@@ -8,6 +8,7 @@
  <a class="button subtle" href="#llm">Intelligence artificielle</a>
  <a class="button subtle" href="#notifications">Notifications e-mail</a>
  <a class="button subtle" href="#application-history">Versions et améliorations</a>
+ <a class="button subtle" href="#technical-logs">Journaux techniques</a>
  <?php else: ?>
  <a class="button subtle" href="#company-summary">L’espace entreprise</a>
  <a class="button subtle" href="#directory">Annuaire</a>
@@ -26,6 +27,7 @@
 <?php if ($user['role']==='admin') require ROOT . '/app/Views/partials/company-settings.php'; ?>
 <?php if ($user['role']==='admin') require ROOT.'/app/Views/partials/llm-settings.php'; ?>
 <?php if ($user['role']==='admin') require ROOT.'/app/Views/partials/application-history.php'; ?>
+<?php if ($user['role']==='admin') require ROOT.'/app/Views/partials/technical-logs.php'; ?>
 <?php require ROOT.'/app/Views/partials/email-settings.php'; ?>
 <?php require ROOT . '/app/Views/partials/mcp-tokens.php'; ?>
 <?php require ROOT.'/app/Views/partials/oauth-settings.php'; ?>

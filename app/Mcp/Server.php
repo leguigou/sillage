@@ -9,6 +9,8 @@ final class Server
     public const VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
     private static function send(array $body, int $status = 200): never
     {
+        if (isset($body['error'])) \App\Services\TechnicalLog::incoming(['failed'=>true,'error_code'=>is_array($body['error']) && isset($body['error']['code'])?'rpc:'.$body['error']['code']:'http:'.$status]);
+        if (is_array($body['result']??null) && !empty($body['result']['isError'])) \App\Services\TechnicalLog::incoming(['failed'=>true,'error_code'=>'tool_error']);
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(
@@ -46,6 +48,8 @@ final class Server
                 header('WWW-Authenticate: Bearer realm="Sillage MCP", resource_metadata="'.url('/.well-known/oauth-protected-resource/mcp').'", scope="read"');
                 self::send(['error' => 'Clé MCP absente, expirée, supprimée ou invalidée.'], 401);
             }
+            \App\Services\TechnicalLog::actor((int)$user['id']);
+            \App\Services\TechnicalLog::incoming(['token_id'=>(int)$user['token_id']]);
             $method = $_SERVER['REQUEST_METHOD'] ?? '';
             if ($method !== 'POST') {
                 header('Allow: POST');
@@ -92,6 +96,7 @@ final class Server
                 self::rpcError(null, -32600, 'Requête JSON-RPC invalide.', 400);
             }
             $requestId = $request->id ?? null;
+            \App\Services\TechnicalLog::incoming(['operation'=>in_array($request->method,['initialize','ping','tools/list','tools/call','notifications/initialized'],true)?$request->method:'unknown_method']);
             $params = property_exists($request, 'params') ? $request->params : new \stdClass();
             if (!($params instanceof \stdClass)) {
                 self::rpcError($requestId, -32602, 'params doit être un objet.');
@@ -167,6 +172,7 @@ final class Server
         if (!isset($catalog[$params->name])) {
             throw new \InvalidArgumentException('Outil inconnu ou non autorisé pour cette clé.');
         }
+        \App\Services\TechnicalLog::incoming(['operation'=>'tools/call:'.$params->name]);
         $arguments = Schema::validate(
             property_exists($params, 'arguments') ? $params->arguments : new \stdClass(),
             $catalog[$params->name]['definition']['inputSchema'],

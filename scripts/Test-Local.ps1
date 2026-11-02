@@ -7,6 +7,8 @@ $sillageIni="$sillageRoot/.runtime/php-config/php.ini"
 if(Get-NetTCPConnection -State Listen -LocalPort 8089 -ErrorAction SilentlyContinue){throw 'Le port 8089 doit être libre avant de préparer la base isolée.'}
 & $sillagePhp -c $sillageIni "$sillageRoot/tests/prepare-local.php"
 if($LASTEXITCODE -ne 0){throw 'Préparation de test impossible'}
+& $sillagePhp -c $sillageIni "$sillageRoot/tests/run.php" fixtures
+if($LASTEXITCODE -ne 0){throw 'Réinitialisation des fixtures isolées impossible'}
 & $sillagePhp -c $sillageIni "$sillageRoot/tests/run.php"
 if($LASTEXITCODE -ne 0){throw 'Tests de contrats en échec'}
 $sillageSuites=@(

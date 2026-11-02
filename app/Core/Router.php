@@ -20,6 +20,7 @@ final class Router
             if (!preg_match($regex, $path, $matches)) {
                 continue;
             }
+            \App\Services\TechnicalLog::incoming(['endpoint'=>$pattern]);
             if ($method === 'POST' && $csrf) {
                 Security::checkCsrf();
             }
@@ -27,6 +28,7 @@ final class Router
             try {
                 $handler(...array_values($params));
             } catch (\InvalidArgumentException $error) {
+                \App\Services\TechnicalLog::incoming(['failed'=>true,'error_code'=>'invalid_response_or_configuration']);
                 if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
                     json_response(['error' => $error->getMessage()], 422);
                 }

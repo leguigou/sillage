@@ -6,6 +6,11 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/app/bootstrap.php';
 use App\Core\{DB, Security, Migrator};
 $command = $argv[1] ?? 'help';
+if ($command==='logs:prune') {
+    $removed=\App\Services\TechnicalLog::prune(null,10000);
+    echo $removed.' appels expirés supprimés (conservation : '.\App\Services\TechnicalLog::retention().' jours).'.PHP_EOL;
+    exit();
+}
 if (in_array($command,['version','history:check'],true)) {
     $history=\App\Services\ApplicationHistory::catalog();
     echo 'Sillage '.$history['current_version'].PHP_EOL;
@@ -96,4 +101,4 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : version | history:check | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | admin:create email | user:role email admin/member/viewer\n";
+echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | admin:create email | user:role email admin/member/viewer\n";

@@ -132,6 +132,8 @@ Le suivi des [temps, de l’historique détaillé, des résolutions et des versi
 
 Les administrateurs retrouvent la version du logiciel et les fonctionnalités livrées dans **Paramètres → Versions et améliorations**. Le [journal des versions de Sillage](docs/versions-application.md) accompagne le code et conserve l’historique des évolutions.
 
+**Paramètres → Journaux techniques** centralise les appels API/MCP entrants, les webhooks et les échanges sortants GitHub, Bitbucket et IA : durée, statut, erreurs, corrélation et filtres, sans conserver les corps ni les jetons. Voir [la couverture et la conservation des journaux](docs/journaux-techniques.md).
+
 ## Structure MVC
 
 ```text

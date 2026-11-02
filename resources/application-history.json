@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.0.0",
+  "current_version": "1.1.0",
   "entries": [
+    {
+      "version": "1.1.0",
+      "date": "2026-11-02",
+      "category": "features",
+      "title": "Journaux techniques des appels et intégrations",
+      "summary": "Un suivi centralisé des échanges API, MCP et développement dans les paramètres administrateur.",
+      "changes": [
+        "Journal des appels entrants API/AJAX, MCP, OAuth et webhooks Git, y compris les accès refusés.",
+        "Suivi des requêtes sortantes GitHub, Bitbucket et fournisseurs IA : résultat, statut HTTP et durée.",
+        "Filtres, pagination, détails et identifiant de corrélation pour relier les appels entrants et sortants.",
+        "Métadonnées sans corps ni identifiants secrets ; conservation configurable, purge et accès réservé aux administrateurs."
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "2026-11-02",
