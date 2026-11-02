@@ -84,6 +84,25 @@
 .settings-page .oauth-created {padding:20px;border-radius:12px}
 .dialog .stack>.button {justify-self:start}
 .dialog .settings-actions {width:100%}
+.settings-history-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.settings-history-summary>div{padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
+.settings-history-summary small{display:block;font-size:11px;color:var(--subtle)}
+.settings-history-summary strong{display:block;font-size:20px;letter-spacing:-.4px;margin-top:5px}
+.settings-history-filters{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin:24px 0 16px;max-width:950px}
+.settings-history-filters>label:first-child{flex:2;min-width:220px}.settings-history-filters>label:nth-child(2){flex:1;min-width:200px}
+.settings-history-list{display:grid;gap:12px;margin-top:16px}
+.settings-page .settings-history-entry{padding:0}
+.settings-history-entry>summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:18px 20px;cursor:pointer;list-style:none}
+.settings-history-entry>summary::-webkit-details-marker{display:none}
+.settings-history-entry>summary>strong{flex:1;min-width:200px;font-size:13px;font-weight:600}
+.settings-history-entry>summary>time{font-size:11px;color:var(--subtle);font-variant-numeric:tabular-nums}
+.settings-history-entry>summary>.icon{width:16px;height:16px;color:var(--subtle);transition:transform .15s}
+.settings-history-entry[open]>summary>.icon{transform:rotate(180deg)}
+.settings-history-entry>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;border-radius:12px}
+.settings-history-content{border-top:1px solid var(--line);padding:20px;font-size:12px;line-height:1.8}
+.settings-history-content>p{margin-bottom:12px;max-width:85ch}
+.settings-history-content>ul{padding-left:20px;margin:16px 0}.settings-history-content li+li{margin-top:7px}
+.settings-history-content>small{font-size:10px;overflow-wrap:anywhere}.settings-history-content code{font-size:10px}
 
 @media(max-width:760px) {
   .settings-grid{grid-template-columns:1fr}
@@ -96,4 +115,10 @@
   .settings-shortcuts [role='tab']{flex:1 0 auto;text-align:center;font-size:11px}
   .settings-page .settings-card{padding:16px}
   .settings-page .settings-actions>.button{max-width:100%}
+  .settings-history-summary{grid-template-columns:1fr}
+  .settings-history-filters>label{flex-basis:100%;min-width:0}
+  .settings-history-entry>summary{padding:16px;gap:10px}
+  .settings-history-entry>summary>strong{order:3;flex-basis:100%;min-width:0}
+  .settings-history-entry>summary>time{margin-left:auto}
+  .settings-history-content{padding:16px}
 }

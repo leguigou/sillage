@@ -1,0 +1,478 @@
+{
+  "schema": 1,
+  "current_version": "1.0.0",
+  "entries": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-02",
+      "category": "features",
+      "title": "Un historique des améliorations dans l’administration",
+      "summary": "La première version numérotée de Sillage accompagne le suivi des évolutions du logiciel.",
+      "changes": [
+        "Nouvel onglet Versions et améliorations réservé aux administrateurs.",
+        "Version du code installé et historique des fonctionnalités, corrections et évolutions d’interface.",
+        "Recherche par mot-clé, version ou révision et filtre par type de changement.",
+        "Reprise des 42 révisions antérieures avec dates et références Git ; procédure de suivi des futures versions."
+      ]
+    },
+    {
+      "revision": "8075608f1429c8c9f39b192bee9c6f7fb61af3f4",
+      "date": "2026-11-02T11:15:25+01:00",
+      "category": "interface",
+      "title": "Édition des projets depuis les paramètres",
+      "summary": "Des projets modifiables sans quitter l’administration.",
+      "changes": [
+        "Action Modifier par projet, formulaire prérempli et sauvegarde AJAX.",
+        "Valeurs rechargées à chaque ouverture ; roue crantée redessinée et encart du menu compact."
+      ]
+    },
+    {
+      "revision": "31763d62e8e6f347b16d5ae6864bab92b97a71a6",
+      "date": "2026-11-02T09:12:09+01:00",
+      "category": "interface",
+      "title": "Avancement et reste à faire dans les listes",
+      "summary": "Des indicateurs de travail visibles sous chaque résumé.",
+      "changes": [
+        "Barre de progression, pourcentage et temps restant approximatif dans les listes.",
+        "Mise à jour en ligne des estimations, indication des estimations manquantes et gélules d’état plus lisibles."
+      ]
+    },
+    {
+      "revision": "94e88322073576def19f2e018ec680a55fd79bc5",
+      "date": "2026-11-02T08:54:25+01:00",
+      "category": "interface",
+      "title": "Paramètres harmonisés",
+      "summary": "Des composants communs pour simplifier la configuration.",
+      "changes": [
+        "Boutons de même hauteur, actions de formulaire en bas à gauche et suppressions encadrées en rouge.",
+        "Champs, titres, cartes, espacements et boutons de copie harmonisés en clair et sombre."
+      ]
+    },
+    {
+      "revision": "eb53600dc66874d3e814c968737fa95a134b345c",
+      "date": "2026-11-02T08:30:40+01:00",
+      "category": "interface",
+      "title": "Paramètres organisés en onglets",
+      "summary": "Une seule rubrique visible à la fois.",
+      "changes": [
+        "Onglets avec liens directs, navigation au clavier et historique du navigateur.",
+        "Brouillons conservés lors des changements de rubrique et des sauvegardes AJAX."
+      ]
+    },
+    {
+      "revision": "9cde7e3126299405b2050b8b63ebd22bf22a5684",
+      "date": "2026-11-02T08:19:47+01:00",
+      "category": "interface",
+      "title": "Accès aux paramètres dans la barre du haut",
+      "summary": "Un accès global aux réglages à côté des notifications.",
+      "changes": [
+        "Roue crantée placée à gauche de la cloche.",
+        "Retrait du bouton Paramètres du menu latéral."
+      ]
+    },
+    {
+      "revision": "8195d3e1d66bef4265d032a0d7e2e01fcf980c26",
+      "date": "2026-11-02T01:18:57+01:00",
+      "category": "features",
+      "title": "Temps, historique, clôture et livraisons",
+      "summary": "Un suivi plus complet de la réalisation des tickets.",
+      "changes": [
+        "Saisies et corrections de temps ; reste à faire calculé sur l’estimation et l’avancement.",
+        "Historique des valeurs avant/après, résolutions et validation avant clôture configurable par projet.",
+        "Versions cibles et déclarations de livraison en préproduction/production ; outils MCP associés."
+      ]
+    },
+    {
+      "revision": "8e70d3e23924b01959c567dbf864a071660ac497",
+      "date": "2026-11-01T20:55:57+01:00",
+      "category": "features",
+      "title": "Circuits de projet et notifications personnelles",
+      "summary": "Des processus adaptés aux équipes et un suivi individuel.",
+      "changes": [
+        "Statuts, types, catégories, couleurs et transitions configurables par projet.",
+        "Suivi de tickets, mentions et boîte de notifications avec état lu/non lu.",
+        "Même contrôle des transitions depuis le site, les automatisations et le MCP."
+      ]
+    },
+    {
+      "revision": "c3bdfe72dffa019d5f18104f5ed98eeb3aba6cac",
+      "date": "2026-10-30T10:26:03+01:00",
+      "category": "docs",
+      "title": "Documentation des vérifications complètes",
+      "summary": "Des résultats de validation et des procédures locales documentés.",
+      "changes": [
+        "Mise à jour du guide de validation et des limites de vérification.",
+        "Documentation des contrôles applicatifs, HTTP et MCP."
+      ]
+    },
+    {
+      "revision": "0318219ffbea5b05eda3add139afbe12b2d6fa2c",
+      "date": "2026-10-30T00:26:43+01:00",
+      "category": "features",
+      "title": "Pictogrammes et couleurs administrables",
+      "summary": "Des repères visuels cohérents dans les différentes vues.",
+      "changes": [
+        "Choix des pictogrammes et couleurs des projets, types et priorités.",
+        "Identités visuelles partagées entre menu, fiches, listes, tableaux et chronologies."
+      ]
+    },
+    {
+      "revision": "b3a82c82550605510077e2a52e5c61c490a1b380",
+      "date": "2026-10-28T23:28:31+01:00",
+      "category": "features",
+      "title": "Pause réversible et blocages visibles",
+      "summary": "Distinguer une tâche remise à plus tard d’un obstacle actif.",
+      "changes": [
+        "Mise en pause avec reprise de l’état précédent ; pauses masquées des vues actives et accessibles par filtre.",
+        "Repère Bloqué sur les tickets et leurs différentes représentations."
+      ]
+    },
+    {
+      "revision": "b084a58775ee1cd7f458bb7fb0e3d985dbcb3777",
+      "date": "2026-10-28T23:11:25+01:00",
+      "category": "fixes",
+      "title": "Retour vers la vue d’origine du ticket",
+      "summary": "Retrouver son contexte après la consultation d’un ticket.",
+      "changes": [
+        "Lien de retour adapté à la liste, au tableau ou à la chronologie d’origine.",
+        "Conservation du projet, des filtres et de la position de lecture."
+      ]
+    },
+    {
+      "revision": "c8108d880dc68cceeb869a1d8fbbf5af8f348933",
+      "date": "2026-10-28T22:59:26+01:00",
+      "category": "interface",
+      "title": "Fiche centrée sur le message initial et les commentaires",
+      "summary": "Une lecture plus directe du besoin et de son suivi.",
+      "changes": [
+        "En-tête compact avec accès rapide à Commenter et Modifier.",
+        "Informations secondaires dans la colonne de droite ; développement dans un onglet distinct."
+      ]
+    },
+    {
+      "revision": "2c3b1037b82f8db870cf4a228395a78588268fb7",
+      "date": "2026-10-28T22:20:56+01:00",
+      "category": "fixes",
+      "title": "Autorisation OAuth et retour au client",
+      "summary": "Un consentement qui rejoint correctement l’application connectée.",
+      "changes": [
+        "Redirections vers les URL de rappel enregistrées autorisées par la politique de sécurité.",
+        "Conservation des demandes de consentement en attente."
+      ]
+    },
+    {
+      "revision": "5385f061e5f82448f7a79272c6901805e40f96ee",
+      "date": "2026-10-28T22:12:50+01:00",
+      "category": "interface",
+      "title": "Copie des valeurs et sauvegardes sans navigation",
+      "summary": "Configurer les connexions sans déplacements de page inutiles.",
+      "changes": [
+        "Boutons de copie pour les informations de connexion et OAuth.",
+        "Sauvegardes des panneaux de paramètres par AJAX en conservant les autres saisies."
+      ]
+    },
+    {
+      "revision": "75264c2f3949f75fb60501035734204b404106f2",
+      "date": "2026-10-28T18:48:53+01:00",
+      "category": "features",
+      "title": "Connexion MCP avec OAuth et PKCE",
+      "summary": "Autoriser un client compatible avec les droits choisis.",
+      "changes": [
+        "Clients OAuth, consentement, codes PKCE et renouvellement des accès.",
+        "Gestion et révocation des connexions autorisées depuis les paramètres."
+      ]
+    },
+    {
+      "revision": "8b02e97314d4c4d4c807182487fc4d5e4c724204",
+      "date": "2026-10-28T18:09:37+01:00",
+      "category": "features",
+      "title": "Connexion conservée pendant trente jours",
+      "summary": "Retrouver son espace entre les sessions et mises à jour.",
+      "changes": [
+        "Connexion persistante par cookie pendant trente jours.",
+        "Révocation et invalidation des accès en cas de changement de compte ou de droits."
+      ]
+    },
+    {
+      "revision": "cd1ddf24fbfa9045a551ac747d013cc4071f66f0",
+      "date": "2026-10-28T17:54:46+01:00",
+      "category": "interface",
+      "title": "Création de ticket simplifiée",
+      "summary": "Les informations facultatives restent accessibles sans surcharger la saisie.",
+      "changes": [
+        "Avancement, état et parent regroupés dans Plus de détails."
+      ]
+    },
+    {
+      "revision": "d5b47a389ad0455bec686bc72fb7976a3b647a7c",
+      "date": "2026-10-28T17:45:23+01:00",
+      "category": "fixes",
+      "title": "Configuration de l’expéditeur dans les tests",
+      "summary": "Des tests d’inscription avec une configuration de messagerie complète.",
+      "changes": [
+        "Définition explicite de l’expéditeur pour les vérifications d’inscription en intégration continue."
+      ]
+    },
+    {
+      "revision": "02453c11708569ca7d6c2147f2195f9b8810dfb0",
+      "date": "2026-10-28T10:50:52+01:00",
+      "category": "deployment",
+      "title": "Relais SMTP optionnel et démarrage unifié",
+      "summary": "Une installation adaptée au serveur applicatif et au traitement des notifications.",
+      "changes": [
+        "Relais SMTP optionnel et point d’entrée commun pour l’application et son worker."
+      ]
+    },
+    {
+      "revision": "c73bfb320009cc97d4c9ae24007994ae40502181",
+      "date": "2026-10-28T10:48:55+01:00",
+      "category": "fixes",
+      "title": "Identification du service MySQL dans le déploiement",
+      "summary": "Éviter les noms de services ambigus dans un réseau partagé.",
+      "changes": [
+        "Nom de service de base de données explicite pour la configuration Dokploy."
+      ]
+    },
+    {
+      "revision": "34bd5c79227a8777b2e3d7328af0aed055097596",
+      "date": "2026-10-28T10:47:10+01:00",
+      "category": "deployment",
+      "title": "Compatibilité des images PHP et des extensions",
+      "summary": "Un environnement de construction cohérent avec les dépendances requises.",
+      "changes": [
+        "Images Docker et intégration continue alignées sur PHP 8.4.",
+        "Correction de la construction de l’extension DOM dans l’image officielle."
+      ]
+    },
+    {
+      "revision": "17250a57fff2ac44ad7f134b1964ed81edb9d2fa",
+      "date": "2026-10-28T10:40:29+01:00",
+      "category": "deployment",
+      "title": "Configuration de déploiement Dokploy",
+      "summary": "Un mode de déploiement supplémentaire pour héberger Sillage.",
+      "changes": [
+        "Fichier Compose et documentation pour le déploiement avec Dokploy."
+      ]
+    },
+    {
+      "revision": "29b88aa535e8d69acdaa88d1791359f0e2047232",
+      "date": "2026-10-28T08:56:44+01:00",
+      "category": "features",
+      "title": "Notifications e-mail par projet",
+      "summary": "Choisir les événements et les personnes à prévenir.",
+      "changes": [
+        "Règles de notification à la création, aux modifications et aux changements d’état.",
+        "Préférences personnelles et file d’envoi avec suivi, nouvelles tentatives et déduplication."
+      ]
+    },
+    {
+      "revision": "35d2e0d87d25c1d5d9b5f17022e6fbaacaa38331",
+      "date": "2026-10-28T08:33:46+01:00",
+      "category": "features",
+      "title": "Assistant IA et plusieurs fournisseurs de modèles",
+      "summary": "Des aides à la rédaction et à la recherche configurables.",
+      "changes": [
+        "Profils OpenAI, LM Studio, Ollama, DeepSeek, Anthropic, Grok et Gemini.",
+        "Test de connexion, catalogue de modèles, clés chiffrées et choix du fournisseur par défaut.",
+        "Aides à la rédaction des tickets et recherche dans les tickets accessibles."
+      ]
+    },
+    {
+      "revision": "fb7862e66981eac47339d6965238e3038617e73e",
+      "date": "2026-10-28T08:13:07+01:00",
+      "category": "features",
+      "title": "Équipes partagées entre les projets",
+      "summary": "Organiser les collaborateurs et le travail collectif.",
+      "changes": [
+        "Équipes avec membres et associations à plusieurs projets.",
+        "Tickets attribués à une équipe tout en conservant un responsable individuel ; filtres et rapports par équipe."
+      ]
+    },
+    {
+      "revision": "3f181b3e5d1352203de2a16d2769c37e8c5b5639",
+      "date": "2026-10-28T07:49:11+01:00",
+      "category": "features",
+      "title": "Dépôts partagés et suivi du développement",
+      "summary": "Relier les tickets aux modifications du code.",
+      "changes": [
+        "Association de dépôts aux projets et réutilisation des connexions Git.",
+        "Branches, commits et pull requests liés aux clés de tickets ; déclenchements d’automatisation Git."
+      ]
+    },
+    {
+      "revision": "4ca7b47e6f5db6c4f04345aac768ae8949ebd7bf",
+      "date": "2026-10-28T07:09:45+01:00",
+      "category": "features",
+      "title": "Découverte et configuration des dépôts Git",
+      "summary": "Sélectionner les dépôts accessibles avec le jeton fourni.",
+      "changes": [
+        "Vérification du jeton, découverte des dépôts et sélection de plusieurs connexions.",
+        "Réouverture des paramètres existants sans réafficher les secrets enregistrés."
+      ]
+    },
+    {
+      "revision": "918d375df39258085c5299f7b20742db8c4e23ee",
+      "date": "2026-10-27T23:47:34+01:00",
+      "category": "interface",
+      "title": "Guides de connexion des fournisseurs Git",
+      "summary": "Des instructions adaptées au fournisseur choisi.",
+      "changes": [
+        "Aide spécifique pour les jetons, URL et autorisations de GitHub et Bitbucket."
+      ]
+    },
+    {
+      "revision": "757019d66a23fe0ed47ac40462aad868c051828c",
+      "date": "2026-10-27T23:33:02+01:00",
+      "category": "interface",
+      "title": "Réinitialisation des filtres au bon moment",
+      "summary": "Une barre de filtres plus claire.",
+      "changes": [
+        "Lien Réinitialiser visible uniquement lorsqu’un filtre est actif."
+      ]
+    },
+    {
+      "revision": "6e606d9cd5767039ecacb773736b5e0bd4f52702",
+      "date": "2026-10-27T23:32:01+01:00",
+      "category": "interface",
+      "title": "Suppression de l’avatar redondant dans l’en-tête",
+      "summary": "Un accès au profil conservé dans le menu latéral.",
+      "changes": [
+        "Retrait du second avatar placé à côté de la cloche."
+      ]
+    },
+    {
+      "revision": "d1c91311c1d27cfbc02e594253446765baed50e9",
+      "date": "2026-10-27T23:31:24+01:00",
+      "category": "features",
+      "title": "Photos de profil privées",
+      "summary": "Personnaliser son avatar avec un aperçu avant sauvegarde.",
+      "changes": [
+        "Ajout, remplacement et suppression d’une photo de profil.",
+        "Accès authentifié aux images et retour possible aux initiales."
+      ]
+    },
+    {
+      "revision": "4ce78c2f7ee9cc949ad904bb8964b30f0104d134",
+      "date": "2026-10-27T23:26:27+01:00",
+      "category": "features",
+      "title": "Identité et logo de l’entreprise",
+      "summary": "Personnaliser les principaux points d’entrée de l’espace.",
+      "changes": [
+        "Nom, sous-titre, symbole et logo de la société modifiables par un administrateur.",
+        "Identité partagée entre connexion, navigation et formulaires externes."
+      ]
+    },
+    {
+      "revision": "bce3233d5a95e536b40c3a8366c4ca22f296a189",
+      "date": "2026-10-27T23:20:02+01:00",
+      "category": "fixes",
+      "title": "Gestes de planification dans la chronologie",
+      "summary": "Déplacer ou redimensionner une période sans ouvrir le ticket.",
+      "changes": [
+        "Séparation des gestes de déplacement/redimensionnement et du clic de consultation."
+      ]
+    },
+    {
+      "revision": "dbcc42a8ecf5eb1d8770fc0300a6cc436c4f08d2",
+      "date": "2026-10-27T23:16:17+01:00",
+      "category": "interface",
+      "title": "Menu latéral repliable",
+      "summary": "Gagner de la place tout en gardant les repères de navigation.",
+      "changes": [
+        "Bouton de repli/dépli vers un menu d’icônes et conservation de cette préférence."
+      ]
+    },
+    {
+      "revision": "0e4c8ea24d91df12a907a07b3dec60835b6454fd",
+      "date": "2026-10-27T23:12:29+01:00",
+      "category": "features",
+      "title": "Avancement et conversation enrichie",
+      "summary": "Suivre la réalisation et partager le contexte dans les tickets.",
+      "changes": [
+        "Avancement manuel de 0 à 100 %.",
+        "Éditeur enrichi, collage d’images et glisser-déposer de pièces jointes privées.",
+        "Gestion des fichiers sélectionnés et action d’archivage explicite."
+      ]
+    },
+    {
+      "revision": "a7475e13e6b4987745fefd9a96e8882774ccebb3",
+      "date": "2026-10-27T22:59:08+01:00",
+      "category": "fixes",
+      "title": "Repères de jours et semaines dans la chronologie",
+      "summary": "Lire plus précisément les périodes de planification.",
+      "changes": [
+        "Grille de jours, semaines ISO numérotées et repères calendaires.",
+        "Astérisques des champs requis alignés avec leurs libellés."
+      ]
+    },
+    {
+      "revision": "704420ef4971454b4ed00ded6036de96ccb7d67c",
+      "date": "2026-10-27T15:26:32+01:00",
+      "category": "features",
+      "title": "Gestion par MCP et automatisations",
+      "summary": "Piloter Sillage depuis un assistant ou des règles internes.",
+      "changes": [
+        "Serveur MCP authentifié pour les projets, tickets, formulaires et règles.",
+        "Clés personnelles avec droits, expiration, dernier usage et suppression.",
+        "Automatisations déclenchées par les événements des tickets."
+      ]
+    },
+    {
+      "revision": "7ae30381e38684b46a755fb022ac130cf064f5b1",
+      "date": "2026-10-27T05:19:39+01:00",
+      "category": "fixes",
+      "title": "Installation indépendante de l’entreprise d’origine",
+      "summary": "Des libellés et exemples adaptés à d’autres entreprises.",
+      "changes": [
+        "Retrait des références fixes à une société dans le projet et ses tests."
+      ]
+    },
+    {
+      "revision": "561cb997307705ae2003354656773f533f5f495b",
+      "date": "2026-10-27T05:15:25+01:00",
+      "category": "features",
+      "title": "Société et domaines d’inscription configurables",
+      "summary": "Réutiliser une installation indépendante pour une autre entreprise.",
+      "changes": [
+        "Nom de société et domaines autorisés fournis par la configuration.",
+        "Restriction des inscriptions configurable par installation."
+      ]
+    },
+    {
+      "revision": "967291e6e5d903d76094cc84dddabbc9da0673ed",
+      "date": "2026-10-27T00:36:05+01:00",
+      "category": "features",
+      "title": "Utilisateurs, équipes et estimation horaire",
+      "summary": "Des premiers outils d’administration et de suivi de charge.",
+      "changes": [
+        "Gestion des collaborateurs, rôles et équipes depuis les paramètres.",
+        "Estimation des tâches en heures.",
+        "Connexion MySQL externe configurable par le fichier d’environnement."
+      ]
+    },
+    {
+      "revision": "6da1e51316ec38d47d0119cf9fc66ec50f7f9598",
+      "date": "2026-10-26T21:02:57+01:00",
+      "category": "fixes",
+      "title": "Configuration locale et identité des processus",
+      "summary": "Un démarrage local plus fiable.",
+      "changes": [
+        "Validation des clés de configuration d’exécution.",
+        "Contrôle de l’identité des processus gérés par les scripts locaux."
+      ]
+    },
+    {
+      "revision": "9a46f49377975fd96fdd1b93bb2e7babdbf71253",
+      "date": "2026-10-26T20:57:12+01:00",
+      "category": "features",
+      "title": "Première base fonctionnelle de Sillage",
+      "summary": "Un espace de gestion de tickets en PHP MVC, MySQL et Apache.",
+      "changes": [
+        "Projets, tickets, commentaires, pièces jointes privées, relations et archivage.",
+        "Listes, tableaux, chronologie, dashboard, rapports, filtres et vues personnelles.",
+        "Formulaires externes, import/export CSV et JSON, premières connexions Git.",
+        "Comptes avec validation d’adresse, rôles et thèmes clair/sombre."
+      ]
+    }
+  ]
+}

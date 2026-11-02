@@ -403,6 +403,7 @@ try {
     require __DIR__ . '/appearance.php';
     require __DIR__ . '/workflow_notifications.php';
     require __DIR__ . '/tracking.php';
+    require __DIR__ . '/application_history.php';
 } finally {
     DB::connection()->rollBack();
 }

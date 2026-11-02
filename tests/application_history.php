@@ -1,0 +1,20 @@
+<?php
+use App\Services\ApplicationHistory;
+$applicationDocument=json_decode(file_get_contents(ROOT.'/resources/application-history.json'),true,64,JSON_THROW_ON_ERROR);
+$applicationCatalog=ApplicationHistory::catalog();
+check($applicationCatalog['entries'][0]['version']===$applicationCatalog['current_version'],'journal décrit en tête la version du code installé');
+check(count(array_filter($applicationCatalog['entries'],fn($entry)=>isset($entry['revision'])))>=42,'historique antérieur conservé avec références Git complètes');
+$applicationFixture=['schema'=>1,'current_version'=>'1.2.3','entries'=>[['version'=>'1.2.3','date'=>'2026-11-02','category'=>'features','title'=>'Une amélioration','summary'=>'Une description lisible.','changes'=>['Une fonctionnalité réellement livrée.']]]];
+$applicationBad=$applicationFixture;$applicationBad['current_version']='autre';rejects(fn()=>ApplicationHistory::validate($applicationBad),'numéro de version mal formé refusé');
+$applicationBad=$applicationFixture;$applicationBad['current_version']='1.2.4';rejects(fn()=>ApplicationHistory::validate($applicationBad),'version installée incohérente avec sa première entrée refusée');
+$applicationBad=$applicationFixture;$applicationBad['entries'][]=$applicationBad['entries'][0];rejects(fn()=>ApplicationHistory::validate($applicationBad),'doublon de version refusé');
+$applicationBad=$applicationFixture;$applicationBad['entries'][0]['revision']=str_repeat('a',40);rejects(fn()=>ApplicationHistory::validate($applicationBad),'version numérotée et révision historique ne sont pas confondues');
+$applicationBad=$applicationFixture;$applicationBad['entries'][0]['date']='2026-02-30';rejects(fn()=>ApplicationHistory::validate($applicationBad),'date inexistante refusée');
+$applicationBad=$applicationFixture;$applicationBad['entries'][0]['changes']=[];rejects(fn()=>ApplicationHistory::validate($applicationBad),'entrée sans amélioration décrite refusée');
+$applicationBad=$applicationFixture;$applicationBad['entries'][0]['category']='autre';rejects(fn()=>ApplicationHistory::validate($applicationBad),'catégorie inconnue refusée');
+$applicationBad=$applicationFixture;$applicationBad['entries'][]=array_replace($applicationBad['entries'][0],['version'=>'1.3.0']);rejects(fn()=>ApplicationHistory::validate($applicationBad),'versions numérotées désordonnées refusées');
+$applicationGood=$applicationFixture;$applicationGood['entries'][0]['id']='id falsifié';$applicationGood['entries'][0]['date_label']='date falsifiée';
+$applicationParsed=ApplicationHistory::validate($applicationGood);
+check($applicationParsed['entries'][0]['id']==='version-1.2.3' && $applicationParsed['entries'][0]['date_label']==='02/11/2026','identité et date affichée proviennent du propriétaire des données');
+$applicationGood=$applicationFixture;$applicationGood['entries'][0]['date']='2026-10-26T23:30:00+00:00';
+check(ApplicationHistory::validate($applicationGood)['entries'][0]['day']==='2026-10-27','dates historiques converties en Europe Paris');

@@ -130,6 +130,8 @@ La conversation propose les **@mentions** avec choix explicite d’un collaborat
 
 Le suivi des [temps, de l’historique détaillé, des résolutions et des versions/livraisons](docs/temps-historique-livraisons.md) est disponible dans la fiche ticket et le menu du projet. Le reste à faire utilise l’estimation totale et le pourcentage d’avancement. La validation avant clôture est configurable par projet. Les livraisons préproduction/production sont déclarées explicitement, sans les déduire d’une fusion Git.
 
+Les administrateurs retrouvent la version du logiciel et les fonctionnalités livrées dans **Paramètres → Versions et améliorations**. Le [journal des versions de Sillage](docs/versions-application.md) accompagne le code et conserve l’historique des évolutions.
+
 ## Structure MVC
 
 ```text

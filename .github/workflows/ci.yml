@@ -50,6 +50,8 @@ jobs:
           /tmp/sillage-mcp-sdk/bin/pip install -r tests/requirements-mcp.txt
       - name: Vérifier la syntaxe PHP
         run: find app public routes bin tests database -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Vérifier l’historique des versions
+        run: php bin/console.php history:check
       - name: Tester les contrats MySQL
         run: php tests/run.php
       - name: Tester les workflows HTTP
