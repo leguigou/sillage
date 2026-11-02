@@ -2,6 +2,70 @@
 (() => {
   'use strict';
   if (location.pathname !== '/settings') return;
+  const settingsPage=document.querySelector('[data-settings-page]');
+  const tablist=settingsPage?.querySelector('[data-settings-tabs]');
+  const panelHost=settingsPage?.querySelector('[data-settings-panels]');
+  if(tablist && panelHost) {
+    // The navigation owns the groups; move existing nodes to preserve drafts and handlers.
+    const tabs=[...tablist.querySelectorAll('a[href^="#"]')];
+    const panels=new Map();
+    tablist.setAttribute('role','tablist');
+    tabs.forEach(tab=>{
+      const id=tab.hash.slice(1), section=document.getElementById(id);
+      if(!section) return;
+      const panel=document.createElement('div');
+      panel.id='settings-panel-'+id;panel.className='settings-tab-panel';panel.dataset.settingsPanel=id;
+      panel.setAttribute('role','tabpanel');panel.setAttribute('tabindex','0');panel.hidden=true;
+      tab.id='settings-tab-'+id;tab.setAttribute('role','tab');tab.setAttribute('aria-controls',panel.id);
+      panel.setAttribute('aria-labelledby',tab.id);
+      panel.append(section);
+      for(const extraId of (tab.dataset.settingsExtra||'').split(' ').filter(Boolean)) {
+        const extra=document.getElementById(extraId);
+        if(extra) panel.append(extra);
+      }
+      panelHost.append(panel);panels.set(id,panel);
+    });
+    const available=tabs.filter(tab=>panels.has(tab.hash.slice(1)));
+    function select(id) {
+      if(!panels.has(id)) return;
+      panels.forEach((panel,key)=>panel.hidden=key!==id);
+      available.forEach(tab=>{
+        const active=tab.hash==='#'+id;
+        tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+      });
+    }
+    function fromHash() {
+      let target;
+      try {target=document.getElementById(decodeURIComponent(location.hash.slice(1)));} catch {}
+      const id=target?.closest('[data-settings-panel]')?.dataset.settingsPanel;
+      select(id||'profile');
+    }
+    available.forEach((tab,index)=>{
+      function open() {
+        select(tab.hash.slice(1));
+        if(location.hash!==tab.hash) history.pushState(null,'',tab.hash);
+        tablist.scrollIntoView({block:'start',behavior:'instant'});
+      }
+      tab.addEventListener('click',event=>{
+        if(event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();open();
+      });
+      tab.addEventListener('keydown',event=>{
+        let next;
+        if(event.key==='ArrowRight') next=(index+1)%available.length;
+        else if(event.key==='ArrowLeft') next=(index+available.length-1)%available.length;
+        else if(event.key==='Home') next=0;
+        else if(event.key==='End') next=available.length-1;
+        else return;
+        event.preventDefault();available[next].click();available[next].focus({preventScroll:true});
+      });
+    });
+    const grid=settingsPage.querySelector('.settings-grid');
+    if(grid && !grid.children.length) grid.remove();
+    settingsPage.classList.add('settings-tabs-ready');
+    window.addEventListener('hashchange',fromHash);window.addEventListener('popstate',fromHash);
+    fromHash();
+  }
   const busy = new Set();
   const regions = new Set(['profile','company','email-preferences','notifications','mcp','oauth','teams','users','llm','appearance','workflow']);
   function updateRegion(id, page) {
