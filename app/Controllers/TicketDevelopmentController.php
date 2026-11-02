@@ -28,7 +28,8 @@ final class TicketDevelopmentController
         [, $connection]=$this->connection($ticket);
         $page=filter_var($_POST['page']??1,FILTER_VALIDATE_INT);
         if ($page===false) throw new \InvalidArgumentException('Page de branches invalide.');
-        json_response(Development::branches($connection,$page));
+        $search=$_POST['search']??'';if(!is_string($search)) throw new \InvalidArgumentException('Recherche de branches invalide.');
+        json_response(\App\Services\GitBranchCatalog::page($connection,$page,$search,($_POST['refresh']??'')==='1'));
     }
     public function link(string $ticket): void
     {

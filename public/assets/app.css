@@ -3621,3 +3621,7 @@ section[aria-busy='true'] { cursor: progress; }
 .ticket-linked-branch{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
 .ticket-linked-branch strong{font-size:12px;overflow-wrap:anywhere}.ticket-linked-branch small{display:block;font-size:11px;color:var(--subtle);margin-top:4px}
 #ticket-branch-dialog .modal-actions,#ticket-branch-dialog .ticket-development-actions{margin:0}#ticket-branch-dialog .help-text{margin:0}
+
+.branch-search{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px}.branch-search label{margin:0}.branch-search>.button{min-height:40px}
+.branch-manual label{margin-top:12px}#ticket-branch-dialog select[name="branch_name"]{width:100%;text-overflow:ellipsis}
+@media(max-width:500px){.branch-search{grid-template-columns:1fr}.branch-search>.button{justify-self:start}}

@@ -82,11 +82,11 @@ final class Development
         return ['repositories'=>$repositories,'page'=>$page,'has_more'=>$more];
     }
 
-    private static function http(string $provider, string $token, string $path, int $timeout,array $context=[]): array
+    private static function http(string $provider, string $token, string $path, int $timeout,array $context=[],?array $payload=null): array
     {
         $base = match ($provider) { 'github'=>'https://api.github.com', 'bitbucket'=>'https://api.bitbucket.org', default=>throw new \InvalidArgumentException('Fournisseur invalide.') };
         $url = $base . $path;
-        return TechnicalLog::outgoing('development',$provider,'GET',$url,function(array &$trace) use($url,$token,$timeout): array {
+        return TechnicalLog::outgoing('development',$provider,$payload===null?'GET':'POST',$url,function(array &$trace) use($url,$token,$timeout,$payload): array {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
@@ -99,6 +99,11 @@ final class Development
                 CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
                 CURLOPT_PROTOCOLS_STR => 'https',
             ]);
+            if($payload!==null) {
+                $encoded=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+                curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$encoded,CURLOPT_HTTPHEADER=>['Accept: application/json','Content-Type: application/json','Authorization: Bearer '.$token]]);
+                $trace['request_bytes']=strlen($encoded);
+            }
             if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
                 curl_setopt($ch, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
             }
@@ -133,6 +138,7 @@ final class Development
             if (!is_array($data)) {
                 throw new \InvalidArgumentException('Réponse du fournisseur invalide.');
             }
+            if($payload!==null && !empty($data['errors'])) throw new \InvalidArgumentException('GitHub a refusé le catalogue GraphQL. Vérifiez les droits de lecture du contenu et du dépôt.');
             return $data;
         },$context);
     }
@@ -158,19 +164,14 @@ final class Development
         return count($events);
     }
 
-    public static function branches(array $connection,int $page): array
+    public static function githubBranchRefs(array $connection,string $search,?string $cursor,int $timeout): array
     {
-        if ($page<1 || $page>10000) throw new \InvalidArgumentException('Page de branches invalide.');
-        $github=$connection['provider']==='github';
-        $response=self::request($connection,$github?'branches?per_page=50&page='.$page:'refs/branches?pagelen=50&page='.$page,10);
-        $items=$github?$response:($response['values']??null);
-        if (!is_array($items) || !array_is_list($items) || count($items)>50) throw new \InvalidArgumentException('Catalogue de branches invalide.');
-        $branches=[];
-        foreach($items as $item) {
-            if (!is_array($item)) throw new \InvalidArgumentException('Branche invalide dans le catalogue.');
-            $branches[]=DevelopmentPayload::branchName($item['name']??null);
-        }
-        return ['branches'=>$branches,'page'=>$page,'has_more'=>$github?count($items)===50:is_string($response['next']??null) && $response['next']!==''];
+        if($connection['provider']!=='github') throw new \InvalidArgumentException('Ce catalogue est réservé à GitHub.');
+        [$owner,$repo]=explode('/',self::repository('github',$connection['repository']));
+        $query= <<<'GQL'
+query SillageBranches($owner:String!,$repository:String!,$after:String,$search:String){repository(owner:$owner,name:$repository){refs(refPrefix:"refs/heads/",first:100,after:$after,query:$search,orderBy:{field:ALPHABETICAL,direction:ASC}){nodes{name target{... on Commit{committedDate}}}pageInfo{hasNextPage endCursor}}}}
+GQL;
+        return self::http('github',Security::decrypt($connection['secret_cipher']),'/graphql',$timeout,['connection_id'=>$connection['id']],['query'=>$query,'variables'=>['owner'=>$owner,'repository'=>$repo,'after'=>$cursor,'search'=>$search===''?null:$search]]);
     }
     public static function branch(array $connection,string $name): array
     {
