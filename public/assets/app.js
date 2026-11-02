@@ -30,6 +30,7 @@ function updateAppearancePicker(picker) {
 function initAppearancePickers(root = document) { $$('[data-appearance-picker]',root).forEach(updateAppearancePicker); }
 initAppearanceMarks();
 initAppearancePickers();
+document.addEventListener('sillage:dialog-discarded',event=>{initAppearancePickers(event.target);initAppearanceMarks(event.target);});
 document.addEventListener('input',event => {
   const picker = event.target.closest('[data-appearance-picker]');
   if(picker) updateAppearancePicker(picker);
@@ -100,20 +101,12 @@ function openDialog(id) {
   const dialog = document.getElementById(id);
   if (dialog) {
     $$('.dropdown[open]').forEach((d) => (d.open = false));
-    dialog.showModal();
-    setTimeout(
-      () => $('input:not([type="hidden"]):not(:disabled),textarea,select', dialog)?.focus(),
-      30,
-    );
+    window.SillageDialogs.show(dialog);
   }
 }
 document.addEventListener('click', (event) => {
   const opener = event.target.closest('[data-open]');
   if (opener) openDialog(opener.dataset.open);
-  const closer = event.target.closest('[data-close]');
-  if (closer) closer.closest('dialog')?.close();
-  const confirm = event.target.closest('[data-confirm]');
-  if (confirm && !window.confirm(confirm.dataset.confirm)) event.preventDefault();
   const copy = event.target.closest('[data-copy],[data-copy-target]');
   if (copy) {
     const value = copy.dataset.copyTarget ? document.getElementById(copy.dataset.copyTarget)?.value : copy.dataset.copy;
@@ -136,12 +129,6 @@ document.addEventListener('click', (event) => {
     input.type = input.type === 'password' ? 'text' : 'password';
     button.textContent = input.type === 'password' ? 'Afficher' : 'Masquer';
   }
-});
-document.addEventListener('click',event=>{
-  const dialog=event.target;
-  if(!dialog.matches?.('dialog')) return;
-  const box=dialog.getBoundingClientRect();
-  if(event.clientX<box.left || event.clientX>box.right || event.clientY<box.top || event.clientY>box.bottom) dialog.close();
 });
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -341,7 +328,7 @@ document.addEventListener('submit',async event=>{
     $$('[data-edit-project]').filter(opener=>opener.dataset.editProject===String(project.id)).forEach(opener=>{
       if(opener.closest('.settings-project-row')) opener.setAttribute('aria-label','Modifier le projet '+project.name);
     });
-    initAppearanceMarks();form.closest('dialog').close();toast('Projet enregistré.');
+    initAppearanceMarks();window.SillageDialogs.complete(form.closest('dialog'));toast('Projet enregistré.');
   } catch(error) { toast(error.message || 'Connexion interrompue. Vérifiez l’état avant de réessayer.',true); }
   finally { form.removeAttribute('aria-busy');button.disabled=false; }
 });
@@ -366,7 +353,7 @@ $$('[data-quick-field]').forEach((input) =>
 );
 $$('[data-edit-field]').forEach((button) =>
   button.addEventListener('click', async () => {
-    const title = prompt('Nouveau résumé', button.dataset.value);
+    const title = await window.SillageDialogs.prompt({title:'Modifier le résumé',label:'Résumé',value:button.dataset.value,maxLength:240,accept:'Enregistrer'});
     if (!title || title === button.dataset.value) return;
     try {
       await quick(button.closest('[data-ticket-id]'), 'title', title);
@@ -482,6 +469,7 @@ function savePreferences() {
     localStorage.setItem('sillage.preferences', JSON.stringify(preferences));
   } catch {}
   applyPreferences();
+  const dialog=$('#view-options-dialog');if(dialog?.open) window.SillageDialogs.commit(dialog);
 }
 $$('[data-preference]').forEach((el) =>
   el.addEventListener('change', () => {
@@ -913,6 +901,7 @@ $$('[data-connect-repositories]').forEach((form) => {
     discoveryStatus.textContent = ''; selectedCount();
     $('[data-bitbucket-workspace]', form).hidden = provider.value !== 'bitbucket';
   };
+  dialog.addEventListener('sillage:dialog-discarded',()=>{lastProvider=provider.value;resetDiscovery();});
   token.addEventListener('input', resetDiscovery); workspace.addEventListener('input', resetDiscovery);
   const providerChanged = () => { if (provider.value !== lastProvider) { lastProvider = provider.value; resetDiscovery(); } };
   provider.addEventListener('change', providerChanged); provider.addEventListener('provider-selected', providerChanged);
@@ -1007,13 +996,14 @@ $$('[data-connection-update]').forEach((form) => form.addEventListener('submit',
   const button = $('button', form), input = $('[name="token"]', form), status = $('[data-update-status]', form);
   if (button.disabled) return;
   button.disabled = true; input.disabled = true; status.classList.remove('danger');
+  form.setAttribute('aria-busy','true');
   status.textContent = input.value.trim() ? 'Vérification du nouveau jeton…' : 'Conservation du jeton enregistré…';
   try {
     const result = await post(form.action, { token: input.value.trim() });
     input.value = '';
     status.textContent = result.preserved ? 'Le jeton enregistré a été conservé.' : 'Le nouveau jeton a été vérifié et enregistré.';
   } catch (error) { status.textContent = error.message; status.classList.add('danger'); }
-  finally { button.disabled = false; input.disabled = false; }
+  finally { button.disabled = false; input.disabled = false;form.removeAttribute('aria-busy'); }
 }));
 
 $$('[data-development-open]').forEach((button) => button.addEventListener('click', () => {

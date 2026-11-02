@@ -20,6 +20,7 @@
   function fromHash() {
     const target=document.getElementById(location.hash.slice(1));
     const panel=target?.closest('[data-ticket-panel]');
+    if(['ticket-edit-dialog','ticket-comment-dialog'].includes(target?.id)) window.SillageDialogs.show(target);
     select(panel?.id||'ticket-overview');
     if(target?.matches('details')) target.open=true;
     if(panel) requestAnimationFrame(()=>target.scrollIntoView({block:'start',behavior:'instant'}));
@@ -43,10 +44,7 @@
     event.preventDefault();
     const dialog=document.getElementById('ticket-comment-dialog');
     if(!dialog) return;
-    dialog.showModal();
-    const composer=dialog.querySelector('[data-composer]');
-    const editor=composer?.classList.contains('enhanced')?composer.querySelector('.conversation-editor'):composer?.querySelector('textarea');
-    editor?.focus({preventScroll:true});
+    window.SillageDialogs.show(dialog);
   });
   window.addEventListener('hashchange',fromHash);fromHash();
 })();

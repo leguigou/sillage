@@ -6,7 +6,7 @@
     if(!form.matches('[data-tracking-form]') || event.defaultPrevented) return;
     event.preventDefault();
     if(busy) return;
-    if(event.submitter?.dataset.trackingConfirm && !confirm(event.submitter.dataset.trackingConfirm)) return;
+    if(event.submitter?.dataset.trackingConfirm && !await window.SillageDialogs.confirm(event.submitter.dataset.trackingConfirm)) return;
     const body=new FormData(form);
     if(event.submitter?.name) body.set(event.submitter.name,event.submitter.value);
     const buttons=[...form.querySelectorAll('button')].filter(button=>!button.disabled);

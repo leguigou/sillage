@@ -134,6 +134,8 @@ Les administrateurs retrouvent la version du logiciel et les fonctionnalités li
 
 **Paramètres → Journaux techniques** centralise les appels API/MCP entrants, les webhooks et les échanges sortants GitHub, Bitbucket et IA : durée, statut, erreurs, corrélation et filtres, sans conserver les corps ni les jetons. Voir [la couverture et la conservation des journaux](docs/journaux-techniques.md).
 
+Les [modales et actions des listes](docs/modales-et-listes.md) protègent les saisies non enregistrées. Les trois points d’un ticket donnent accès à son édition ; l’échéance et l’estimation restent en lecture seule dans la liste.
+
 ## Structure MVC
 
 ```text

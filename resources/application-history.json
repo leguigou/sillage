@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.1.0",
+  "current_version": "1.2.0",
   "entries": [
+    {
+      "version": "1.2.0",
+      "date": "2026-11-02",
+      "category": "interface",
+      "title": "Listes plus lisibles et protection des saisies en modale",
+      "summary": "Des actions regroupées par ticket et une confirmation avant d’abandonner une saisie.",
+      "changes": [
+        "Échéance et estimation affichées en lecture seule dans les listes ; modification depuis l’édition du ticket.",
+        "Menu d’actions aux trois points : ouvrir, modifier, commenter, copier le lien, historique et développement.",
+        "Confirmation dans l’interface avant de fermer une modale contenant des changements non enregistrés.",
+        "Fermeture directe sans changement et remplacement des confirmations et saisies natives du navigateur par des modales du site."
+      ]
+    },
     {
       "version": "1.1.0",
       "date": "2026-11-02",

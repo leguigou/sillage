@@ -22,7 +22,7 @@
       $('[data-llm-key-help]',config).textContent=(spec.local?'Facultatif si votre serveur ne demande pas d’authentification. ':'Clé API propre à ce fournisseur. ')+(current?'Champ vide : conserve la clé uniquement si le fournisseur et l’URL restent identiques.':'Collez la clé seule, sans « Bearer ».');
     }
     function lock(value) {
-      busy=value;
+      busy=value;config.setAttribute('aria-busy',String(value));
       $$('input,select,button',config).forEach(el=>el.disabled=value);
       if (!value) { model.disabled=!proof;save.disabled=!proof; }
     }
@@ -33,7 +33,7 @@
       $('[name=make_default]',config).checked=!!Number(profile?.is_default||0);
       invalidate();
       if(profile) model.replaceChildren(new Option(profile.model,profile.model,true,true));
-      hints();configDialog.showModal();
+      hints();window.SillageDialogs.show(configDialog);
     }
     document.addEventListener('click',event=>{
       if(event.target.closest('[data-llm-new]')) open();
@@ -62,7 +62,7 @@
       event.preventDefault();if(!proof || !config.reportValidity())return;
       const input={proof,name:$('[name=name]',config).value,model:model.value,enabled:$('[name=enabled]',config).checked?'1':'',make_default:$('[name=make_default]',config).checked?'1':''};
       lock(true);status.textContent='Enregistrement du profil…';
-      try { await post('/llm/profiles',input);configDialog.close();lock(false);await window.SillageSettings.refresh('llm');toast('Profil enregistré.'); }
+      try { await post('/llm/profiles',input);window.SillageDialogs.complete(configDialog);lock(false);await window.SillageSettings.refresh('llm');toast('Profil enregistré.'); }
       catch(error){status.textContent=error.message;lock(false);}
     });
   }
@@ -78,7 +78,7 @@
     target=field;original=field?(field.isContentEditable?field.innerHTML:field.value):'';
     mode.value=field?(field.isContentEditable?'rewrite':'draft'):'search';
     text.value=field?(field.isContentEditable?field.innerText:(field.form?.querySelector('[name=title]')?.value||'')+'\n'+field.value):'';
-    resetResult();syncMode();dialog.showModal();
+    resetResult();syncMode();window.SillageDialogs.show(dialog);
   }
   $$('[data-llm-open]').forEach(button=>button.addEventListener('click',()=>open()));
   if(document.body.dataset.role!=='viewer') {
@@ -94,7 +94,7 @@
   dialog.addEventListener('cancel',event=>{if(pending)event.preventDefault();});
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(pending || !form.reportValidity())return;
-    resetResult();pending=true;
+    resetResult();pending=true;form.setAttribute('aria-busy','true');
     const input={mode:mode.value,text:text.value,project_id:$('[name=project_id]',form).value,profile_id:dialog.dataset.llmProfile,profile_version:dialog.dataset.llmVersion};
     $$('button,input,textarea,select',form).forEach(el=>el.disabled=true);
     status.textContent='Le modèle prépare une proposition…';
@@ -108,7 +108,7 @@
       status.textContent=answer.sent?'Proposition reçue. Relisez-la avant utilisation.':'Aucun texte envoyé au modèle.';
       syncMode();
     } catch(error) { status.textContent=error.message; }
-    finally { pending=false;$$('button,input,textarea,select',form).forEach(el=>el.disabled=false); }
+    finally { pending=false;form.removeAttribute('aria-busy');$$('button,input,textarea,select',form).forEach(el=>el.disabled=false); }
   });
   apply.addEventListener('click',()=>{
     if(!target || !output.value)return;
@@ -118,7 +118,7 @@
       if(target.innerText.length+output.value.length>10000){status.textContent='Le commentaire dépasserait 10 000 caractères. Copiez une version plus courte.';return;}
       const paragraph=document.createElement('p');paragraph.textContent=output.value;target.append(paragraph);
     } else target.value=output.value;
-    target.dispatchEvent(new Event('input',{bubbles:true}));dialog.close();target.focus();
+    target.dispatchEvent(new Event('input',{bubbles:true}));window.SillageDialogs.complete(dialog);target.focus();
   });
   }
   initializeAssistant();

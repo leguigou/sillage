@@ -15,3 +15,7 @@ Le guide de fonctionnement et de maintenance est dans `docs/versions-application
 ## Journaux techniques
 
 Les appels HTTP sortants des intégrations passent par `App\Services\TechnicalLog::outgoing`, en transmettant uniquement les faits de transport. Les appels entrants sont suivis au front controller ; le routeur, MCP et les webhooks fournissent leurs identités contrôlées. Réutiliser cet identifiant de corrélation et la connexion autocommit indépendante du journal. Ne jamais transmettre de corps, en-têtes, jetons, cookies, paramètres d’URL ni messages d’exception bruts au journal. Préserver le résultat et les erreurs métier si l’écriture du journal échoue. Voir `docs/journaux-techniques.md` pour la couverture, la rétention et les limites.
+
+## Modales et confirmations
+
+Utiliser `window.SillageDialogs` pour ouvrir une modale, demander sa fermeture et confirmer une action. Attendre les promesses de `confirm` et `prompt` ; ne pas réintroduire `window.confirm`, `window.prompt` ou des fermetures directes qui ignorent les brouillons. `complete` est réservé à une sauvegarde/insertion réussie, `commit` aux préférences déjà enregistrées. Les producteurs réconcilient leurs aperçus et sélections sur `sillage:dialog-discarded`. Le composant et ses limites sont décrits dans `docs/modales-et-listes.md`.

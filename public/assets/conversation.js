@@ -130,11 +130,13 @@ $$('[data-composer]').forEach((composer) => {
   $('input[name="body_format"]', composer).value = 'html';
   $$('[data-command]', composer).forEach((button) => {
     button.addEventListener('mousedown', (event) => event.preventDefault());
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       editor.focus();
       let value = null;
       if (button.dataset.command === 'createLink') {
-        value = prompt('Adresse du lien (https://…)');
+        const selection=window.getSelection(),range=selection.rangeCount?selection.getRangeAt(0).cloneRange():null;
+        value = await window.SillageDialogs.prompt({title:'Ajouter un lien',label:'Adresse du lien',message:'Utilisez une adresse https:// ou http://.',value:'https://',maxLength:2048,accept:'Insérer le lien'});
+        editor.focus();if(range){selection.removeAllRanges();selection.addRange(range);}
         if (!value) return;
         try { if (!['http:', 'https:'].includes(new URL(value).protocol)) throw new Error(); }
         catch { status.textContent = 'Utilisez une adresse http:// ou https:// valide.'; return; }
@@ -154,7 +156,7 @@ $$('[data-composer]').forEach((composer) => {
     if (uploading) { status.textContent = 'Attendez la fin de l’envoi précédent.'; return; }
     const selection = window.getSelection();
     pasteRange = selection.rangeCount && editor.contains(selection.anchorNode) ? selection.getRangeAt(0).cloneRange() : null;
-    uploading = true; status.textContent = 'Ajout des images aux pièces jointes…';
+    uploading = true;form.setAttribute('aria-busy','true'); status.textContent = 'Ajout des images aux pièces jointes…';
     const submit = $('button:not([type="button"])', form);
     if (submit) submit.disabled = true;
     try {
@@ -169,7 +171,7 @@ $$('[data-composer]').forEach((composer) => {
       });
       status.textContent = result.errors.length ? result.errors.map((error) => error.message).join(' ') : 'Image ajoutée. Envoyez votre commentaire pour la publier dans la conversation.';
     } catch (error) { status.textContent = error.message; }
-    finally { uploading = false; if (submit) submit.disabled = false; }
+    finally { uploading = false;form.removeAttribute('aria-busy'); if (submit) submit.disabled = false; }
   });
   // Prevent browsers from inserting foreign drag-and-drop HTML or data URLs.
   editor.addEventListener('drop', (event) => { event.preventDefault(); status.textContent = 'Déposez vos fichiers dans la zone Pièces jointes.'; });
