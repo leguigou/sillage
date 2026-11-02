@@ -25,6 +25,59 @@
     const button=event.target.closest('[data-ticket-development-refresh]');if(!button) return;
     button.disabled=true;try {await refresh();toast('Informations reçues actualisées.');}catch(error){toast(error.message,true);}finally{if(button.isConnected) button.disabled=false;}
   });
+  let historyBusy=false;
+  const historyMessage=text=>{const node=panel().querySelector('[data-git-history-status]');if(node) node.textContent=text;};
+  function historyLock(value) {historyBusy=value;panel().querySelectorAll('[data-git-sync-branch],[data-git-sync-pr],[data-git-history-next]').forEach(button=>button.disabled=value);}
+  async function syncBranch(link,page=1) {
+    if(historyBusy) return;historyLock(true);historyMessage('Recherche des pull requests, y compris fusionnées…');
+    let result=null,failures=0,partial=false,reason='',finished=0;
+    try {
+      result=await post(endpoint+'/links/'+link+'/sync',new URLSearchParams({_csrf:csrfToken,page:String(page)}));
+      for(const id of result.pull_requests) {
+        historyMessage('Récupération des commits et fichiers · '+(++finished)+' / '+result.pull_requests.length+'…');
+        try {const data=await post(endpoint+'/pull-requests/'+id+'/sync',new URLSearchParams({_csrf:csrfToken}));partial ||= !data.commits_complete;}
+        catch(error){failures++;reason=error.message;}
+      }
+      await refresh();
+      historyMessage(!result.pull_requests.length?'Aucune pull request correspondante sur cette page.':failures?('Pull requests récupérées ; '+failures+' détail(s) à relancer. '+reason):('Historique synchronisé : '+result.pull_requests.length+' pull request(s) sur cette page.'+(partial?' Certains commits ne sont pas fournis par l’API ; consultez le fournisseur.':'')));
+      const more=panel().querySelector('[data-git-history-next]');more.hidden=!result.has_more;more.dataset.link=link;more.dataset.page=result.next_page;
+    }catch(error){historyMessage(error.message+' Les informations déjà reçues sont conservées.');}
+    finally{historyLock(false);}
+  }
+  document.addEventListener('click',async event=>{
+    const branch=event.target.closest('[data-git-sync-branch]'),more=event.target.closest('[data-git-history-next]'),pr=event.target.closest('[data-git-sync-pr]');
+    if(branch) {await syncBranch(branch.dataset.gitSyncBranch);return;}
+    if(more) {await syncBranch(more.dataset.link,Number(more.dataset.page));return;}
+    if(!pr || historyBusy) return;historyLock(true);historyMessage('Récupération des commits et fichiers de la pull request…');
+    try {const data=await post(endpoint+'/pull-requests/'+pr.dataset.gitSyncPr+'/sync',new URLSearchParams({_csrf:csrfToken}));await refresh();historyMessage(data.commits_complete?'Commits et fichiers actualisés.':'Fichiers actualisés ; la liste des commits est partielle. Consultez le fournisseur.');}
+    catch(error){historyMessage(error.message+' Les derniers détails reçus sont conservés.');}
+    finally{historyLock(false);}
+  });
+  const filesDialog=document.getElementById('git-files-dialog');
+  if(filesDialog) {
+    const title=filesDialog.querySelector('[data-git-files-title]'),message=filesDialog.querySelector('[data-git-files-status]'),list=filesDialog.querySelector('[data-git-files-list]');
+    const previous=filesDialog.querySelector('[data-git-files-previous]'),next=filesDialog.querySelector('[data-git-files-next]');
+    let fileEvent=null,filePage=1,request=null;
+    async function loadFiles(page) {
+      request?.abort();const current=new AbortController();request=current;previous.disabled=next.disabled=true;message.textContent='Chargement des fichiers…';list.replaceChildren();
+      try {
+        const response=await fetch(endpoint+'/pull-requests/'+fileEvent+'/files?page='+page,{headers:{Accept:'application/json'},cache:'no-store',signal:current.signal});
+        if(response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a expiré. Rechargez le ticket.');
+        const data=await response.json();if(!response.ok) throw new Error(data.error||'Impossible de lire les fichiers.');if(request!==current) return;
+        title.textContent=data.title;filePage=data.page;previous.hidden=filePage===1;next.hidden=!data.has_more;
+        message.textContent=data.details.file_count+' fichier(s) · page '+filePage+' · relevé du '+data.details.fetched_at+(data.stale?' · Données à actualiser depuis la pull request.':'');
+        for(const file of data.files) {
+          const row=document.createElement('article');row.className='git-file-row';
+          const info=document.createElement('div'),path=document.createElement('strong'),note=document.createElement('small');path.textContent=file.path;note.textContent=file.status+(file.previous_path?' · Ancien chemin : '+file.previous_path:'');info.append(path,note);
+          const added=document.createElement('span'),deleted=document.createElement('span');added.className='git-lines-added';deleted.className='git-lines-deleted';added.textContent=file.additions===null?'Ajouts inconnus':'+'+file.additions;deleted.textContent=file.deletions===null?'Suppressions inconnues':'−'+file.deletions;row.append(info,added,deleted);list.append(row);
+        }
+        if(!data.files.length) list.textContent='Aucun fichier modifié sur cette page.';
+      }catch(error){if(error.name!=='AbortError' && request===current) message.textContent=error.message;}
+      finally{if(request===current){request=null;previous.disabled=next.disabled=false;}}
+    }
+    document.addEventListener('click',event=>{const button=event.target.closest('[data-git-files]');if(!button) return;fileEvent=button.dataset.gitFiles;title.textContent='';previous.hidden=next.hidden=true;window.SillageDialogs.show(filesDialog);loadFiles(1);});
+    previous.addEventListener('click',()=>loadFiles(filePage-1));next.addEventListener('click',()=>loadFiles(filePage+1));filesDialog.addEventListener('close',()=>{request?.abort();request=null;list.replaceChildren();});
+  }
   document.addEventListener('submit',async event=>{
     const form=event.target;if(!form.matches('[data-ticket-branch-unlink]') || event.defaultPrevented) return;
     event.preventDefault();const button=form.querySelector('button');if(button.disabled) return;button.disabled=true;
@@ -85,9 +138,10 @@
   previous.addEventListener('click',()=>list(page-1));next.addEventListener('click',()=>list(page+1));
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(busy) return;const body=new FormData(form);if(manual.value) body.set('branch_name',manual.value);
-    listing?.abort();generation++;lock(true);status.textContent='Vérification et liaison de la branche…';let saved=false;
-    try {await post(form.getAttribute('action'),body);saved=true;manual.value='';updateRepository();window.SillageDialogs.complete(dialog);await refresh();toast('Branche liée au ticket.');}
+    listing?.abort();generation++;lock(true);status.textContent='Vérification et liaison de la branche…';let saved=false,linkedId=null;
+    try {const data=await post(form.getAttribute('action'),body);saved=true;linkedId=String(data.id);manual.value='';updateRepository();window.SillageDialogs.complete(dialog);await refresh();toast('Branche liée au ticket.');}
     catch(error){status.textContent=saved?'La branche est liée. Rechargez le ticket pour actualiser l’affichage.':error.message;if(saved) toast(status.textContent,true);}
     finally{lock(false);}
+    if(linkedId) await syncBranch(linkedId);
   });
 })();

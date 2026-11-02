@@ -45,4 +45,30 @@ final class TicketDevelopmentController
         TicketBranch::unlink((int)$ticket,(int)$link);
         json_response(['ok'=>true]);
     }
+    private function historyEditor(string $ticket): void
+    {
+        $user=Auth::editor();Ticket::find((int)$ticket);Security::limit('ticket-git:'.$user['id'],60,60);
+    }
+    public function syncBranch(string $ticket,string $link): void
+    {
+        $this->historyEditor($ticket);
+        $page=filter_var($_POST['page']??1,FILTER_VALIDATE_INT);
+        if($page===false) throw new \InvalidArgumentException('Page de pull requests invalide.');
+        json_response(\App\Services\GitPullRequest::branch((int)$ticket,(int)$link,$page));
+    }
+    public function syncPullRequest(string $ticket,string $event): void
+    {
+        $this->historyEditor($ticket);
+        json_response(\App\Services\GitPullRequest::sync((int)$ticket,(int)$event));
+    }
+    public function pullRequestFiles(string $ticket,string $event): void
+    {
+        Auth::requireUser();Ticket::find((int)$ticket);
+        $row=\App\Services\GitPullRequest::eventForTicket((int)$ticket,(int)$event);$details=$row['metadata']['details']??null;
+        if(!$details) throw new \InvalidArgumentException('Synchronisez les détails de cette pull request pour consulter ses fichiers.');
+        $page=filter_var($_GET['page']??1,FILTER_VALIDATE_INT);
+        if($page===false || $page<1 || $page>10000) throw new \InvalidArgumentException('Page de fichiers invalide.');
+        $files=$details['files'];unset($details['files'],$details['commit_shas']);
+        json_response(['title'=>$row['title'],'details'=>$details,'stale'=>$details['revision']!==\App\Services\GitPullRequest::revision($row),'files'=>array_slice($files,($page-1)*40,40),'page'=>$page,'has_more'=>$page*40<count($files)]);
+    }
 }

@@ -1,0 +1,27 @@
+<?php
+use App\Services\{GitPullRequest,DevelopmentPayload};
+use App\Models\{TicketBranch,DevelopmentEvent};
+use App\Core\DB;
+$gpFile=GitPullRequest::file('github',['filename'=>'docs/new.md','previous_filename'=>'docs/old.md','status'=>'renamed','additions'=>12,'deletions'=>4,'patch'=>'CODE_MUST_NOT_PERSIST']);
+check($gpFile['previous_path']==='docs/old.md' && $gpFile['additions']===12 && !isset($gpFile['patch']),'statistiques normalisées sans conservation du code');
+check(GitPullRequest::file('bitbucket',['old'=>['path'=>'image.png'],'status'=>'removed'])['additions']===null,'statistiques absentes restent inconnues au lieu de zéro');
+rejects(fn()=>GitPullRequest::file('github',['filename'=>'bad.php','additions'=>-1]),'compteurs de lignes négatifs refusés');
+rejects(fn()=>GitPullRequest::file('github',['filename'=>"bad\npath"]),'chemins contenant un contrôle refusés');
+$gpResource=GitPullRequest::diffstatResource('https://api.bitbucket.org/2.0/repositories/sample/branches/diffstat/aaa..bbb?topic=true&from_pullrequest_id=9','sample/branches',2);
+check(str_contains($gpResource,'topic=true') && str_contains($gpResource,'page=2'),'redirection de statistiques limitée au dépôt avec pagination du demandeur');
+foreach(['https://evil.example/2.0/repositories/sample/branches/diffstat/a','https://api.bitbucket.org/2.0/repositories/other/repo/diffstat/a','https://api.bitbucket.org/2.0/repositories/sample/branches/diffstat/%2e%2e/commits','https://user@api.bitbucket.org/2.0/repositories/sample/branches/diffstat/a','https://api.bitbucket.org/2.0/repositories/sample/branches/diffstat/a?access_token=secret'] as $gpBad) rejects(fn()=>GitPullRequest::diffstatResource($gpBad,'sample/branches',1),'redirection des statistiques hors contrat refusée');
+$gpLink=TicketBranch::link($tbTicket,$tbC,$tbEvent,$uid);
+$gpPR=DevelopmentPayload::object('github','pull_request',['number'=>99,'title'=>'Correction historique','state'=>'closed','merged_at'=>'2026-11-02T10:00:00Z','updated_at'=>'2026-11-02T10:00:00Z','head'=>['ref'=>$tbName,'sha'=>str_repeat('1',40),'repo'=>['full_name'=>$tbC['repository']]],'base'=>['ref'=>'staging','sha'=>str_repeat('2',40)]],$tbC['repository']);
+$gpId=DevelopmentEvent::save($tbC,$gpPR,false);
+$gpCommit=DevelopmentPayload::object('github','commit',['sha'=>str_repeat('3',40),'commit'=>['message'=>'Correction sans clé','author'=>['name'=>'Auteur Exemple','date'=>'2026-11-02T09:00:00Z']]],$tbC['repository'],false,$tbName);
+$gpDetails=['revision'=>GitPullRequest::revision($gpPR),'files'=>[$gpFile],'file_count'=>1,'additions'=>12,'deletions'=>4,'commit_shas'=>[$gpCommit['commit_sha']],'commit_count'=>1,'commits_complete'=>true,'fetched_at'=>'2026-11-02 10:00:00'];
+DevelopmentEvent::savePullRequestDetails($tbC,$gpPR,[$gpCommit],$gpDetails,$tbTicket);
+$gpSaved=GitPullRequest::eventForTicket($tbTicket,$gpId);
+check($gpSaved['metadata']['details']==$gpDetails,'instantané complet des fichiers conservé avec sa révision');
+check(DB::one('SELECT 1 FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id WHERE l.ticket_id=? AND e.external_key=?',[$tbTicket,$gpCommit['external_key']])!==null,'commits de la PR attribués au ticket par leur appartenance réelle');
+check(DevelopmentEvent::hydrate(DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=?',[$tbConnection,$gpCommit['external_key']]))['metadata']['author']==='Auteur Exemple','auteur du commit normalisé depuis le fournisseur');
+$gpPR['occurred_at']='2026-11-02 11:00:00';$gpPR['commit_sha']=str_repeat('4',40);DevelopmentEvent::save($tbC,$gpPR,true);
+$gpNew=GitPullRequest::eventForTicket($tbTicket,$gpId);
+check($gpNew['metadata']['details']==$gpDetails && GitPullRequest::revision($gpNew)!==$gpDetails['revision'],'webhook conserve les statistiques tout en rendant leur ancienneté détectable');
+rejects(fn()=>DevelopmentEvent::savePullRequestDetails($tbC,$gpPR,[],$gpDetails,$tbTicket),'instantané périmé ne remplace pas une révision plus récente');
+check(GitPullRequest::eventForTicket($tbTicket,$gpId)['metadata']['details']==$gpDetails,'échec de synchronisation conserve le dernier instantané complet');

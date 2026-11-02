@@ -41,6 +41,9 @@ final class DevelopmentEvent
             $expected=$connection['provider']==='github'?'github.com':'bitbucket.org';
             $safe=($url['scheme']??'')==='https' && strtolower($url['host']??'')===$expected && !isset($url['user']) && !isset($url['pass']) && !isset($url['port']);
             $metadata=$event['metadata'];
+            // Detail snapshots are fetched separately; webhooks must not silently erase them.
+            if($event['kind']==='pull_request' && isset($oldMeta['details'])) $metadata['details']=$oldMeta['details'];
+            if($event['kind']==='commit' && empty($metadata['author']) && !empty($oldMeta['author'])) $metadata['author']=$oldMeta['author'];
             if (!$safe && $event['external_url']!=='') $metadata['source_url']=$event['external_url'];
             $id=DB::insert('INSERT INTO development_events(connection_id,ticket_id,external_key,kind,title,external_url,state,occurred_at,commit_sha,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),ticket_id=VALUES(ticket_id),title=VALUES(title),external_url=VALUES(external_url),state=VALUES(state),occurred_at=VALUES(occurred_at),commit_sha=VALUES(commit_sha),metadata_json=VALUES(metadata_json)',[
                 $connection['id'],$tickets[0]??null,$event['external_key'],$event['kind'],$event['title'],$safe?$event['external_url']:'',$event['state'],$event['occurred_at'],$event['commit_sha'],json_encode($metadata,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),
@@ -52,6 +55,24 @@ final class DevelopmentEvent
                 foreach($tickets as $ticket) Automation::run($event['trigger'],(int)$ticket,null,false,['development_repository'=>$connection['repository']]);
             }
             return $id;
+        });
+    }
+
+    public static function savePullRequestDetails(array $connection,array $event,array $commits,array $details,int $ticket): void
+    {
+        DB::transaction(function() use($connection,$event,$commits,$details,$ticket) {
+            self::lockProjects((int)$connection['id']);TicketBranch::connection($ticket,(int)$connection['id']);
+            $id=self::save($connection,$event,false);
+            $current=self::hydrate(DB::one('SELECT * FROM development_events WHERE id=? FOR UPDATE',[$id]));
+            if(\App\Services\GitPullRequest::revision($current)!==$details['revision']) throw new \InvalidArgumentException('Une mise à jour Git plus récente a été reçue. Relancez la synchronisation.');
+            if(!DB::one('SELECT 1 FROM development_event_tickets WHERE event_id=? AND ticket_id=?',[$id,$ticket])) throw new \InvalidArgumentException('La pull request n’est plus associée à ce ticket.');
+            foreach($commits as $commit) {
+                $commitId=self::save($connection,$commit,false);
+                DB::run('INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT ?,ticket_id FROM development_event_tickets WHERE event_id=?',[$commitId,$id]);
+                DB::run('UPDATE development_events SET ticket_id=(SELECT MIN(ticket_id) FROM development_event_tickets WHERE event_id=?) WHERE id=?',[$commitId,$commitId]);
+            }
+            $metadata=$current['metadata'];$metadata['details']=$details;
+            DB::run('UPDATE development_events SET metadata_json=? WHERE id=?',[json_encode($metadata,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),$id]);
         });
     }
 

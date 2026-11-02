@@ -19,7 +19,10 @@ $ticketDevelopment=new \App\Controllers\TicketDevelopmentController();
 $r->add('GET','/tickets/{id}/development',[$ticketDevelopment,'panel'])
     ->add('POST','/tickets/{id}/development/branches',[$ticketDevelopment,'branches'])
     ->add('POST','/tickets/{id}/development/link',[$ticketDevelopment,'link'])
-    ->add('POST','/tickets/{id}/development/links/{link}/delete',[$ticketDevelopment,'unlink']);
+    ->add('POST','/tickets/{id}/development/links/{link}/delete',[$ticketDevelopment,'unlink'])
+    ->add('POST','/tickets/{id}/development/links/{link}/sync',[$ticketDevelopment,'syncBranch'])
+    ->add('POST','/tickets/{id}/development/pull-requests/{event}/sync',[$ticketDevelopment,'syncPullRequest'])
+    ->add('GET','/tickets/{id}/development/pull-requests/{event}/files',[$ticketDevelopment,'pullRequestFiles']);
 $r->add('GET','/administration/logs',[new \App\Controllers\TechnicalLogController(),'index']);
 $tracking=new \App\Controllers\TrackingController();
 $r->add('POST','/tickets/{id}/time',[$tracking,'time'])

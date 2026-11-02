@@ -82,12 +82,13 @@ final class Development
         return ['repositories'=>$repositories,'page'=>$page,'has_more'=>$more];
     }
 
-    private static function http(string $provider, string $token, string $path, int $timeout,array $context=[],?array $payload=null): array
+    private static function http(string $provider, string $token, string $path, int $timeout,array $context=[],?array $payload=null,bool $diffstatRedirect=false): array
     {
         $base = match ($provider) { 'github'=>'https://api.github.com', 'bitbucket'=>'https://api.bitbucket.org', default=>throw new \InvalidArgumentException('Fournisseur invalide.') };
         $url = $base . $path;
-        return TechnicalLog::outgoing('development',$provider,$payload===null?'GET':'POST',$url,function(array &$trace) use($url,$token,$timeout,$payload): array {
+        return TechnicalLog::outgoing('development',$provider,$payload===null?'GET':'POST',$url,function(array &$trace) use($url,$token,$timeout,$payload,$diffstatRedirect): array {
             $ch = curl_init($url);
+            $location=null;
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => false,
@@ -99,6 +100,10 @@ final class Development
                 CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
                 CURLOPT_PROTOCOLS_STR => 'https',
             ]);
+            if($diffstatRedirect) curl_setopt($ch,CURLOPT_HEADERFUNCTION,static function($handle,string $line) use(&$location): int {
+                if(strncasecmp($line,'Location:',9)===0) $location=strlen($line)<=8192?trim(substr($line,9)):null;
+                return strlen($line);
+            });
             if($payload!==null) {
                 $encoded=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
                 curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$encoded,CURLOPT_HTTPHEADER=>['Accept: application/json','Content-Type: application/json','Authorization: Bearer '.$token]]);
@@ -121,6 +126,7 @@ final class Development
                     default => 'Le serveur PHP ne parvient pas à joindre le fournisseur (erreur réseau ' . $errno . ').',
                 });
             }
+            if($diffstatRedirect && $status===302 && is_string($location)) return ['_diffstat_redirect'=>$location];
             if ($status < 200 || $status >= 300) {
                 throw new \InvalidArgumentException(match ($status) {
                     401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
@@ -141,6 +147,16 @@ final class Development
             if($payload!==null && !empty($data['errors'])) throw new \InvalidArgumentException('GitHub a refusé le catalogue GraphQL. Vérifiez les droits de lecture du contenu et du dépôt.');
             return $data;
         },$context);
+    }
+
+    public static function pullRequestFiles(array $connection,int $number,int $page,int $timeout): array
+    {
+        if($number<1 || $page<1 || $page>10) throw new \InvalidArgumentException('Page de fichiers Git invalide.');
+        if($connection['provider']==='github') return self::request($connection,'pulls/'.$number.'/files?per_page=100&page='.$page,$timeout);
+        $repo=self::repository('bitbucket',$connection['repository']);
+        $data=self::http('bitbucket',Security::decrypt($connection['secret_cipher']),'/2.0/repositories/'.$repo.'/pullrequests/'.$number.'/diffstat?pagelen=100&page='.$page,$timeout,['connection_id'=>$connection['id']],null,true);
+        if(isset($data['_diffstat_redirect'])) return self::request($connection,GitPullRequest::diffstatResource($data['_diffstat_redirect'],$repo,$page),$timeout);
+        return $data;
     }
 
     public static function sync(array $c, string $kind = 'pull_request', int $page = 1): int

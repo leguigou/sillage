@@ -99,6 +99,52 @@ _,_,foreign_ticket=call('/tickets',{'_csrf':csrf,'project_id':foreign_pid,'title
 foreign_tid=urllib.parse.urlsplit(foreign_ticket).path.rsplit('/',1)[-1]
 check(call('/tickets/'+foreign_tid+'/development/link',{'_csrf':csrf,'connection_id':gh,'branch_name':'main'},True)[0]==422,'shared credential cannot be used outside the ticket project repositories')
 
+# Backfill a branch linked after its merge: exact source repo, PR commits and file statistics.
+history_prs={};history_tickets={};history_links={}
+for provider,cid in connections.items():
+    _,_,history_url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Historique sitemap '+provider})
+    history_tid=urllib.parse.urlsplit(history_url).path.rsplit('/',1)[-1];history_tickets[provider]=history_tid
+    hp='/tickets/'+history_tid+'/development'
+    history_link=json.loads(call(hp+'/link',{'_csrf':csrf,'connection_id':cid,'branch_name':'40908_flow_sitemap'},True)[1])['id'];history_links[provider]=history_link
+    check(call(hp+'/links/'+str(history_link)+'/sync',{},True)[0]==403,provider+' history sync requires CSRF')
+    status,body,_=call(hp+'/links/'+str(history_link)+'/sync',{'_csrf':csrf},True);history=json.loads(body)
+    check(status==200 and len(history['pull_requests'])==1 and history['has_more'],provider+' merged PR recovered after branch link and homonymous fork PRs excluded')
+    event=history['pull_requests'][0];history_prs[provider]=event
+    check(call(hp+'/pull-requests/'+str(event)+'/files',json_accept=True)[0]==422,provider+' missing file summary stays unknown until retrieved')
+    check(call(hp+'/pull-requests/'+str(event)+'/sync',{},True)[0]==403,provider+' PR detail sync requires CSRF')
+    status,body,_=call(hp+'/pull-requests/'+str(event)+'/sync',{'_csrf':csrf},True);details=json.loads(body)
+    check(status==200 and details['commits']==2 and details['files']==2 and details['commits_complete'],provider+' exact PR commits and complete paginated file statistics imported')
+    summary=json.loads(call(hp+'/pull-requests/'+str(event)+'/files',json_accept=True)[1])
+    check(summary['details']['additions']==580 and summary['details']['deletions']==185 and not summary['stale'],provider+' numeric totals match provider diffstat')
+    check(summary['files'][0]['path']=='app/code/Example/Flow/Cron/Sitemap.php' and summary['files'][1]['previous_path']=='docs/old.md',provider+' file paths and renames retained without code')
+    status,html,_=call(hp)
+    check(status==200 and 'Fusionnée' in html and 'staging' in html and '40908 - fix URL flux XML' in html and 'Guillaume Exemple' in html,provider+' merged PR destination and commit authors shown in ticket')
+    check('DO_NOT_STORE_CODE' not in html and 'DO_NOT_STORE_CODE' not in json.dumps(summary),provider+' code patches absent from saved summary and rendered ticket')
+    check(call(hp+'/pull-requests/'+str(event)+'/sync',{'_csrf':csrf},True)[0]==200,provider+' repeated detail sync is idempotent')
+    check(call('/tickets/'+foreign_tid+'/development/pull-requests/'+str(event)+'/files',json_accept=True)[0]==422,provider+' file details cannot cross ticket/project scope')
+    check(call(hp+'/pull-requests/'+str(event)+'/files?page=0',json_accept=True)[0]==422,provider+' invalid summary page refused')
+    more=json.loads(call(hp+'/links/'+str(history_link)+'/sync',{'_csrf':csrf,'page':2},True)[1])
+    check(len(more['pull_requests'])==1 and not more['has_more'],provider+' older closed PRs remain available through pagination')
+    if provider=='bitbucket':
+        check(call(hp+'/pull-requests/'+str(more['pull_requests'][0])+'/sync',{'_csrf':csrf},True)[0]==422,'Bitbucket diffstat redirect to another host refused before sending credential')
+        check(json.loads(call(hp+'/pull-requests/'+str(event)+'/files',json_accept=True)[1])['details']['additions']==580,'failed synchronization preserves earlier complete statistics')
+    else:
+        old_pr=str(more['pull_requests'][0]);partial=json.loads(call(hp+'/pull-requests/'+old_pr+'/sync',{'_csrf':csrf},True)[1])
+        check(partial['commits']==250 and not partial['commits_complete'],'GitHub 250-commit API cap is explicit instead of claiming complete history')
+        first=json.loads(call(hp+'/pull-requests/'+old_pr+'/files',json_accept=True)[1]);tail=json.loads(call(hp+'/pull-requests/'+old_pr+'/files?page=2',json_accept=True)[1])
+        check(len(first['files'])==40 and first['has_more'] and len(tail['files'])==2 and not tail['has_more'],'stored file statistics paginate by forty without loss')
+# Later webhook preserves the snapshot but marks its revision as stale.
+pr={'id':1387,'title':'40908 - correction du sitemap','state':'MERGED','updated_on':'2026-11-02T13:00:00Z','source':{'branch':{'name':'40908_flow_sitemap'},'commit':{'hash':'c'*40},'repository':{'full_name':repositories['bitbucket']}},'destination':{'branch':{'name':'staging'},'commit':{'hash':'a'*40}}}
+raw=json.dumps({'repository':{'full_name':repositories['bitbucket']},'pullrequest':pr}).encode();signature='sha256='+hmac.new(hook.encode(),raw,hashlib.sha256).hexdigest()
+with urllib.request.urlopen(urllib.request.Request(BASE+'/webhooks/'+str(bb),data=raw,headers={'Content-Type':'application/json','X-Hub-Signature-256':signature,'X-Event-Key':'pullrequest:fulfilled'})) as reply:
+    check(reply.status==200,'later merged PR webhook accepted')
+hp='/tickets/'+history_tickets['bitbucket']+'/development';event=history_prs['bitbucket']
+stale=json.loads(call(hp+'/pull-requests/'+str(event)+'/files',json_accept=True)[1])
+check(stale['stale'] and stale['details']['additions']==580,'webhook keeps file statistics and explicitly marks old snapshot stale')
+check(call(hp+'/pull-requests/'+str(event)+'/sync',{'_csrf':csrf},True)[0]==422,'older API snapshot cannot overwrite a newer webhook revision')
+logs=call('/administration/logs?channel=development',json_accept=True)[1]
+check('DO_NOT_STORE_CODE' not in logs and 'synthetic-git-token' not in logs and 'evil.example' not in logs,'technical logs contain no patches tokens or rejected redirect destination')
+
 support.client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 viewer_csrf,_=get_token('/login');_,viewer_html,_=call('/login',{'_csrf':viewer_csrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'})
 viewer_csrf=token(viewer_html);_,viewer_panel,_=call(path)
@@ -106,6 +152,9 @@ check('id="ticket-branch-dialog"' not in viewer_panel,'read-only viewer receives
 check(call('/connections/'+str(bb)+'/webhook',{'_csrf':viewer_csrf},True)[0]==403,'read-only viewer cannot reveal webhook secret')
 for operation,args in [('branches',{}),('link',{'branch_name':'main'}),('links/'+str(link)+'/delete',{})]:
     check(call(path+'/'+operation,{'_csrf':viewer_csrf,'connection_id':bb,**args},True)[0]==403,'read-only viewer cannot '+operation)
+check(call('/tickets/'+history_tickets['github']+'/development/pull-requests/'+str(history_prs['github'])+'/files',json_accept=True)[0]==200,'read-only viewer may consult stored file statistics')
+check(call('/tickets/'+history_tickets['github']+'/development/pull-requests/'+str(history_prs['github'])+'/sync',{'_csrf':viewer_csrf},True)[0]==403,'read-only viewer cannot synchronize provider data')
 support.client=admin
+print('History UI inspection ticket '+history_tickets['github'])
 print('Git UI inspection project '+pid+' ticket '+tid)
 print('\n',passed_count(),'ticket branch HTTP checks passed (synthetic Git transport).')

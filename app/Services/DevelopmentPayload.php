@@ -53,7 +53,8 @@ final class DevelopmentPayload
             $sha=self::sha($item['sha']??$item['hash']??$item['id']??null);
             if (!$sha) throw new \InvalidArgumentException('Commit sans empreinte valide.');
             $message=self::text($item['commit']['message']??$item['message']??'',100000);
-            return self::event('commit','commit:'.$sha,$message,self::text($item['html_url']??$item['links']['html']['href']??$item['url']??($base.($github?'/commit/':'/commits/').$sha)),'committed',$item['commit']['author']['date']??$item['timestamp']??$item['date']??null,$branch,$sha,$live?'development.commit_pushed':null);
+            $event=self::event('commit','commit:'.$sha,$message,self::text($item['html_url']??$item['links']['html']['href']??$item['url']??($base.($github?'/commit/':'/commits/').$sha)),'committed',$item['commit']['author']['date']??$item['timestamp']??$item['date']??null,$branch,$sha,$live?'development.commit_pushed':null);
+            $event['metadata']['author']=self::text($item['commit']['author']['name']??$item['author']['user']['display_name']??$item['author']['raw']??$item['author']['name']??'',500)?:null;return $event;
         }
         if ($kind==='pull_request') {
             $id=self::text($item['number']??$item['id']??'',100);
@@ -62,7 +63,10 @@ final class DevelopmentPayload
             $branch=self::text($item['head']['ref']??$item['source']['branch']['name']??'')?:null;
             $trigger=$live && $state==='merged' ? 'development.pull_request_merged' : ($live && in_array($action,['opened','reopened','pullrequest:created'],true)?'development.pull_request_opened':null);
             $event=self::event('pull_request','pr:'.$id,self::text($item['title']??''),self::text($item['html_url']??$item['links']['html']['href']??''),$state,$item['updated_at']??$item['updated_on']??null,$branch,self::sha($item['head']['sha']??$item['source']['commit']['hash']??null),$trigger);
-            $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;return $event;
+            $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;
+            $event['metadata']['target_branch']=self::text($item['base']['ref']??$item['destination']['branch']['name']??'')?:null;
+            $event['metadata']['target_sha']=self::sha($item['base']['sha']??$item['destination']['commit']['hash']??null);
+            $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);return $event;
         }
         throw new \InvalidArgumentException('Type de suivi inconnu.');
     }

@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.4.1",
+  "current_version": "1.5.0",
   "entries": [
+    {
+      "version": "1.5.0",
+      "date": "2026-11-03",
+      "category": "features",
+      "title": "Retrouver les développements déjà fusionnés",
+      "summary": "Une branche liée retrouve ses pull requests et leurs commits, avec un résumé des fichiers modifiés.",
+      "changes": [
+        "Récupération de l’historique après liaison d’une branche, y compris les pull requests déjà fusionnées ou fermées.",
+        "Synchronisation des branches déjà liées et actualisation des détails sans recharger la page.",
+        "Affichage des auteurs des commits, de la destination et de l’état des pull requests.",
+        "Liste paginée des fichiers modifiés, anciens chemins et compteurs de lignes ajoutées ou supprimées, sans afficher le code.",
+        "Statistiques conservées après réception de webhooks, avec indication des relevés à actualiser et des listes de commits partielles."
+      ]
+    },
     {
       "version": "1.4.1",
       "date": "2026-11-02",
