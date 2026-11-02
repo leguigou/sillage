@@ -74,5 +74,5 @@ function work_mark(string $kind,string $key,int $project=0): string {
 
 function status_badge(string $key,int $project): string {
     $color=\App\Models\Workflow::mark('status',$project,$key)['color'];
-    return '<span class="pill workflow-status" data-status-color="'.e($color).'">'.e(\App\Models\Workflow::label('status',$project,$key)).'</span>';
+    return '<span class="pill workflow-status" data-status-color="'.e($color).'"><span class="status-dot" aria-hidden="true"></span><span class="status-label">'.e(\App\Models\Workflow::label('status',$project,$key)).'</span></span>';
 }

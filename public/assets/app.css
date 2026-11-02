@@ -1264,10 +1264,10 @@ progress::-moz-progress-bar {
   white-space: normal;
   line-height: 1.6;
 }
-.title-cell > a {
+.ticket-title-line > a {
   font-weight: 500;
 }
-.title-cell > a:hover {
+.ticket-title-line > a:hover {
   color: var(--accent);
 }
 .ticket-key {
@@ -1350,6 +1350,10 @@ progress::-moz-progress-bar {
 .inline-edit:focus {
   opacity: 1;
 }
+.ticket-title-line{display:flex;align-items:flex-start;gap:6px;min-width:0}
+.ticket-title-line>a{flex:1;min-width:0}
+.ticket-title-line .inline-edit{flex:none;margin:0;padding:0;line-height:inherit}
+.ticket-title-line .blocked-badge{flex:none;margin-left:0}
 .table-footer {
   padding: 15px;
   display: flex;
@@ -2785,10 +2789,12 @@ label small {
   font-size: 10px;
 }
 .ticket-table .status-select {
-  padding: 5px 7px;
-  border: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--status-outline,var(--line));
+  border-radius: 999px;
   width: auto;
-  font-size: 9px;
+  max-width: 140px;
+  font-size: 10px;
 }
 .ticket-table .cell-date {
   padding: 3px 0;
@@ -3501,7 +3507,7 @@ section[aria-busy='true'] { cursor: progress; }
 [data-theme='dark'] .blocked-badge{color:#f5ba78;background:#382b20;border-color:#755331}
 .ticket-facts-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}.ticket-facts-heading h2{margin:0}
 .timeline-task small{display:flex;align-items:center;gap:7px}.timeline-task .blocked-badge{padding:0 4px;font-size:9px}
-.ticket-card>.blocked-badge{margin-bottom:8px}.title-cell .blocked-badge{margin-left:7px}
+.ticket-card>.blocked-badge{margin-bottom:8px}
 
 .view-toolbar>a.button.selected{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 
@@ -3553,7 +3559,18 @@ section[aria-busy='true'] { cursor: progress; }
 .workflow-transitions table{width:100%;border-collapse:collapse;text-align:center;font-size:11px}
 .workflow-transitions th,.workflow-transitions td{padding:12px;border:1px solid var(--line);min-width:100px}
 .workflow-transitions input{width:17px;height:17px}.workflow-transitions .icon{width:15px;height:15px;color:var(--subtle)}
-.workflow-status{color:var(--text);background:var(--surface-soft);border-left:3px solid var(--status-color)}
+.workflow-status{--status-fill:color-mix(in srgb,var(--status-color) 10%,var(--surface));--status-outline:color-mix(in srgb,var(--status-color) 40%,var(--line));color:var(--text);background:var(--status-fill,var(--surface-soft));border:1px solid var(--status-outline,var(--line))}
+.pill.workflow-status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:600;line-height:1.3;max-width:100%;white-space:normal}
+.workflow-status .status-dot{width:6px;height:6px;border-radius:50%;background:var(--status-color);flex:none}
+.workflow-status .status-label{min-width:0;overflow-wrap:anywhere}
+.ticket-progress{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;max-width:250px;margin-top:6px}
+.ticket-progress-meter{display:flex;align-items:center;gap:6px;flex:0 0 100px}
+.ticket-progress progress{display:block;appearance:none;-webkit-appearance:none;flex:1;min-width:45px;width:60px;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--line);color:var(--accent)}
+.ticket-progress progress::-webkit-progress-bar{background:var(--line);border-radius:999px}
+.ticket-progress progress::-webkit-progress-value{background:var(--accent);border-radius:999px}
+.ticket-progress progress::-moz-progress-bar{background:var(--accent);border-radius:999px}
+.ticket-progress [data-progress-percent]{min-width:26px;text-align:right;font-size:10px;font-variant-numeric:tabular-nums;color:var(--text)}
+.ticket-progress [data-progress-remaining]{font-size:10px;line-height:1.4;color:var(--subtle);white-space:nowrap}
 .legend-dot[data-status-color]{background:var(--status-color)}.timeline-bar[data-status-color]{background:var(--status-color);color:var(--mark-ink,#fff)}
 .mention{color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:5px;white-space:nowrap}
 .mention-suggestions{border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;max-height:260px;overflow:auto;background:var(--surface);margin:8px 0}

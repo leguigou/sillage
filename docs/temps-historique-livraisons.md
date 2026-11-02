@@ -10,6 +10,8 @@ Les trois mesures restent indépendantes :
 - **Temps passé** : somme des saisies actives. Une correction ou suppression ajuste cette somme et conserve une trace dans l’historique.
 - **Reste à faire** : `arrondi(estimation totale × (100 − avancement) / 100, 2)`.
 
+Dans les listes du projet et la vue Tous les tickets, une barre compacte sous chaque résumé indique l’avancement et le reste à faire approximatif. L’absence d’estimation est signalée explicitement, même si un pourcentage est renseigné. Une modification en ligne de l’estimation actualise le reste à faire avec les valeurs renvoyées par le serveur. Les options de la vue permettent de masquer ou réafficher « Avancement et reste à faire ».
+
 Ainsi, une estimation de 10 h avec 60 % d’avancement donne **4 h restantes**, que le temps saisi soit de 2 h ou de 12 h. Sans estimation, le reste est inconnu (`null`), pas zéro. L’état « Terminé » ne modifie pas automatiquement l’avancement manuel. Les rapports par équipe agrègent les mêmes calculs sur tous les tickets filtrés et indiquent les tickets sans estimation. Les exports CSV/JSON et le MCP exposent ces valeurs.
 
 ## Historique détaillé

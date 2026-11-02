@@ -252,6 +252,17 @@ async function post(path, values) {
   if (!response.ok) throw new Error(data.error || 'La modification n’a pas pu être enregistrée.');
   return data;
 }
+const ticketHoursFormatter=new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function updateTicketProgress(row,ticket) {
+  const meter=$('[data-progress-meter]',row);
+  if(!meter) return;
+  meter.value=ticket.progress_percent;
+  meter.textContent=ticket.progress_percent+' %';
+  $('[data-progress-percent]',row).textContent=ticket.progress_percent+' %';
+  $('[data-progress-remaining]',row).textContent=ticket.remaining_hours===null
+    ?'Estimation manquante'
+    :'≈ '+ticketHoursFormatter.format(Number(ticket.remaining_hours))+' h restantes';
+}
 async function quick(row, field, value) {
   const previousVersion = Number(row.dataset.version);
   const data = await post(`/tickets/${row.dataset.ticketId}/quick`, {
@@ -264,10 +275,12 @@ async function quick(row, field, value) {
       r.dataset.version = data.ticket.version;
       r.dataset.priority = data.ticket.priority;
       r.dataset.status = data.ticket.status;
+      updateTicketProgress(r,data.ticket);
       const statusSelect=$('[data-quick-field="status"]',r);
       if(statusSelect && data.ticket.status_options) {
         statusSelect.replaceChildren(...Object.entries(data.ticket.status_options).map(([value,label])=>new Option(label,value,false,value===data.ticket.status)));
         statusSelect.dataset.statusColor=data.ticket.status_color;
+        statusSelect.title=data.ticket.status_label;
         statusSelect.className='status-select workflow-status';initAppearanceMarks(r);
       }
       const mark=$('.priority-mark',r), templates=$('#priority-mark-templates');
