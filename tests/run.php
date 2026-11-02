@@ -21,6 +21,7 @@ if (($argv[1] ?? '') === 'fixtures') {
     DB::run('DELETE FROM technical_logs');
     // Remove previous synthetic Git events so bounded development pages test only this run.
     DB::run('DELETE FROM development_events');
+    DB::run('DELETE FROM ticket_branch_links');
     DB::run('DELETE FROM llm_profiles');
     DB::run('DELETE FROM notification_outbox');
     DB::run('DELETE FROM ticket_notifications');
@@ -395,6 +396,7 @@ try {
     require __DIR__ . '/company_branding.php';
     require __DIR__ . '/development_connections.php';
     require __DIR__ . '/development_tracking.php';
+    require __DIR__ . '/ticket_branches.php';
     require __DIR__ . '/team_projects.php';
     require __DIR__ . '/llm.php';
     require __DIR__ . '/notifications.php';

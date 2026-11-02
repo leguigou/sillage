@@ -6,11 +6,16 @@ use App\Services\DevelopmentPayload;
 
 final class DevelopmentEvent
 {
+    public static function lockProjects(int $connection): array
+    {
+        $projects=DB::all('SELECT p.id,p.project_key FROM projects p JOIN project_connections pc ON pc.project_id=p.id WHERE pc.connection_id=? ORDER BY p.id FOR UPDATE',[$connection]);
+        if (!$projects) throw new \InvalidArgumentException('Cette connexion Git n’est liée à aucun projet.');
+        return $projects;
+    }
     public static function save(array $connection,array $event,bool $live=false): int
     {
         return DB::transaction(function() use($connection,$event,$live) {
-            $projects=DB::all('SELECT p.id,p.project_key FROM projects p JOIN project_connections pc ON pc.project_id=p.id WHERE pc.connection_id=? ORDER BY p.id FOR UPDATE',[$connection['id']]);
-            if (!$projects) throw new \InvalidArgumentException('Cette connexion Git n’est liée à aucun projet.');
+            $projects=self::lockProjects((int)$connection['id']);
             $old=DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=? FOR UPDATE',[$connection['id'],$event['external_key']]);
             $oldMeta=$old?json_decode($old['metadata_json']??'{}',true,64,JSON_THROW_ON_ERROR):[];
             if ($old && ($oldMeta['date_known']??true) && $event['metadata']['date_known'] && $old['occurred_at']>$event['occurred_at']) return (int)$old['id'];
@@ -21,6 +26,12 @@ final class DevelopmentEvent
                 foreach($matches[1] as $number) if (filter_var($number,FILTER_VALIDATE_INT)!==false) $numbers[]=(int)$number;
                 $numbers=array_values(array_unique($numbers));
                 if ($numbers) $tickets=[...$tickets,...array_column(DB::all('SELECT id FROM tickets WHERE project_id=? AND number IN ('.implode(',',array_fill(0,count($numbers),'?')).') ORDER BY id',[$project['id'],...$numbers]),'id')];
+            }
+            $branch=$event['metadata']['branch']??null;
+            $localBranch=$event['kind']!=='pull_request' || strcasecmp((string)($event['metadata']['branch_repository']??''),$connection['repository'])===0;
+            if ($localBranch && is_string($branch) && $branch!=='') {
+                $manual=DB::all('SELECT b.ticket_id FROM ticket_branch_links b JOIN tickets t ON t.id=b.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id WHERE b.connection_id=? AND b.external_key=?',[$connection['id'],DevelopmentPayload::branchKey($branch)]);
+                $tickets=array_values(array_unique([...$tickets,...array_column($manual,'ticket_id')]));
             }
             if ($event['commit_sha'] && $event['kind']!=='branch') {
                 $linked=DB::all("SELECT DISTINCT l.ticket_id FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE e.connection_id=? AND e.commit_sha=? AND e.kind IN ('branch','commit','pull_request')",[$connection['id'],$event['commit_sha']]);
@@ -44,6 +55,13 @@ final class DevelopmentEvent
         });
     }
 
+    public static function attachKnownBranch(array $connection,int $ticket,string $branch): void
+    {
+        $where="e.connection_id=? AND e.kind IN ('commit','pull_request') AND BINARY JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.branch'))=? AND (e.kind<>'pull_request' OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.branch_repository')))=LOWER(?))";
+        $args=[$connection['id'],$branch,$connection['repository']];
+        DB::run('INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT e.id,? FROM development_events e WHERE '.$where,[$ticket,...$args]);
+        DB::run('UPDATE development_events e SET e.ticket_id=(SELECT MIN(l.ticket_id) FROM development_event_tickets l WHERE l.event_id=e.id) WHERE '.$where,$args);
+    }
     public static function hydrate(array $event): array
     {
         $event['metadata']=json_decode($event['metadata_json']??'{}',true,64,JSON_THROW_ON_ERROR);

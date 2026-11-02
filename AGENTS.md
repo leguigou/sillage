@@ -19,3 +19,7 @@ Les appels HTTP sortants des intégrations passent par `App\Services\TechnicalLo
 ## Modales et confirmations
 
 Utiliser `window.SillageDialogs` pour ouvrir une modale, demander sa fermeture et confirmer une action. Attendre les promesses de `confirm` et `prompt` ; ne pas réintroduire `window.confirm`, `window.prompt` ou des fermetures directes qui ignorent les brouillons. `complete` est réservé à une sauvegarde/insertion réussie, `commit` aux préférences déjà enregistrées. Les producteurs réconcilient leurs aperçus et sélections sur `sillage:dialog-discarded`. Le composant et ses limites sont décrits dans `docs/modales-et-listes.md`.
+
+## Suivi Git
+
+Les choix manuels de branches sont dans `ticket_branch_links`, séparément des observations. `DevelopmentPayload` possède les noms, clés et références normalisées ; `DevelopmentEvent` possède leur rapprochement. Le ticket complet et son rafraîchissement utilisent le même modèle de lecture `TicketDevelopment`. Toujours revérifier l’appartenance du dépôt au projet côté serveur. Les doubles de transport dans `tests/git_router.php` ne sont utilisables que pour la base isolée et ne doivent jamais être branchés au front controller de production.

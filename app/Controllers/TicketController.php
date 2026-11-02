@@ -14,7 +14,6 @@ final class TicketController
         $targetRelease=$ticket['release_id']?\App\Models\Release::find((int)$ticket['release_id']):null;
         $project = Project::find((int) $ticket['project_id']);
         $parent = $ticket['parent_id'] ? DB::one('SELECT t.id,t.number,t.title,p.project_key FROM tickets t JOIN projects p ON p.id=t.project_id WHERE t.id=?',[$ticket['parent_id']]) : null;
-        $primaryRepository=empty($project['repository_connection_id'])?null:DB::one('SELECT c.id,c.provider,c.repository FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? AND c.id=?',[$project['id'],$project['repository_connection_id']]);
         $projects = Project::all();
         $members = Project::members();
         $projectTeams=\App\Models\Team::forProject((int)$project['id']);
@@ -38,11 +37,7 @@ final class TicketController
             'SELECT id,number,title,status,type FROM tickets WHERE parent_id=? AND archived=0 ORDER BY rank_value',
             [$id],
         );
-        $events = \App\Models\DevelopmentEvent::withTickets(DB::all(
-            'SELECT e.*,c.repository,c.provider FROM development_events e JOIN connections c ON c.id=e.connection_id JOIN development_event_tickets l ON l.event_id=e.id JOIN project_connections pc ON pc.connection_id=c.id AND pc.project_id=? WHERE l.ticket_id=? ORDER BY e.occurred_at DESC,e.id DESC LIMIT 100',
-            [$project['id'],$id],
-        ),(int)$project['id']);
-        $developmentCounts = array_column(DB::all('SELECT e.kind,COUNT(*) n FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN project_connections pc ON pc.connection_id=e.connection_id WHERE pc.project_id=? AND l.ticket_id=? GROUP BY e.kind',[$project['id'],$id]),'n','kind');
+        extract(\App\Services\TicketDevelopment::data($ticket,$project));
         $title = $ticket['key'];
         $section = 'ticket';
         View::render(
@@ -63,6 +58,7 @@ final class TicketController
                 'events',
                 'developmentCounts',
                 'primaryRepository',
+                'ticketRepositories','ticketBranches',
                 'user',
                 'title',
                 'section',

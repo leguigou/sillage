@@ -7,6 +7,15 @@ final class DevelopmentPayload
 {
     public const KINDS = ['branch'=>'Branches','commit'=>'Commits','pull_request'=>'Pull requests'];
     public const STATES = ['active'=>'Active','deleted'=>'Supprimée','committed'=>'Enregistré','open'=>'Ouverte','merged'=>'Fusionnée','closed'=>'Fermée','declined'=>'Refusée','unknown'=>'État non fourni'];
+    public static function branchKey(string $name): string {return 'branch:'.hash('sha256',$name);}
+
+    public static function branchName(mixed $name): string
+    {
+        if (!is_string($name) || $name==='' || mb_strlen($name)>1000 || preg_match('/[\x00-\x20\x7f~^:?*\[\\\\]/u',$name) || str_contains($name,'..') || str_contains($name,'@{') || str_contains($name,'//') || str_starts_with($name,'/') || str_ends_with($name,'/') || str_ends_with($name,'.') || $name==='@') throw new \InvalidArgumentException('Indiquez le nom exact d’une branche Git valide, sans URL ni préfixe refs/heads/.');
+        foreach(explode('/',$name) as $part) if (str_starts_with($part,'.') || str_ends_with($part,'.lock')) throw new \InvalidArgumentException('Nom de branche Git invalide.');
+        if (str_starts_with($name,'refs/heads/')) throw new \InvalidArgumentException('Indiquez le nom de branche sans le préfixe refs/heads/.');
+        return $name;
+    }
 
     private static function text(mixed $value, int $max = 1000): string
     {
@@ -24,10 +33,12 @@ final class DevelopmentPayload
         $known = is_string($date) && (bool)preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/D',$date);
         try { $time=$known ? new \DateTimeImmutable($date) : new \DateTimeImmutable('now',new \DateTimeZone('UTC')); }
         catch (\Exception) { $known=false; $time=new \DateTimeImmutable('now',new \DateTimeZone('UTC')); }
-        return ['external_key'=>$key,'kind'=>$kind,'title'=>mb_substr($title?:$key,0,500),'external_url'=>$url,'state'=>$state,
+        $event=['external_key'=>$key,'kind'=>$kind,'title'=>mb_substr($title?:$key,0,500),'external_url'=>$url,'state'=>$state,
             'occurred_at'=>$time->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),'commit_sha'=>$sha,
-            'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger,'references'=>$title."\n".$branch];
+            'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger];
+        $event['references']=self::references($event);return $event;
     }
+    public static function references(array $event): string {return ($event['metadata']['full_title']??$event['title'])."\n".($event['metadata']['branch']??'');}
     public static function object(string $provider,string $kind,array $item,string $repository,bool $live=false,?string $branch=null,?string $action=null): array
     {
         if (!in_array($provider,['github','bitbucket'],true)) throw new \InvalidArgumentException('Fournisseur inconnu.');
@@ -36,7 +47,7 @@ final class DevelopmentPayload
             $name=self::text($item['name']??$branch);
             if ($name==='') throw new \InvalidArgumentException('Branche sans nom.');
             $state=($item['deleted']??false)?'deleted':'active';
-            return self::event('branch','branch:'.hash('sha256',$name),$name,self::text($item['links']['html']['href']??($base.($github?'/tree/':'/src/').rawurlencode($name))),$state,$item['date']??null,$name,self::sha($item['commit']['sha']??$item['target']['hash']??$item['sha']??null),$live&&($item['created']??false)?'development.branch_created':null);
+            return self::event('branch',self::branchKey($name),$name,self::text($item['links']['html']['href']??($base.($github?'/tree/':'/src/').rawurlencode($name))),$state,$item['date']??null,$name,self::sha($item['commit']['sha']??$item['target']['hash']??$item['sha']??null),$live&&($item['created']??false)?'development.branch_created':null);
         }
         if ($kind==='commit') {
             $sha=self::sha($item['sha']??$item['hash']??$item['id']??null);
@@ -50,7 +61,8 @@ final class DevelopmentPayload
             $state=(!empty($item['merged'])||!empty($item['merged_at'])||strtoupper(self::text($item['state']??''))==='MERGED')?'merged':match(strtolower(self::text($item['state']??''))){'open'=>'open','closed','superseded'=>'closed','declined'=>'declined',default=>'unknown'};
             $branch=self::text($item['head']['ref']??$item['source']['branch']['name']??'')?:null;
             $trigger=$live && $state==='merged' ? 'development.pull_request_merged' : ($live && in_array($action,['opened','reopened','pullrequest:created'],true)?'development.pull_request_opened':null);
-            return self::event('pull_request','pr:'.$id,self::text($item['title']??''),self::text($item['html_url']??$item['links']['html']['href']??''),$state,$item['updated_at']??$item['updated_on']??null,$branch,self::sha($item['head']['sha']??$item['source']['commit']['hash']??null),$trigger);
+            $event=self::event('pull_request','pr:'.$id,self::text($item['title']??''),self::text($item['html_url']??$item['links']['html']['href']??''),$state,$item['updated_at']??$item['updated_on']??null,$branch,self::sha($item['head']['sha']??$item['source']['commit']['hash']??null),$trigger);
+            $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;return $event;
         }
         throw new \InvalidArgumentException('Type de suivi inconnu.');
     }

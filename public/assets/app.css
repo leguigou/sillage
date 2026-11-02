@@ -3613,3 +3613,11 @@ section[aria-busy='true'] { cursor: progress; }
 .interaction-dialog label{display:grid;gap:8px;font-size:12px;margin-bottom:20px}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:24px}.modal-actions .button{width:auto;min-height:40px;padding:9px 14px;font-size:12px}
 @media(max-width:500px){.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
+
+.ticket-development-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:16px 0 20px}
+.ticket-development-guide{margin:20px 0;border:1px solid var(--line);border-radius:12px;padding:16px 18px;font-size:12px;line-height:1.8}
+.ticket-development-guide summary{cursor:pointer;font-weight:600}.ticket-development-guide ol{padding-left:20px;margin:14px 0}.ticket-development-guide li+li{margin-top:8px}.ticket-development-guide p{margin:12px 0}
+.ticket-linked-branches{margin:20px 0}.ticket-linked-branches h3{font-size:13px;margin-bottom:8px}
+.ticket-linked-branch{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.ticket-linked-branch strong{font-size:12px;overflow-wrap:anywhere}.ticket-linked-branch small{display:block;font-size:11px;color:var(--subtle);margin-top:4px}
+#ticket-branch-dialog .modal-actions,#ticket-branch-dialog .ticket-development-actions{margin:0}#ticket-branch-dialog .help-text{margin:0}

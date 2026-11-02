@@ -1005,8 +1005,3 @@ $$('[data-connection-update]').forEach((form) => form.addEventListener('submit',
   } catch (error) { status.textContent = error.message; status.classList.add('danger'); }
   finally { button.disabled = false; input.disabled = false;form.removeAttribute('aria-busy'); }
 }));
-
-$$('[data-development-open]').forEach((button) => button.addEventListener('click', () => {
-  const details = document.getElementById(button.dataset.developmentOpen);
-  if (details) { details.open = true; details.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }
-}));

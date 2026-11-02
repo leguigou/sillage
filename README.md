@@ -249,6 +249,8 @@ Le bouton **Vérifier le jeton et lister les dépôts** charge les dépôts acce
 
 Les connexions Git peuvent être **partagées entre plusieurs projets**. Dans **Paramètres du projet → Dépôt Git principal**, sélectionnez une connexion existante. Les fiches tickets affichent désormais les branches, commits et pull requests associés à leur clé. Les webhooks peuvent déclencher des règles propres au projet, notamment lors de la fusion d’une PR. Voir [le guide du suivi Git](docs/developpement.md). Builds et déploiements restent prévus pour une étape ultérieure.
 
+Depuis **Ticket → Développement → Lier une branche existante**, choisir un dépôt du projet et une branche vérifiée auprès de GitHub ou Bitbucket. Le dépôt principal est proposé par défaut. Les liens manuels résistent aux synchronisations ; les paramètres du webhook et leurs boutons de copie restent accessibles aux administrateurs dans **Développement → Configurer**.
+
 
 ## Assistance par LLM
 

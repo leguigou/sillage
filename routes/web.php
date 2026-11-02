@@ -15,6 +15,11 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$ticketDevelopment=new \App\Controllers\TicketDevelopmentController();
+$r->add('GET','/tickets/{id}/development',[$ticketDevelopment,'panel'])
+    ->add('POST','/tickets/{id}/development/branches',[$ticketDevelopment,'branches'])
+    ->add('POST','/tickets/{id}/development/link',[$ticketDevelopment,'link'])
+    ->add('POST','/tickets/{id}/development/links/{link}/delete',[$ticketDevelopment,'unlink']);
 $r->add('GET','/administration/logs',[new \App\Controllers\TechnicalLogController(),'index']);
 $tracking=new \App\Controllers\TrackingController();
 $r->add('POST','/tickets/{id}/time',[$tracking,'time'])
@@ -121,6 +126,7 @@ $r->add('POST', '/forms', [$forms, 'save'])
 $r->add('GET', '/f/{token}', [$forms, 'show'])->add('POST', '/f/{token}', [$forms, 'submit']);
 $r->add('POST', '/connections/repositories', [$dev, 'repositories']);
 $r->add('POST', '/connections/{id}/update', [$dev, 'update']);
+$r->add('POST','/connections/{id}/webhook',[$dev,'webhookSetup']);
 $r->add('POST', '/connections', [$dev, 'connect'])
     ->add('POST', '/connections/{id}/sync', [$dev, 'sync'])
     ->add('POST', '/connections/{id}/delete', [$dev, 'disconnect']);

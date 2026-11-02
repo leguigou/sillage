@@ -120,7 +120,7 @@ final class Development
                 throw new \InvalidArgumentException(match ($status) {
                     401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
                     403 => 'Accès refusé (HTTP 403). Vérifiez les permissions, l’approbation de votre organisation et les limites d’appels du fournisseur.',
-                    404 => 'Dépôt introuvable ou inaccessible avec ce jeton (HTTP 404). Vérifiez le propriétaire et le nom du dépôt.',
+                    404 => 'Ressource Git introuvable ou inaccessible avec ce jeton (HTTP 404). Vérifiez le dépôt, le nom exact de la branche et les droits de lecture.',
                     429 => 'Limite d’appels du fournisseur atteinte (HTTP 429). Réessayez plus tard.',
                     default => 'Le fournisseur a refusé la vérification (HTTP ' . $status . '). Réessayez plus tard.',
                 });
@@ -156,5 +156,27 @@ final class Development
             DB::run('UPDATE connections SET last_sync_at=UTC_TIMESTAMP() WHERE id=?',[$c['id']]);
         });
         return count($events);
+    }
+
+    public static function branches(array $connection,int $page): array
+    {
+        if ($page<1 || $page>10000) throw new \InvalidArgumentException('Page de branches invalide.');
+        $github=$connection['provider']==='github';
+        $response=self::request($connection,$github?'branches?per_page=50&page='.$page:'refs/branches?pagelen=50&page='.$page,10);
+        $items=$github?$response:($response['values']??null);
+        if (!is_array($items) || !array_is_list($items) || count($items)>50) throw new \InvalidArgumentException('Catalogue de branches invalide.');
+        $branches=[];
+        foreach($items as $item) {
+            if (!is_array($item)) throw new \InvalidArgumentException('Branche invalide dans le catalogue.');
+            $branches[]=DevelopmentPayload::branchName($item['name']??null);
+        }
+        return ['branches'=>$branches,'page'=>$page,'has_more'=>$github?count($items)===50:is_string($response['next']??null) && $response['next']!==''];
+    }
+    public static function branch(array $connection,string $name): array
+    {
+        $name=DevelopmentPayload::branchName($name);
+        $response=self::request($connection,($connection['provider']==='github'?'branches/':'refs/branches/').rawurlencode($name),10);
+        if (($response['name']??null)!==$name) throw new \InvalidArgumentException('Le fournisseur n’a pas confirmé la branche demandée.');
+        return DevelopmentPayload::object($connection['provider'],'branch',$response,$connection['repository']);
     }
 }

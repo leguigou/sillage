@@ -1,7 +1,22 @@
 {
   "schema": 1,
-  "current_version": "1.2.1",
+  "current_version": "1.3.0",
   "entries": [
+    {
+      "version": "1.3.0",
+      "date": "2026-11-02",
+      "category": "features",
+      "title": "Lier une branche Git depuis un ticket",
+      "summary": "Les dépôts du projet et le choix d’une branche existante sont accessibles dans le ticket.",
+      "changes": [
+        "Sélection des dépôts GitHub et Bitbucket liés au projet, avec dépôt principal proposé par défaut.",
+        "Catalogue paginé et vérification d’une branche distante avant de la lier au ticket.",
+        "Liens manuels conservés pendant les synchronisations et webhooks, même sans clé dans le nom de branche.",
+        "Aide au rapprochement automatique et actualisation du panneau sans recharger le ticket.",
+        "Paramètres du webhook accessibles aux administrateurs : copie de l’URL et du secret existant, masqué et exclu des journaux.",
+        "Passage entre modales de configuration avec confirmation si un brouillon doit être abandonné."
+      ]
+    },
     {
       "version": "1.2.1",
       "date": "2026-11-02",

@@ -6,6 +6,14 @@ use App\Models\Project;
 use App\Services\Development;
 final class DevelopmentController
 {
+    public function webhookSetup(string $id): void
+    {
+        $user=Auth::admin();Security::limit('webhook-setup:'.$user['id'],30,60);
+        $connection=DB::one('SELECT id,webhook_cipher FROM connections WHERE id=?',[(int)$id]);
+        if (!$connection) throw new \InvalidArgumentException('Connexion Git introuvable.');
+        header('Cache-Control: no-store');
+        json_response(['url'=>url('/webhooks/'.$connection['id']),'secret'=>Security::decrypt($connection['webhook_cipher'])]);
+    }
     public function update(string $id): void
     {
         Auth::admin();

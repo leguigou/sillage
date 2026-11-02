@@ -120,7 +120,12 @@
   document.addEventListener('pointerdown',event=>{backdropStart=event.target.matches?.('dialog') && outside(event.target,event)?event.target:null;});
   document.addEventListener('click',event=>{
     const closer=event.target.closest('[data-close]');
-    if(closer) {event.preventDefault();requestClose(closer.closest('dialog'));return;}
+    if(closer) {
+      event.preventDefault();
+      if(closer.dataset.open) {event.stopImmediatePropagation();requestClose(closer.closest('dialog')).then(closed=>{if(closed) show(closer.dataset.open);});}
+      else requestClose(closer.closest('dialog'));
+      return;
+    }
     if(event.target===backdropStart && outside(event.target,event)) {if(event.target===confirmDialog) settle(false);else requestClose(event.target);}
     backdropStart=null;
   });

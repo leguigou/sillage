@@ -35,3 +35,4 @@ foreach($sillageSuite in $sillageSuites) {
         if($sillageCurrent -and $sillageCurrent.StartTime -eq $sillageTest.StartTime -and $sillageCurrent.Path -eq $sillageTest.Path){Stop-SillageApache -ProcessId $sillageTest.Id -Started $sillageTest.StartTime.ToUniversalTime().ToString('o') -Executable $sillageTest.Path -Marker $sillageSuite.Configuration}
     }
 }
+& "$PSScriptRoot/Test-Git.ps1"
