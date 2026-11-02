@@ -402,6 +402,7 @@ try {
     require __DIR__ . '/paused_tickets.php';
     require __DIR__ . '/appearance.php';
     require __DIR__ . '/workflow_notifications.php';
+    require __DIR__ . '/tracking.php';
 } finally {
     DB::connection()->rollBack();
 }

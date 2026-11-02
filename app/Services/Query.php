@@ -29,7 +29,7 @@ final class Query
         $order = $sorts[$filters['sort'] ?? 'rank'] ?? $sorts['rank'];
         $dir = ($filters['direction'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
         $rows = DB::all(
-            'SELECT t.*,p.project_key,a.name assignee_name,u.name reporter_name,tm.name team_name' .
+            'SELECT t.*,'.\App\Models\TicketTime::selectSql().',p.project_key,a.name assignee_name,u.name reporter_name,tm.name team_name' .
                 self::JOIN .
                 "WHERE $where ORDER BY $order $dir,t.id ASC LIMIT " .
                 max(1, min(2000, $limit)) .
@@ -52,7 +52,7 @@ final class Query
     public static function teamWorkload(int $project,array $filters): array
     {
         [$where,$args]=Filter::where($project,$filters);
-        return DB::all("SELECT t.team_id,COALESCE(tm.name,'Sans équipe') name,COUNT(*) total,SUM(".\App\Models\Workflow::categorySql()."='done') done,AVG(t.progress_percent) progress,SUM(t.estimated_hours) hours".self::JOIN."WHERE $where GROUP BY t.team_id,tm.name ORDER BY name,t.team_id",$args);
+        return DB::all("SELECT t.team_id,COALESCE(tm.name,'Sans équipe') name,COUNT(*) total,SUM(".\App\Models\Workflow::categorySql()."='done') done,AVG(t.progress_percent) progress,SUM(t.estimated_hours) hours,SUM(".\App\Models\TicketTime::spentSql().") spent_hours,SUM(".\App\Models\TicketTime::remainingSql().") remaining_hours,SUM(t.estimated_hours IS NULL) unestimated".self::JOIN."WHERE $where GROUP BY t.team_id,tm.name ORDER BY name,t.team_id",$args);
     }
     public static function aggregate(int $project, array $filters, string $field): array
     {

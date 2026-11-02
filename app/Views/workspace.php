@@ -1,6 +1,6 @@
 <?php
 use App\Models\Ticket;
-$pageLinks=['automation'=>'automation','dashboard'=>'dashboard','list'=>'list','all'=>'list','board'=>'board','timeline'=>'timeline','forms'=>'forms','development'=>'development','charts'=>'charts','settings'=>'settings'];
+$pageLinks=['releases'=>'releases','automation'=>'automation','dashboard'=>'dashboard','list'=>'list','all'=>'list','board'=>'board','timeline'=>'timeline','forms'=>'forms','development'=>'development','charts'=>'charts','settings'=>'settings'];
 $baseQuery=array_diff_key($filters,['page'=>1,'view'=>1]);
 function bars(array $rows,array $labels,string $kind='status'): void { $max=max([1,...array_map(fn($r)=>(int)$r['n'],$rows)]); foreach($rows as $row): ?><div class="bar-row"><div><span class="legend-dot <?= e($kind.'-'.$row['label']) ?>" <?= isset($row['color'])?'data-status-color="'.e($row['color']).'"':'' ?>></span><span><?= e($labels[$row['label']]??$row['label']) ?></span><strong><?= (int)$row['n'] ?></strong></div><progress value="<?= (int)$row['n'] ?>" max="<?= $max ?>" aria-label="<?= e($labels[$row['label']]??$row['label']) ?>"></progress></div><?php endforeach; if(!$rows): ?><p class="muted">Aucun ticket pour ces critères.</p><?php endif; }
 ?>

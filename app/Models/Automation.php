@@ -242,6 +242,7 @@ final class Automation
                         $actor ?? (int) $r['created_by'],
                         (int) $current['version'],
                         false,
+                        'automation',
                     );
                 }
                 if (isset($r['actions']['comment'])) {

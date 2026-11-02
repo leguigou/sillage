@@ -94,6 +94,8 @@ final class Tools
             'due_date' => ['type' => ['string', 'null'], 'maxLength' => 10],
             'flagged' => $bool,
             'progress_percent' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
+            'release_id' => $nullableId,
+            'resolution' => ['type'=>['string','null'],'enum'=>[null,...array_keys(\App\Models\TicketClosure::RESOLUTIONS)]],
             'estimated_hours' => [
                 'type' => ['string', 'number', 'null'],
                 'maxLength' => 9,
@@ -113,6 +115,9 @@ final class Tools
                 'statuses' => \App\Models\Workflow::labels('status'),
                 'types' => \App\Models\Workflow::labels('type'),
                 'priorities' => Ticket::PRIORITIES,
+                'resolutions'=>\App\Models\TicketClosure::RESOLUTIONS,
+                'validations'=>\App\Models\TicketClosure::VALIDATIONS,
+                'remaining_hours_formula'=>'estimated_hours * (100 - progress_percent) / 100 ; null if no estimate, independent of spent_hours',
                 'automation_events' => Automation::EVENTS,
             ],
         );
@@ -137,6 +142,7 @@ final class Tools
             'color' => $str(7),
             'repository_connection_id' => $nullableId,
             'team_ids' => ['type'=>'array','items'=>$id,'uniqueItems'=>true],
+            'require_ticket_validation'=>$bool,
         ];
         $add(
             'projects_create',
@@ -150,7 +156,7 @@ final class Tools
             'Modifier le nom, la description, la couleur ou le dépôt Git principal d’un projet. Une connexion existante peut être partagée.',
             'admin',
             $obj(
-                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId,'team_ids'=>['type'=>'array','items'=>$id,'uniqueItems'=>true]],
+                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId,'team_ids'=>['type'=>'array','items'=>$id,'uniqueItems'=>true],'require_ticket_validation'=>$bool],
                 ['id'],
             ),
             fn($a) => Project::find(Project::save($a, $a['id'])),
@@ -183,6 +189,9 @@ final class Tools
             true,
         );
         $filters = $obj([
+            'release'=>['type'=>['integer','string'],'description'=>'ID de version ou none pour les tickets sans version.'],
+            'resolution'=>$enum(array_keys(\App\Models\TicketClosure::RESOLUTIONS)),
+            'validation'=>$enum(array_keys(\App\Models\TicketClosure::VALIDATIONS)),
             'q' => $str(240),
             'jql' => $str(4000),
             'status' => $str(20),
@@ -238,11 +247,21 @@ final class Tools
         );
         $add(
             'tickets_get',
-            'Lire un ticket, ses dates, sa version et son estimation horaire.',
+            'Lire un ticket, sa version, sa résolution et ses heures estimées, passées et restantes (calcul sur l’avancement).',
             'read',
             $obj(['id' => $id], ['id']),
             fn($a) => Ticket::find($a['id']),
         );
+        $add('tickets_history','Lire les modifications détaillées avec valeurs avant/après, auteur et version. L’historique commence à l’activation de cette fonctionnalité.','read',$obj(['id'=>$id]+$page,['id']),fn($a)=>\App\Models\TicketHistory::page($a['id'],$a['offset']??0,$a['limit']??20));
+        $add('tickets_time_list','Lire les saisies de temps et les totaux du ticket. Le reste à faire dépend uniquement de l’estimation et du pourcentage d’avancement.','read',$obj(['id'=>$id]+$page,['id']),fn($a)=>['ticket'=>Ticket::find($a['id'])]+\App\Models\TicketTime::page($a['id'],$a['offset']??0,$a['limit']??50));
+        $timeFields=['hours'=>['type'=>['string','number'],'maxLength'=>5,'minimum'=>0.01,'maximum'=>24],'worked_on'=>$str(10),'note'=>$str(2000)];
+        $add('tickets_time_save','Ajouter ou modifier sa propre saisie de temps ; un administrateur peut corriger celles des collaborateurs. Version actuelle du ticket obligatoire.','write',$obj(['id'=>$id,'version'=>$id,'entry_id'=>$id]+$timeFields,['id','version','hours','worked_on']),fn($a)=>\App\Models\TicketTime::save($a['id'],$a,(int)$user['id'],$a['version'],$a['entry_id']??null));
+        $add('tickets_time_delete','Supprimer une saisie de temps. Sa trace et ses anciennes valeurs restent dans l’historique.','write',$obj(['id'=>$id,'version'=>$id,'entry_id'=>$id],['id','version','entry_id']),fn($a)=>\App\Models\TicketTime::save($a['id'],[],(int)$user['id'],$a['version'],$a['entry_id'],true),true);
+        $add('tickets_validate','Valider le contenu actuel ou demander une reprise motivée. Une modification ultérieure annule la validation. La validation ne clôture pas le ticket.','write',$obj(['id'=>$id,'version'=>$id,'approved'=>$bool,'note'=>$str(2000)],['id','version','approved']),fn($a)=>\App\Models\TicketClosure::review($a['id'],$a['approved'],$a['note']??'',(int)$user['id'],$a['version']));
+        $add('releases_list','Lister les versions cibles du projet et leur dernier résultat de livraison par environnement.','read',$obj(['project_id'=>$id,'archived'=>$bool]+$page,['project_id']),fn($a)=>\App\Models\Release::page($a['project_id'],$a['offset']??0,$a['limit']??50,$a['archived']??false));
+        $add('releases_save','Créer une version cible, ou modifier/archiver une version existante avec sa version courante. Les tickets sont associés par tickets_update.release_id.','write',$obj(['project_id'=>$id,'id'=>$id,'version'=>$id,'name'=>$str(120),'description'=>$str(10000),'target_date'=>['type'=>['string','null'],'maxLength'=>10],'archived'=>$bool],['project_id']),fn($a)=>\App\Models\Release::save($a['project_id'],$a,(int)$user['id'],$a['id']??null));
+        $add('release_deliveries_list','Lire l’historique immuable des livraisons déclarées pour une version.','read',$obj(['id'=>$id]+$page,['id']),fn($a)=>\App\Models\Release::deliveries($a['id'],$a['offset']??0,$a['limit']??30));
+        $add('releases_deliver','Déclarer explicitement une livraison réalisée en préproduction ou production, avec son résultat et sa référence Git/build. Ne lance aucun déploiement et ne transforme pas une PR fusionnée en livraison.','write',$obj(['id'=>$id,'version'=>$id,'environment'=>$enum(array_keys(\App\Models\Release::ENVIRONMENTS)),'outcome'=>$enum(array_keys(\App\Models\Release::OUTCOMES)),'reference'=>$str(240),'note'=>$str(2000)],['id','version','environment','outcome','reference']),fn($a)=>\App\Models\Release::deliver($a['id'],$a,(int)$user['id'],$a['version']));
         $add(
             'tickets_create',
             'Créer un ticket. Les automatisations du projet s’appliquent avant le résultat.',
@@ -252,7 +271,7 @@ final class Tools
                 ['project_id', 'fields'],
             ),
             fn($a) => Ticket::find(
-                Ticket::create($a['project_id'], $a['fields'], (int) $user['id']),
+                Ticket::create($a['project_id'], $a['fields'], (int) $user['id'],null,'mcp'),
             ),
         );
         $patch = $obj($ticketFields);
@@ -263,7 +282,7 @@ final class Tools
             'write',
             $obj(['id' => $id, 'version' => $id, 'fields' => $patch], ['id', 'version', 'fields']),
             function ($a) use ($user) {
-                Ticket::patch($a['id'], $a['fields'], (int) $user['id'], $a['version']);
+                Ticket::patch($a['id'], $a['fields'], (int) $user['id'], $a['version'],true,'mcp');
                 return Ticket::find($a['id']);
             },
         );

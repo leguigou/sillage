@@ -2,6 +2,7 @@
  <?= csrf() ?><input type="hidden" name="_return" value="/?project=<?= (int)$project['id'] ?>">
  <header class="dialog-header"><h2>Paramètres du projet</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
  <a class="button subtle" href="/settings?project=<?= (int)$project['id'] ?>#workflow">Configurer les statuts, types et transitions</a>
+ <input type="hidden" name="validation_present" value="1"><label class="check-label"><input type="checkbox" name="require_ticket_validation" value="1" <?= !empty($project['require_ticket_validation'])?'checked':'' ?>>Exiger une validation avant la clôture des tickets</label><small>Un collaborateur valide explicitement le contenu. Toute modification du contenu annule cette validation. Les tickets déjà terminés sont conservés.</small>
  <label>Nom du projet<input name="name" value="<?= e($project['name']) ?>" required maxlength="120"></label>
  <label>Clé des tickets<input value="<?= e($project['project_key']) ?>" readonly><small>La clé reste fixe pour conserver les références dans le code.</small></label>
  <label>Description<textarea name="description" rows="3" maxlength="2000"><?= e($project['description']??'') ?></textarea></label>

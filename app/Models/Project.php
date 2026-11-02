@@ -52,6 +52,7 @@ final class Project
                         $appearance['icon'],
                         $id,
                     ]);
+                    if (array_key_exists('require_ticket_validation',$input)) DB::run('UPDATE projects SET require_ticket_validation=? WHERE id=?',[(int)(bool)$input['require_ticket_validation'],$id]);
                     if (array_key_exists('repository_connection_id',$input)) {
                         $connection=(int)($input['repository_connection_id']??0);
                         if ($connection) RepositoryConnection::attach($id,$connection,true);
@@ -63,6 +64,7 @@ final class Project
                     'INSERT INTO projects(name,project_key,description,color,icon) VALUES(?,?,?,?,?)',
                     [$name, $key, $description, $color, $appearance['icon']],
                 );
+                if (!empty($input['require_ticket_validation'])) DB::run('UPDATE projects SET require_ticket_validation=1 WHERE id=?',[$newId]);
                 if (!empty($input['repository_connection_id'])) RepositoryConnection::attach($newId,(int)$input['repository_connection_id'],true);
                 if (array_key_exists('team_ids',$input)) Team::setProjectTeams($newId,(array)$input['team_ids']);
                 return $newId;

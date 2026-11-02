@@ -107,7 +107,7 @@ La commande « Reprendre ma vue précédente » reprend les paramètres Sillage 
 
 ## MCP et automatisations
 
-Le serveur MCP est disponible à **`/mcp`** avec 55 outils : projets, tickets, commentaires, relations,
+Le serveur MCP est disponible à **`/mcp`** avec 64 outils : projets, tickets, commentaires, relations,
 formulaires, règles de mise en forme, automatisations, équipes, accès utilisateurs, vues et statistiques.
 Les métadonnées des pièces jointes et les événements de développement sont également consultables.
 
@@ -127,6 +127,8 @@ Voir [le guide MCP, ses droits et son catalogue](docs/mcp.md) et [la connexion O
 Dans **Paramètres → Circuit du projet**, configurer les statuts, les types, leurs pictogrammes/couleurs et l’ordre des colonnes, puis les passages autorisés. Les catégories conservent le fonctionnement des rapports, des notifications et de la pause. Les contrôles s’appliquent aussi aux automatisations, imports et MCP. Voir [le guide des circuits](docs/circuits.md).
 
 La conversation propose les **@mentions** avec choix explicite d’un collaborateur. Le bouton **Suivre ce ticket** abonne le compte connecté, y compris en lecture seule. La cloche ouvre une **boîte personnelle** paginée, avec filtres Toutes/Non lues et changements de lecture par AJAX. Les notifications internes restent indépendantes des e-mails ; les politiques e-mail du projet peuvent aussi cibler abonnés et personnes mentionnées. Voir [le guide du suivi et des notifications](docs/suivi-notifications.md).
+
+Le suivi des [temps, de l’historique détaillé, des résolutions et des versions/livraisons](docs/temps-historique-livraisons.md) est disponible dans la fiche ticket et le menu du projet. Le reste à faire utilise l’estimation totale et le pourcentage d’avancement. La validation avant clôture est configurable par projet. Les livraisons préproduction/production sont déclarées explicitement, sans les déduire d’une fusion Git.
 
 ## Structure MVC
 

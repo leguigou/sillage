@@ -3,7 +3,7 @@
 Le serveur MCP est intégré à PHP/Apache, sans processus Node ni dépendance Python en production.
 Adresse locale : `http://127.0.0.1:8088/mcp`. En production : `https://votre-instance/mcp`.
 
-Le catalogue administrateur complet comporte 55 outils. `project_workflow_get` / `project_workflow_save` gèrent le [circuit du projet](circuits.md) avec contrôle de version ; les champs statut/type des tickets acceptent ses clés et respectent ses transitions. `tickets_follow`, `notifications_list` et `notifications_mark` exposent le [suivi personnel et la boîte de notifications](suivi-notifications.md). Les commentaires texte acceptent `@[user:123]` pour mentionner explicitement un membre. Après déploiement, actualiser les outils dans le client MCP pour découvrir ces ajouts.
+Le catalogue administrateur complet comporte 64 outils. `project_workflow_get` / `project_workflow_save` gèrent le [circuit du projet](circuits.md) avec contrôle de version ; les champs statut/type des tickets acceptent ses clés et respectent ses transitions. `tickets_follow`, `notifications_list` et `notifications_mark` exposent le [suivi personnel et la boîte de notifications](suivi-notifications.md). Les commentaires texte acceptent `@[user:123]` pour mentionner explicitement un membre. Les outils de [temps, historique, validation et livraisons](temps-historique-livraisons.md#mcp-et-installation) partagent les contrôles métier du site. Après déploiement, actualiser les outils dans le client MCP pour découvrir ces ajouts.
 
 ## Créer et gérer une clé
 
@@ -71,6 +71,8 @@ php -c .runtime/php-config/php.ini bin/console.php mcp:tools
 | Espace et dashboard             | `workspace_info`, `reports_summary`                                                                                                |
 | Projets                         | `projects_list`, `projects_create`, `projects_update`, `projects_delete_empty`                                                     |
 | Tickets                         | `tickets_list`, `tickets_get`, `tickets_create`, `tickets_update`, `tickets_pause`, `tickets_archive`, `tickets_bulk_update`                        |
+| Temps, historique et validation | `tickets_time_list`, `tickets_time_save`, `tickets_time_delete`, `tickets_history`, `tickets_validate` |
+| Versions et livraisons          | `releases_list`, `releases_save`, `releases_deliver`, `release_deliveries_list` |
 | Commentaires et relations       | `tickets_comment`, `tickets_comments_list`, `tickets_link`, `tickets_links_list`, `tickets_unlink`                                 |
 | Formulaires                     | `forms_list`, `forms_get`, `forms_save`, `forms_set_enabled`, `forms_rotate_link`, `forms_delete`                                  |
 | Mise en forme                   | `formatting_list`, `formatting_create`, `formatting_delete`                                                                        |

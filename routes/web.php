@@ -15,6 +15,11 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$tracking=new \App\Controllers\TrackingController();
+$r->add('POST','/tickets/{id}/time',[$tracking,'time'])
+    ->add('POST','/tickets/{id}/validation',[$tracking,'review'])
+    ->add('POST','/releases',[$tracking,'release'])
+    ->add('POST','/releases/{id}/deliveries',[$tracking,'delivery']);
 $inbox=new \App\Controllers\InboxController();
 $r->add('GET','/notifications',[$inbox,'index'])
     ->add('GET','/notifications/count',[$inbox,'count'])
@@ -74,7 +79,7 @@ $r->add('GET', '/verify', [$auth, 'verify'])->add('POST', '/logout', [$auth, 'lo
 $r->add('POST', '/account/password', [$auth, 'changePassword']);
 $r->add('GET', '/', fn() => $work->show('dashboard'));
 foreach (
-    ['list', 'board', 'timeline', 'forms', 'development', 'charts', 'settings', 'all', 'automation']
+    ['list', 'board', 'timeline', 'forms', 'development', 'charts', 'settings', 'all', 'automation','releases']
     as $section
 ) {
     $r->add('GET', '/' . $section, fn() => $work->show($section));

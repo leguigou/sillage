@@ -45,6 +45,7 @@ final class TransferController
                     'due_date',
                     'estimated_hours',
                     'progress_percent',
+                    'spent_hours','remaining_hours','release_id','resolution','validation_state',
                     'labels',
                 ],
                 ',',
@@ -71,6 +72,11 @@ final class TransferController
                     'due_date' => $t['due_date'],
                     'estimated_hours' => $t['estimated_hours'],
                     'progress_percent' => $t['progress_percent'],
+                    'spent_hours'=>$t['spent_hours'],
+                    'remaining_hours'=>$t['remaining_hours'],
+                    'release_id'=>$t['release_id'],
+                    'resolution'=>$t['resolution'],
+                    'validation_state'=>$t['validation_state'],
                     'labels' => implode(', ', $t['labels_array']),
                 ];
                 if ($format === 'csv') {

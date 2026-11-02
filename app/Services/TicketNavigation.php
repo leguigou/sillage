@@ -7,6 +7,7 @@ final class TicketNavigation
 {
     private const VIEWS = [
         '/notifications'=>'Revenir aux notifications',
+        '/releases'=>'Revenir aux versions et livraisons',
         '/'=>'Revenir à la vue d’ensemble', '/list'=>'Revenir à la liste', '/all'=>'Revenir à tous les tickets',
         '/board'=>'Revenir au tableau', '/timeline'=>'Revenir à la chronologie', '/charts'=>'Revenir aux rapports',
         '/development'=>'Revenir au développement', '/forms'=>'Revenir aux formulaires',
@@ -49,10 +50,11 @@ final class TicketNavigation
         }
         return self::referrer();
     }
-    public static function ticket(int $id,string $fragment=''): string
+    public static function ticket(int $id,string $fragment='',array $query=[]): string
     {
         $source=self::current();
-        return '/tickets/'.$id.($source!==null?'?'.http_build_query(['return'=>$source],'','&',PHP_QUERY_RFC3986):'').$fragment;
+        $query=($source!==null?['return'=>$source]:[])+$query;
+        return '/tickets/'.$id.($query?'?'.http_build_query($query,'','&',PHP_QUERY_RFC3986):'').$fragment;
     }
     public static function back(int $project): array
     {

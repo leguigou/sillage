@@ -157,6 +157,7 @@ final class WorkspaceController
             'charts' => 'Rapports',
             'settings' => 'Paramètres',
             'automation' => 'Automatisations',
+            'releases' => 'Versions et livraisons',
             default => 'Vue d’ensemble',
         };
         View::render(
@@ -199,6 +200,7 @@ final class WorkspaceController
     public function updateProject(string $id): void
     {
         Auth::admin();
+        if (isset($_POST['validation_present'])) $_POST['require_ticket_validation']=!empty($_POST['require_ticket_validation']);
         if (isset($_POST['teams_present'])) $_POST['team_ids']=$_POST['team_ids']??[];
         Project::save($_POST,(int)$id);
         if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) {

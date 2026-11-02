@@ -86,6 +86,19 @@ final class Filter
         if (!empty($input['hide_done'])) {
             $sql[] = \App\Models\Workflow::categorySql()."<>'done'";
         }
+        if (($input['release']??'')!=='') {
+            $release=$input['release'];
+            if ($release==='none') $sql[]='t.release_id IS NULL';
+            else {
+                if ((!is_int($release) && !is_string($release)) || !ctype_digit((string)$release) || (int)$release<1) throw new \InvalidArgumentException('Filtre version invalide.');
+                $sql[]='t.release_id=?';$params[]=(int)$release;
+            }
+        }
+        foreach(['resolution'=>\App\Models\TicketClosure::RESOLUTIONS,'validation'=>\App\Models\TicketClosure::VALIDATIONS] as $filter=>$options) if (($input[$filter]??'')!=='') {
+            $value=$input[$filter];
+            if (!is_string($value) || !isset($options[$value])) throw new \InvalidArgumentException('Filtre de clôture invalide.');
+            $sql[]=$filter==='resolution'?'t.resolution=?':'t.validation_state=?';$params[]=$value;
+        }
         if (!empty($input['flagged'])) {
             $sql[] = 't.flagged=1';
         }

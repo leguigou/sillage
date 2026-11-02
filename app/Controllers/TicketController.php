@@ -9,6 +9,9 @@ final class TicketController
     {
         $user = Auth::requireUser();
         $ticket = Ticket::find((int) $id);
+        $history=\App\Models\TicketHistory::page((int)$id,max(0,(int)($_GET['history_offset']??0)),30);
+        $time=\App\Models\TicketTime::page((int)$id,max(0,(int)($_GET['time_offset']??0)),50);
+        $targetRelease=$ticket['release_id']?\App\Models\Release::find((int)$ticket['release_id']):null;
         $project = Project::find((int) $ticket['project_id']);
         $parent = $ticket['parent_id'] ? DB::one('SELECT t.id,t.number,t.title,p.project_key FROM tickets t JOIN projects p ON p.id=t.project_id WHERE t.id=?',[$ticket['parent_id']]) : null;
         $primaryRepository=empty($project['repository_connection_id'])?null:DB::one('SELECT c.id,c.provider,c.repository FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? AND c.id=?',[$project['id'],$project['repository_connection_id']]);
@@ -46,6 +49,7 @@ final class TicketController
             'ticket',
             compact(
                 'ticket',
+                'history','time','targetRelease',
                 'project',
                 'projects',
                 'members',

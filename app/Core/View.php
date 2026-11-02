@@ -3,6 +3,10 @@ declare(strict_types=1);
 namespace App\Core;
 final class View
 {
+    public static function hours(int|float|string|null $value): string
+    {
+        return $value===null?'—':number_format((float)$value,2,',',' ').' h';
+    }
     public static function render(string $template, array $data = []): void
     {
         require_once ROOT . '/app/Views/icons.php';

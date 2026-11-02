@@ -8,15 +8,11 @@ use App\Models\{Ticket,ProjectEmail};
 final class Notifications
 {
     private static ?string $batch=null;
-    private const FIELDS=['title'=>'Résumé','description'=>'Description','type'=>'Type','priority'=>'Priorité','assignee_id'=>'Responsable','team_id'=>'Équipe','parent_id'=>'Parent','labels'=>'Étiquettes','start_date'=>'Date de début','due_date'=>'Échéance','flagged'=>'Blocage','estimated_hours'=>'Temps estimé','progress_percent'=>'Avancement','status'=>'État'];
+    private const FIELDS=\App\Models\TicketHistory::FIELDS+['spent_hours'=>'Temps passé'];
     public static function changed(array $before,array $after,?int $actor): void
     {
         $fields=[];
-        foreach(self::FIELDS as $key=>$label) {
-            $a=$before[$key]??null;$b=$after[$key]??null;
-            if ($key==='estimated_hours') { $a=$a===null?null:number_format((float)$a,2,'.','');$b=$b===null?null:number_format((float)$b,2,'.',''); }
-            if (($a===null)!==($b===null) || (string)$a!==(string)$b) $fields[]=$key;
-        }
+        $fields=array_column(\App\Models\TicketHistory::changes($before,$after),'field');
         if (!$fields) return;
         $events=[];
         if (array_intersect($fields,['assignee_id','team_id'])) $events[]='assigned';

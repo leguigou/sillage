@@ -35,9 +35,9 @@ function url(string $path = ''): string
 {
     return rtrim(env('APP_URL', 'http://127.0.0.1:8088'), '/') . '/' . ltrim($path, '/');
 }
-function ticket_url(int $id,string $fragment=''): string
+function ticket_url(int $id,string $fragment='',array $query=[]): string
 {
-    return App\Services\TicketNavigation::ticket($id,$fragment);
+    return App\Services\TicketNavigation::ticket($id,$fragment,$query);
 }
 function query_url(string $path,array $query,array $changes=[]): string { return $path.'?'.http_build_query(array_replace($query,$changes)); }
 function ticket_context(): string

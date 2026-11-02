@@ -28,7 +28,7 @@ final class Ticket
     public static function find(int $id): array
     {
         $t = DB::one(
-            'SELECT t.*,p.project_key,p.name project_name,a.name assignee_name,u.name reporter_name,tm.name team_name FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id LEFT JOIN teams tm ON tm.id=t.team_id WHERE t.id=?',
+            'SELECT t.*,'.TicketTime::selectSql().',p.require_ticket_validation,p.project_key,p.name project_name,a.name assignee_name,u.name reporter_name,tm.name team_name,r.name release_name,v.name validator_name FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id LEFT JOIN teams tm ON tm.id=t.team_id LEFT JOIN releases r ON r.id=t.release_id LEFT JOIN users v ON v.id=t.validated_by WHERE t.id=?',
             [$id],
         );
         if (!$t) {
@@ -37,6 +37,14 @@ final class Ticket
         $t['key'] = $t['project_key'] . '-' . $t['number'];
         $t['labels_array'] = json_decode($t['labels'], true);
         return Workflow::decorate($t);
+    }
+    public static function lock(int $id,int $version): array
+    {
+        $ticket=self::find($id);
+        DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$ticket['project_id']]);
+        Workflow::reset();$ticket=self::find($id);
+        if ((int)$ticket['version']!==$version) throw new \InvalidArgumentException('Ce ticket a changé. Rechargez-le avant de réessayer.');
+        return $ticket;
     }
     public static function activity(int $project, ?int $ticket, ?int $user, string $message): void
     {
@@ -50,7 +58,7 @@ final class Ticket
     public static function validate(array $input, int $project, ?int $self = null): array
     {
         $title = trim((string) ($input['title'] ?? ''));
-        $desc = trim((string) ($input['description'] ?? ''));
+        $desc = self::description((string) ($input['description'] ?? ''));
         if ($title === '' || mb_strlen($title) > 240) {
             throw new \InvalidArgumentException('Le résumé est requis (240 caractères maximum).');
         }
@@ -153,24 +161,33 @@ final class Ticket
             'flagged' => !empty($input['flagged']) ? 1 : 0,
             'estimated_hours' => $hours === '' ? null : $hours,
             'progress_percent' => (int) $progress,
+            'release_id' => Release::validateTarget($input['release_id']??null,$project,$self),
+            'resolution' => TicketClosure::resolution($input,$project,$status),
         ];
+    }
+    public static function description(string $value): string
+    {
+        // Textareas submit CRLF while API/CLI clients commonly submit LF.
+        return str_replace(["\r\n","\r"],"\n",trim($value));
     }
     public static function create(
         int $project,
         array $input,
         ?int $reporter,
         ?string $external = null,
+        string $source = 'application',
     ): int {
-        return DB::transaction(function () use ($project, $input, $reporter, $external) {
+        return DB::transaction(function () use ($project, $input, $reporter, $external,$source) {
             $p = DB::one('SELECT * FROM projects WHERE id=? FOR UPDATE', [$project]);
             if (!$p) {
                 throw new \InvalidArgumentException('Projet introuvable.');
             }
             Workflow::reset();
             $data = self::validate($input,$project);
+            TicketClosure::prepare(null,$data,$project);
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
-                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,team_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,team_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,release_id,resolution,reporter_id,external_email,rank_value,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 [
                     $project,
                     $p['next_number'],
@@ -182,6 +199,7 @@ final class Ticket
                 ],
             );
             if ($data['status']==='paused') DB::run('UPDATE tickets SET paused_from_status=? WHERE id=?',['todo',$id]);
+            TicketHistory::record([],self::find($id),$external?null:$reporter,'created',$external?'external':$source);
             self::activity(
                 $project,
                 $id,
@@ -199,14 +217,13 @@ final class Ticket
         int $actor,
         int $version,
         bool $automate = true,
+        string $source = 'application',
     ): void {
-        DB::transaction(function () use ($id, $input, $actor, $version, $automate) {
-            $old = self::find($id);
-            DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$old['project_id']]);
-            Workflow::reset();
-            $old = self::find($id);
-            $data = self::validate(array_replace(['team_id'=>$old['team_id']],$input), (int) $old['project_id'], $id);
+        DB::transaction(function () use ($id, $input, $actor, $version, $automate,$source) {
+            $old = self::lock($id,$version);
+            $data = self::validate(array_replace(['team_id'=>$old['team_id'],'release_id'=>$old['release_id'],'resolution'=>$old['resolution']],$input), (int) $old['project_id'], $id);
             Workflow::assertTransition((int)$old['project_id'],$old['status'],$data['status'],$old['paused_from_status']??null);
+            $data+=TicketClosure::prepare($old,$data,(int)$old['project_id']);
             $resume=$data['status']==='paused'?($old['status']==='paused'?($old['paused_from_status']??'todo'):$old['status']):null;
             $completed =
                 Workflow::category('status',(int)$old['project_id'],$data['status']) === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
@@ -220,6 +237,7 @@ final class Ticket
                     'Ce ticket a changé depuis son ouverture. Rechargez-le avant de réessayer.',
                 );
             }
+            TicketHistory::record($old,self::find($id),$actor,'updated',$source);
             self::activity(
                 (int) $old['project_id'],
                 $id,
@@ -241,6 +259,7 @@ final class Ticket
         int $actor,
         int $version,
         bool $automate = true,
+        string $source = 'application',
     ): void {
         $old = self::find($id);
         $allowed = [
@@ -258,6 +277,8 @@ final class Ticket
             'flagged',
             'estimated_hours',
             'progress_percent',
+            'release_id',
+            'resolution',
         ];
         if (!$changes || array_diff(array_keys($changes), $allowed)) {
             throw new \InvalidArgumentException('Champs de modification invalides.');
@@ -268,6 +289,7 @@ final class Ticket
             $actor,
             $version,
             $automate,
+            $source,
         );
     }
     public static function setPaused(int $id,bool $paused,int $actor,int $version): void
@@ -304,6 +326,7 @@ final class Ticket
                 $actor,
                 $archived ? 'a archivé le ticket' : 'a restauré le ticket',
             );
+            TicketHistory::record($t,self::find($id),$actor,$archived?'archived':'restored');
             if ((bool)$t['archived']!==$archived) \App\Services\Notifications::enqueue(self::find($id),['archived'],$actor);
         });
     }
