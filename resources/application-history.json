@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.4.0",
+  "current_version": "1.4.1",
   "entries": [
+    {
+      "version": "1.4.1",
+      "date": "2026-11-02",
+      "category": "fixes",
+      "title": "Champs de connexion correctement espacés",
+      "summary": "Le texte des champs de connexion conserve son espace près de l’icône et du bouton d’affichage.",
+      "changes": [
+        "Correction du chevauchement entre l’icône e-mail et le texte saisi ou indicatif.",
+        "Icône centrée verticalement, sans intercepter les clics dans le champ.",
+        "Espace réservé au bouton Afficher du mot de passe, sur ordinateur et mobile."
+      ]
+    },
     {
       "version": "1.4.0",
       "date": "2026-11-02",

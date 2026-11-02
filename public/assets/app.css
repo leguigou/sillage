@@ -2655,18 +2655,21 @@ label small {
 .input-icon > .icon {
   position: absolute;
   left: 13px;
-  top: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 17px;
   height: 17px;
   color: var(--muted);
+  pointer-events: none;
 }
-.input-icon > input {
+.auth-card .input-icon > input[type='email'] {
   padding-left: 39px;
 }
 .password-field {
   position: relative;
 }
-.password-field > input {
+.auth-card .password-field > input[type='password'],
+.auth-card .password-field > input[type='text'] {
   padding-right: 72px;
 }
 .password-field > button {
@@ -3156,9 +3159,6 @@ label small {
   .auth-card input {
     padding: 14px;
   }
-  .input-icon > input {
-    padding-left: 39px;
-  }
   .auth-assurance {
     font-size: 10px;
   }
@@ -3258,9 +3258,6 @@ label small {
   }
 }
 
-.auth-card .input-icon > input {
-  padding-left: 39px;
-}
 @media (max-height: 950px) {
   .team-note {
     display: none;
