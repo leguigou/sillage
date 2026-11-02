@@ -205,10 +205,20 @@ final class WorkspaceController
         Project::save($_POST,(int)$id);
         if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) {
             $saved=Project::find((int)$id);
-            json_response(['project'=>array_intersect_key($saved,array_flip(['id','name','description','color','icon']))]);
+            json_response(['project'=>array_intersect_key($saved,array_flip(['id','name','project_key','description','color','icon']))]);
         }
         flash('Projet, équipes et dépôt principal enregistrés.');
         redirect('/?project='.(int)$id);
+    }
+    public function projectSettings(string $id): void
+    {
+        Auth::admin();
+        $project=Project::find((int)$id);
+        $teams=DB::all('SELECT id,name FROM teams ORDER BY name,id');
+        $repositoryCatalog=\App\Models\RepositoryConnection::all();
+        header('Content-Type: text/html; charset=utf-8');
+        require_once ROOT.'/app/Views/icons.php';
+        require ROOT.'/app/Views/partials/project-settings.php';
     }
     public function project(): void
     {

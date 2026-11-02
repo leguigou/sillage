@@ -509,6 +509,11 @@ kbd {
   padding-top: 32px;
 }
 .team-note {
+  display: grid;
+  grid-template-columns: 18px minmax(0,1fr);
+  column-gap: 8px;
+  row-gap: 6px;
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
@@ -517,16 +522,18 @@ kbd {
   position: relative;
 }
 .team-note > span {
-  display: block;
+  display: inline-flex;
   color: var(--accent);
-  margin-bottom: 8px;
 }
+.team-note > span .icon { width:18px;height:18px; }
 .team-note strong {
   font-size: 11px;
+  line-height: 1.4;
 }
 .team-note p {
+  grid-column: 1 / -1;
   font-size: 10px;
-  margin-top: 5px;
+  margin: 0;
   color: var(--muted);
   line-height: 1.6;
 }
@@ -2037,16 +2044,27 @@ progress::-moz-progress-bar {
   display: block;
   font-size: 9px;
 }
+.settings-project-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+}
+.settings-project-row > .button { flex: none; }
 .settings-project {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 15px 0;
-  border-top: 1px solid var(--line);
+  flex: 1;
+  min-width: 0;
 }
 .settings-project > div {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
+@media(max-width:600px){.settings-project-row{flex-wrap:wrap;gap:10px}.settings-project-row>.settings-project{flex-basis:100%}.settings-project-row>.button{margin-left:auto}}
 .settings-project strong {
   display: block;
   font-size: 12px;

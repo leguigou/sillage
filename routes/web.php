@@ -50,6 +50,7 @@ $r->add('GET','/oauth/authorize',[$oauth,'authorize'])
     ->add('POST','/oauth/grants/{id}/revoke',[$oauth,'revokeGrant']);
 $auth = new AuthController();
 $work = new WorkspaceController();
+$r->add('GET','/projects/{id}/settings',[$work,'projectSettings']);
 $tickets = new TicketController();
 $files = new AttachmentController();
 $transfer = new TransferController();

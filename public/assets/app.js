@@ -137,20 +137,12 @@ document.addEventListener('click', (event) => {
     button.textContent = input.type === 'password' ? 'Afficher' : 'Masquer';
   }
 });
-$$('dialog').forEach((d) =>
-  d.addEventListener('click', (e) => {
-    if (e.target === d) {
-      const box = d.getBoundingClientRect();
-      if (
-        e.clientX < box.left ||
-        e.clientX > box.right ||
-        e.clientY < box.top ||
-        e.clientY > box.bottom
-      )
-        d.close();
-    }
-  }),
-);
+document.addEventListener('click',event=>{
+  const dialog=event.target;
+  if(!dialog.matches?.('dialog')) return;
+  const box=dialog.getBoundingClientRect();
+  if(event.clientX<box.left || event.clientX>box.right || event.clientY<box.top || event.clientY>box.bottom) dialog.close();
+});
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   try {
@@ -297,6 +289,27 @@ async function quick(row, field, value) {
   }
   return data;
 }
+let projectEditorLoading=false;
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-edit-project]');
+  if(!button || event.defaultPrevented) return;
+  event.preventDefault();
+  const host=$('[data-project-settings-host]');
+  if(!host || projectEditorLoading) return;
+  projectEditorLoading=true;button.disabled=true;button.setAttribute('aria-busy','true');
+  try {
+    const response=await fetch('/projects/'+encodeURIComponent(button.dataset.editProject)+'/settings',{headers:{Accept:'text/html'},cache:'no-store'});
+    if(response.redirected) throw new Error('Votre session a expiré. Reconnectez-vous.');
+    if(!response.ok) throw new Error(response.status===403?'Cette action est réservée à un administrateur.':'Les paramètres de ce projet ne sont plus disponibles.');
+    const page=new DOMParser().parseFromString(await response.text(),'text/html');
+    const dialog=page.getElementById('project-settings-dialog');
+    if(!dialog) throw new Error('Impossible d’ouvrir les paramètres du projet.');
+    host.replaceChildren(dialog);
+    initAppearanceMarks(dialog);initAppearancePickers(dialog);
+    openDialog(dialog.id);
+  } catch(error) {toast(error.message||'Connexion interrompue. Réessayez.',true);}
+  finally {projectEditorLoading=false;button.disabled=false;button.removeAttribute('aria-busy');}
+});
 document.addEventListener('submit',async event=>{
   const form=event.target;
   if(!form.matches('#project-settings-dialog form') || event.defaultPrevented) return;
@@ -318,9 +331,15 @@ document.addEventListener('submit',async event=>{
       const name=link && $('.project-name,strong',link);
       if(name) name.textContent=project.name;
       if(link?.classList.contains('settings-project')) $('small',link).textContent=project.description;
-      if(link?.classList.contains('project-link')) { link.title=project.name;link.setAttribute('aria-label',project.name); }
+      if(link?.classList.contains('project-link')) {
+        const label=project.name+' ('+project.project_key+')';
+        link.title=label;link.setAttribute('aria-label',label);
+      }
       const crumb=mark.closest('.project-crumb');
       if(crumb) crumb.replaceChildren(mark,document.createTextNode(project.name));
+    });
+    $$('[data-edit-project]').filter(opener=>opener.dataset.editProject===String(project.id)).forEach(opener=>{
+      if(opener.closest('.settings-project-row')) opener.setAttribute('aria-label','Modifier le projet '+project.name);
     });
     initAppearanceMarks();form.closest('dialog').close();toast('Projet enregistré.');
   } catch(error) { toast(error.message || 'Connexion interrompue. Vérifiez l’état avant de réessayer.',true); }

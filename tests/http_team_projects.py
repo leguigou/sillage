@@ -7,6 +7,7 @@ tid=re.search(r'data-team-id="(\d+)"[^>]*>\s*<header[^>]*><h3>'+team_marker,team
 check(status==200,'create real team over HTTP')
 status,team_html,team_project_url=call('/projects',{'_csrf':csrf,'name':team_marker+' projet A','key':'EA'+uuid.uuid4().hex[:6].upper(),'teams_present':'1','team_ids[]':[tid]})
 team_pid=urllib.parse.parse_qs(urllib.parse.urlsplit(team_project_url).query)['project'][0]
+_,team_html,_=call('/projects/'+team_pid+'/settings')
 check(status==200 and re.search(r'name="team_ids\[\]" value="'+tid+'" checked',team_html),'create project with team and remember selection')
 _,_,second_url=call('/projects',{'_csrf':csrf,'name':team_marker+' projet B','key':'EB'+uuid.uuid4().hex[:6].upper()})
 team_pid2=urllib.parse.parse_qs(urllib.parse.urlsplit(second_url).query)['project'][0]

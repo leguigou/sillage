@@ -1,6 +1,6 @@
-<dialog id="project-settings-dialog" class="dialog compact"><form action="/projects/<?= (int)$project['id'] ?>/update" method="post" class="stack">
+<dialog id="project-settings-dialog" class="dialog compact" aria-labelledby="project-settings-title"><form action="/projects/<?= (int)$project['id'] ?>/update" method="post" class="stack">
  <?= csrf() ?><input type="hidden" name="_return" value="/?project=<?= (int)$project['id'] ?>">
- <header class="dialog-header"><h2>Paramètres du projet</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
+ <header class="dialog-header"><h2 id="project-settings-title">Modifier <?= e($project['name']) ?></h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
  <a class="button subtle" href="/settings?project=<?= (int)$project['id'] ?>#workflow">Configurer les statuts, types et transitions</a>
  <input type="hidden" name="validation_present" value="1"><label class="check-label"><input type="checkbox" name="require_ticket_validation" value="1" <?= !empty($project['require_ticket_validation'])?'checked':'' ?>>Exiger une validation avant la clôture des tickets</label><small>Un collaborateur valide explicitement le contenu. Toute modification du contenu annule cette validation. Les tickets déjà terminés sont conservés.</small>
  <label>Nom du projet<input name="name" value="<?= e($project['name']) ?>" required maxlength="120"></label>

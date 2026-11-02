@@ -7,7 +7,7 @@ git_repo_id=connection.group(1)
 check(status==200,'project created with existing shared repository')
 _,git_body,_=call('/development?project='+git_project_id)
 check('value="qa/repo" readonly' in git_body and '/connections/'+git_repo_id+'/sync' in git_body,'shared repository visible in new project without credential duplication')
-_,git_body,_=call('/?project='+git_project_id)
+_,git_body,_=call('/projects/'+git_project_id+'/settings')
 check('value="'+git_repo_id+'" selected' in git_body,'project editor remembers primary repository')
 _,git_ticket_page,git_ticket_url=call('/tickets',{'_csrf':csrf,'project_id':git_project_id,'title':git_marker+' target'})
 git_ticket_id=git_ticket_url.rsplit('/',1)[-1]
