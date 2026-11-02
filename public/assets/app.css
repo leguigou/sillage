@@ -1840,6 +1840,12 @@ progress::-moz-progress-bar {
   margin-left: auto;
   font-size: 9px;
 }
+.development-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
 .feature-banner {
   display: flex;
   align-items: center;

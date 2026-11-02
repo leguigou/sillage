@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.2.0",
+  "current_version": "1.2.1",
   "entries": [
+    {
+      "version": "1.2.1",
+      "date": "2026-11-02",
+      "category": "interface",
+      "title": "Espacement du développement et icône du navigateur",
+      "summary": "Une présentation plus aérée et une identité visible dans les onglets du navigateur.",
+      "changes": [
+        "Espacement de 24 px entre le raccourci des journaux et la bannière de la page Développement.",
+        "Favicon Sillage partagé entre l’application, la connexion, les formulaires publics et les pages d’erreur."
+      ]
+    },
     {
       "version": "1.2.0",
       "date": "2026-11-02",
