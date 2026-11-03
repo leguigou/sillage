@@ -20,6 +20,8 @@ La colonne **Création** permet le tri croissant ou décroissant ; le sens actif
 
 ## Rapports personnels
 
+Le bouton **+** reste disponible pour créer un autre rapport. Le **stylo**, placé juste après le rapport actif, modifie uniquement celui-ci. Création et édition utilisent des instances indépendantes du même formulaire : le nouveau nom est vide, l’identité est remise à zéro à chaque nouvelle création et les brouillons restent séparés. Les filtres et colonnes courants sont repris pour préparer le nouveau rapport ; le rapport actif reste inchangé tant qu’il n’est pas explicitement modifié.
+
 **Mes rapports → Créer un rapport** conserve les filtres appliqués, le tri et son sens, le regroupement, la hiérarchie, les colonnes cochées et leur ordre. Le résumé reste obligatoire ; l’avancement et le reste à faire peuvent être affichés sous celui-ci. Les flèches déplacent les colonnes, sans glisser-déposer obligatoire. Le sélecteur de colonnes possède son propre défilement ; sur petit écran, la configuration passe sur une colonne.
 
 Les rapports sont enregistrés dans `saved_views`, liés au compte et au projet, et disponibles sur les autres navigateurs après connexion. Cliquer un rapport applique sa présentation ; **Modifier mon rapport** permet de le renommer et de mettre à jour ses options. **Créer une copie** enregistre un rapport séparé. Sauvegarde, copie et suppression utilisent AJAX, sans déplacement de la page ; **Afficher ce rapport** applique explicitement le rapport enregistré. La suppression ne touche pas les tickets.

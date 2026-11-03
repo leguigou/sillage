@@ -1,6 +1,7 @@
 (() => {
   'use strict';
-  const dialog=document.getElementById('save-view-dialog'),form=dialog?.querySelector('[data-personal-report]');if(!form) return;
+  document.querySelectorAll('[data-personal-report]').forEach(form=>{
+  const dialog=form.closest('dialog');
   const columns=form.querySelector('[data-report-columns]'),order=form.querySelector('[data-report-order]'),status=form.querySelector('[data-report-status]');
   const open=form.querySelector('[data-report-open]'),copy=form.querySelector('[data-report-copy]'),remove=form.querySelector('[data-report-delete]');
   let busy=false;
@@ -15,7 +16,8 @@
   form.querySelector('[data-required-column]')?.addEventListener('change',event=>{event.target.checked=true;});
   dialog.addEventListener('sillage:dialog-discarded',()=>{arrange(JSON.parse(order.value));});
   document.addEventListener('click',event=>{
-    if(!event.target.closest('[data-open="save-view-dialog"]') || dialog.open) return;
+    if(event.target.closest('[data-open]')?.dataset.open!==dialog.id || dialog.open) return;
+    if(form.hasAttribute('data-report-create')) {form.reset();form.elements.view_id.value='0';form.elements.revision.value='';form.elements.name.value='';arrange(JSON.parse(order.value));open.hidden=copy.hidden=remove.hidden=true;open.removeAttribute('href');status.textContent='';}
     const headers=[...document.querySelectorAll('.ticket-table th[data-column]')];
     if(headers.length) {
       arrange(headers.map(node=>node.dataset.column));
@@ -32,7 +34,7 @@
       const result=await request('/views',body);form.elements.view_id.value=result.id;form.elements.revision.value=result.revision;form.elements.name.value=result.name;
       open.hidden=copy.hidden=remove.hidden=false;open.href=result.url;
       const links=document.querySelector('[data-personal-reports]');let link=links?.querySelector('[data-personal-report-link="'+result.id+'"]');
-      if(links && !link){link=document.createElement('a');link.className='saved-view';link.dataset.personalReportLink=result.id;links.insertBefore(link,links.querySelector('button'));}
+      if(links && !link){link=document.createElement('a');link.className='saved-view';link.dataset.personalReportLink=result.id;links.insertBefore(link,links.querySelector('[data-report-add]'));}
       if(link){link.href=result.url;link.textContent=result.name;}
       status.textContent='Rapport enregistré dans votre compte. « Afficher ce rapport » applique ses filtres et sa présentation.';window.SillageDialogs.commit(dialog);
     }catch(error){status.textContent=error.message;}
@@ -44,8 +46,9 @@
     if(busy || !form.elements.view_id.value || form.elements.view_id.value==='0') return;
     if(!await window.SillageDialogs.confirm({title:'Supprimer mon rapport ?',message:'Le rapport personnel « '+form.elements.name.value+' » sera supprimé. Les tickets sont conservés.',accept:'Supprimer le rapport',danger:true})) return;
     const id=form.elements.view_id.value;lock(true);
-    try {await request('/views/'+id+'/delete',new URLSearchParams({_csrf:csrfToken}));document.querySelector('[data-personal-report-link="'+id+'"]')?.remove();form.elements.view_id.value='0';form.elements.revision.value='';form.elements.name.value='';open.hidden=copy.hidden=remove.hidden=true;status.textContent='Rapport supprimé. Vous pouvez en créer un nouveau.';window.SillageDialogs.commit(dialog);}
+    try {await request('/views/'+id+'/delete',new URLSearchParams({_csrf:csrfToken}));document.querySelector('[data-personal-report-link="'+id+'"]')?.remove();document.querySelector('[data-report-edit="'+id+'"]')?.remove();form.elements.view_id.value='0';form.elements.revision.value='';form.elements.name.value='';open.hidden=copy.hidden=remove.hidden=true;status.textContent='Rapport supprimé. Vous pouvez en créer un nouveau.';window.SillageDialogs.commit(dialog);}
     catch(error){status.textContent=error.message;}
     finally{lock(false);}
+  });
   });
 })();

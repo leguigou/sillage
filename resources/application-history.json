@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.8.1",
+  "current_version": "1.8.2",
   "entries": [
+    {
+      "version": "1.8.2",
+      "date": "2026-11-03",
+      "category": "fixes",
+      "title": "Créer ou modifier un rapport sans ambiguïté",
+      "summary": "Un stylo pour le rapport actif et un bouton plus pour un nouveau rapport.",
+      "changes": [
+        "Bouton de modification affiché uniquement pour le rapport courant.",
+        "Bouton plus toujours disponible pour ajouter un rapport personnel.",
+        "Formulaires de création et modification indépendants, avec nom vide et nouvelle identité à chaque création.",
+        "Création depuis les filtres courants sans modifier le rapport actif."
+      ]
+    },
     {
       "version": "1.8.1",
       "date": "2026-11-03",
