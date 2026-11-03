@@ -20,3 +20,12 @@ _,body,_=call('/list?project='+pid);check('value="'+query+'"' in body,'encrypted
 _,body,_=call('/list?project='+pid+'&filters_reset=1');check('value="'+query+'"' not in body,'reset clears active criteria')
 _,body,_=call('/board?project='+pid);check('value="'+query+'"' not in body,'reset survives next navigation')
 print('Filter memory UI project '+pid)
+csrf=token(body);progress_tickets={}
+for progress in [50,100,0]:
+ _,html,url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Avancement '+str(progress),'progress_percent':str(progress)});progress_tickets[progress]=urllib.parse.urlsplit(url).path.rsplit('/',1)[-1]
+for direction,values in [('asc',[0,50,100]),('desc',[100,50,0])]:
+ _,html,_=call('/list?project='+pid+'&sort=progress_percent&direction='+direction)
+ positions=[html.index('data-ticket-id="'+progress_tickets[v]+'"') for v in values]
+ check(positions==sorted(positions),'numeric progress sort '+direction+' includes zero and completed')
+ check('Trier par avancement croissant' in html and 'Trier par avancement décroissant' in html,'progress arrow links available beside summary')
+ _,remembered,_=call('/list?project='+pid);check('sort=progress_percent' in remembered and 'aria-current="true"' in remembered,'progress sort retained during navigation '+direction)

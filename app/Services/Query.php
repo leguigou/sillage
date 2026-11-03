@@ -19,6 +19,7 @@ final class Query
             'priority' => "FIELD(t.priority,'highest','high','medium','low','lowest')",
             'due' => 't.due_date',
             'estimated_hours' => 't.estimated_hours',
+            'progress_percent' => 't.progress_percent',
             'start' => 't.start_date',
             'created' => 't.created_at',
             'updated' => 't.updated_at',

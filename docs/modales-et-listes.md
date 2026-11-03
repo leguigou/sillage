@@ -4,6 +4,8 @@
 
 ## Liste des tickets
 
+À droite de **Résumé**, les deux flèches **Avancement** trient les tickets par pourcentage numérique croissant ou décroissant. Le sens actif est indiqué ; les filtres, le projet et le rapport sont conservés et la pagination revient à la première page. Ce tri est également proposé dans les rapports personnels et mémorisé avec les préférences de filtres. Les regroupements et la hiérarchie conservent leur structure.
+
 L’échéance et l’estimation sont affichées en lecture seule, avec dates françaises et heures formatées. Elles restent triables et masquables comme les autres colonnes. Leur modification se fait dans **Modifier le ticket** ; la barre d’avancement et le reste à faire utilisent toujours l’estimation totale et le pourcentage d’avancement.
 
 Les trois points ouvrent un menu : ouvrir, modifier, commenter, copier le lien, historique et développement. Les liens conservent la vue d’origine, les filtres et le tri. Modifier et commenter ouvrent la fiche et sa modale existante ; aucune seconde copie du formulaire métier n’est créée dans la liste. Les comptes en lecture seule ne reçoivent pas les actions d’édition ou de commentaire ; les contrôles serveur restent inchangés.
