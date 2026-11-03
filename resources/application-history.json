@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.7.3",
+  "current_version": "1.8.0",
   "entries": [
+    {
+      "version": "1.8.0",
+      "date": "2026-11-03",
+      "category": "features",
+      "title": "Trois critères de tri par rapport",
+      "summary": "Des tris successifs indépendants et une seule flèche pour l’avancement.",
+      "changes": [
+        "Jusqu’à trois critères de tri dans les rapports personnels, chacun croissant ou décroissant.",
+        "Critères secondaires utilisés pour départager les égalités et enregistrés dans le compte et les préférences.",
+        "Choix Aucun pour retirer un critère supplémentaire et refus des doublons.",
+        "Une seule flèche d’avancement indique le sens actif et permet de l’inverser.",
+        "Durées affichées arrondies au palier supérieur de cinq minutes, sans modification des valeurs enregistrées."
+      ]
+    },
     {
       "version": "1.7.3",
       "date": "2026-11-03",

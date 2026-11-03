@@ -27,12 +27,13 @@ final class Query
             'team' => 'tm.name',
             'type' => 't.type',
         ];
-        $order = $sorts[$filters['sort'] ?? 'rank'] ?? $sorts['rank'];
-        $dir = ($filters['direction'] ?? 'asc') === 'desc' ? 'DESC' : 'ASC';
+        $order=[];
+        foreach(ListLayout::sorts($filters) as $field=>$direction) $order[]=$sorts[$field].' '.strtoupper($direction);
+        $order=implode(',',$order?:['t.rank_value ASC']);
         $rows = DB::all(
             'SELECT t.*,'.\App\Models\TicketTime::selectSql().',p.project_key,a.name assignee_name,u.name reporter_name,tm.name team_name' .
                 self::JOIN .
-                "WHERE $where ORDER BY $order $dir,t.id ASC LIMIT " .
+                "WHERE $where ORDER BY $order,t.id ASC LIMIT " .
                 max(1, min(2000, $limit)) .
                 ' OFFSET ' .
                 max(0, $offset),

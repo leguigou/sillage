@@ -15,9 +15,24 @@ final class ListLayout
         return $columns;
     }
     public static function order(array $settings): array {$columns=self::columns($settings);return [...$columns,...array_diff(array_keys(self::COLUMNS),$columns)];}
+    public static function sorts(array $settings): array
+    {
+        if(isset($settings['sort4'])) throw new \InvalidArgumentException('Trois critères de tri maximum.');
+        $result=[];
+        foreach(['','2','3'] as $suffix) {
+            $field=$settings['sort'.$suffix]??($suffix===''?'rank':'');$direction=$settings['direction'.$suffix]??'asc';
+            if($field==='') continue;
+            if(!is_string($field) || !isset(self::SORT_LABELS[$field]) || !in_array($direction,['asc','desc'],true)) throw new \InvalidArgumentException('Critère ou sens du tri invalide.');
+            if(isset($result[$field])) throw new \InvalidArgumentException('Choisissez des critères de tri différents.');
+            $result[$field]=$direction;
+        }
+        return $result;
+    }
     public static function settings(int $project,array $settings): array
     {
+        self::sorts($settings);
         $allowed=['q','status','type','priority','assignee','team','hide_done','flagged','label','due_before','jql','pause','release','resolution','validation','sort','direction','group','hierarchy','columns','show_progress'];
+        $allowed=[...$allowed,'sort2','direction2','sort3','direction3'];
         $settings=array_intersect_key($settings,array_flip($allowed));
         foreach($settings as $key=>$value) {
             if(in_array($key,['status','type','priority','columns'],true) && is_array($value)) {foreach($value as $item) if(!is_string($item)) throw new \InvalidArgumentException('Liste de critères invalide.');}

@@ -4,7 +4,11 @@
 
 ## Liste des tickets
 
-À droite de **Résumé**, les deux flèches **Avancement** trient les tickets par pourcentage numérique croissant ou décroissant. Le sens actif est indiqué ; les filtres, le projet et le rapport sont conservés et la pagination revient à la première page. Ce tri est également proposé dans les rapports personnels et mémorisé avec les préférences de filtres. Les regroupements et la hiérarchie conservent leur structure.
+À droite de **Résumé**, une seule flèche **Avancement** indique le sens du tri actif ; cliquer l’inverse. Les filtres, le projet et le rapport sont conservés et la pagination revient à la première page. Ce tri est également proposé dans les rapports personnels et mémorisé avec les préférences de filtres. Les regroupements et la hiérarchie conservent leur structure.
+
+Les rapports acceptent trois critères distincts, dans l’ordre : **Trier par**, **Puis par (2)** et **Puis par (3)**. Chaque critère possède son propre sens ; « Aucun critère supplémentaire » retire un niveau. Les critères suivants départagent les égalités, puis l’identifiant stabilise l’ordre. Modifier le critère principal depuis un autre en-tête de la liste repart sur un tri simple ; inverser le même critère conserve les tris secondaires. Les anciens rapports à un critère restent valides.
+
+Les durées lisibles sont arrondies au palier supérieur de cinq minutes : 42 min → 45 min, 16 h 48 min → 16 h 50 min. Les valeurs stockées, calculs et API numériques restent précis. Les paliers exacts restent identiques et zéro reste zéro ; une durée positive très petite affiche 5 min.
 
 L’échéance et l’estimation sont affichées en lecture seule, avec dates françaises et heures formatées. Elles restent triables et masquables comme les autres colonnes. Leur modification se fait dans **Modifier le ticket** ; la barre d’avancement et le reste à faire utilisent toujours l’estimation totale et le pourcentage d’avancement.
 

@@ -3,8 +3,10 @@ use App\Core\{View,DB};
 use App\Models\{SavedView,Project,Ticket};
 use App\Services\{ListLayout,Query};
 check(View::hours(null)==='—' && View::hours(0)==='0 min','absence de durée distincte de zéro');
-check(View::hours('0.70')==='42 min' && View::hours('1.7')==='1 h 42 min','durées décimales converties en heures et minutes');
-check(View::hours('1.999')==='2 h' && View::hours('0.001')==='< 1 min','arrondi des minutes sans soixante minutes affichées');
+check(View::hours('0.70')==='45 min' && View::hours('1.7')==='1 h 45 min','durées arrondies au palier supérieur de cinq minutes');
+check(View::hours('1.999')==='2 h' && View::hours('0.001')==='5 min','arrondi au changement d’heure et des petites durées positives');
+check(View::hours('16.8')==='16 h 50 min' && View::hours('0.2')==='15 min' && View::hours(46/60)==='50 min','exemples de reste à faire arrondis vers le haut');
+check(View::hours(50/60)==='50 min' && View::hours(1.25)==='1 h 15 min','palier exact conservé sans tranche supplémentaire');
 $rpProject=Project::save(['name'=>'Rapports personnels','key'=>'RP'.strtoupper(bin2hex(random_bytes(3)))]);
 $rpId=SavedView::save($uid,$rpProject,'Mes priorités',['q'=>'important','sort'=>'created','direction'=>'desc','columns'=>['created','title','priority'],'show_progress'=>'1']);
 $rpRow=DB::one('SELECT * FROM saved_views WHERE id=?',[$rpId]);$rpSettings=json_decode($rpRow['settings'],true,64,JSON_THROW_ON_ERROR);
@@ -22,3 +24,10 @@ check(array_column(Query::tickets($rpProject,['sort'=>'created','direction'=>'as
 SavedView::delete($rpId,$uid);check(DB::one('SELECT id FROM saved_views WHERE id=?',[$rpId])===null,'suppression personnelle sans supprimer les tickets');
 
 check(ListLayout::settings($rpProject,['show_progress'=>false,'hierarchy'=>true])===['show_progress'=>'0','hierarchy'=>'1'],'options de rapport booléennes normalisées une seule fois');
+$rpMulti=Project::save(['name'=>'Tris multiples','key'=>'MT'.strtoupper(bin2hex(random_bytes(3)))]);$rpSortIds=[];
+foreach([['Alpha','high',50],['Zulu','high',50],['Avant','high',10],['Urgent','highest',0]] as [$rpTitle,$rpPriority,$rpProgress]) $rpSortIds[]=Ticket::create($rpMulti,['title'=>$rpTitle,'priority'=>$rpPriority,'progress_percent'=>$rpProgress],$uid);
+$rpMultiSettings=['sort'=>'priority','direction'=>'asc','sort2'=>'progress_percent','direction2'=>'desc','sort3'=>'title','direction3'=>'desc'];
+check(array_column(Query::tickets($rpMulti,$rpMultiSettings),'id')===[$rpSortIds[3],$rpSortIds[1],$rpSortIds[0],$rpSortIds[2]],'trois tris appliqués dans leur priorité avec directions indépendantes');
+$rpMultiView=SavedView::save($uid,$rpMulti,'Trois tris',$rpMultiSettings);check(json_decode(DB::one('SELECT settings FROM saved_views WHERE id=?',[$rpMultiView])['settings'],true)==$rpMultiSettings,'rapport conserve les trois critères et leurs sens');
+foreach([['sort'=>'priority','sort2'=>'priority'],['sort2'=>'unknown'],['sort3'=>'title','direction3'=>'invalid'],['sort4'=>'title']] as $rpInvalidSort) rejects(fn()=>SavedView::save($uid,$rpMulti,'Tri invalide',$rpInvalidSort),'tri multiple invalide ou supérieur à trois refusé');
+check(str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=') && !str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=progress_percent') && str_contains(query_url('/list',$rpMultiSettings,['sort'=>'priority','direction'=>'desc']),'sort2=progress_percent'),'autre en-tête réinitialise les critères secondaires et inversion conserve les critères');

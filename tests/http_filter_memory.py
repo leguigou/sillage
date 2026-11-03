@@ -27,5 +27,11 @@ for direction,values in [('asc',[0,50,100]),('desc',[100,50,0])]:
  _,html,_=call('/list?project='+pid+'&sort=progress_percent&direction='+direction)
  positions=[html.index('data-ticket-id="'+progress_tickets[v]+'"') for v in values]
  check(positions==sorted(positions),'numeric progress sort '+direction+' includes zero and completed')
- check('Trier par avancement croissant' in html and 'Trier par avancement décroissant' in html,'progress arrow links available beside summary')
+ check(('Trier par avancement décroissant' if direction=='asc' else 'Trier par avancement croissant') in html and html.count('class="list-progress-sort"')==1,'single progress arrow toggles current order')
  _,remembered,_=call('/list?project='+pid);check('sort=progress_percent' in remembered and 'aria-current="true"' in remembered,'progress sort retained during navigation '+direction)
+report_data={'_csrf':token(html),'project_id':pid,'name':'Trois tris','settings':'{}','report_options':'1','sort':'priority','direction':'asc','sort2':'progress_percent','direction2':'desc','sort3':'title','direction3':'asc','group':'','columns[]':['title','priority'],'column_order':json.dumps(['title','priority'])}
+status,saved,_=call('/views',report_data,True);check(status==200,'report form saves three sort levels with independent directions')
+view=json.loads(saved)['id'];_,report_html,_=call('/list?project='+pid+'&view='+str(view))
+positions=[report_html.index('data-ticket-id="'+progress_tickets[v]+'"') for v in [100,50,0]]
+check(positions==sorted(positions) and 'name="sort2"' in report_html and 'name="sort3"' in report_html,'saved report applies secondary order and renders all three selectors')
+report_data['sort3']='priority';check(call('/views',report_data,True)[0]==422,'duplicate report sort refused through form endpoint')

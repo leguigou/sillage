@@ -233,8 +233,8 @@ async function post(path, values) {
 }
 function formatTicketHours(value) {
   if(value===null) return '—';
-  const minutes=Math.round(Number(value)*60);
-  if(!minutes) return Number(value)>0?'< 1 min':'0 min';
+  let minutes=Math.ceil(Number((Number(value)*12).toFixed(9)))*5;
+  if(!minutes) {if(Number(value)<=0) return '0 min';minutes=5;}
   const hours=Math.floor(minutes/60),rest=minutes%60;
   return (hours?hours.toLocaleString('fr-FR')+' h':'')+(hours&&rest?' ':'')+(rest?rest+' min':'');
 }

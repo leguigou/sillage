@@ -247,7 +247,8 @@ final class WorkspaceController
             throw new \InvalidArgumentException('Vue invalide.');
         }
         if(isset($_POST['report_options'])) {
-            foreach(['sort','direction','group'] as $key) $settings[$key]=$_POST[$key]??'';
+            foreach(['sort','direction','group','sort2','sort3'] as $key) $settings[$key]=$_POST[$key]??'';
+            foreach(['direction2','direction3'] as $key) $settings[$key]=$_POST[$key]??'asc';
             $settings['columns']=$_POST['columns']??[];
             $chosen=\App\Services\ListLayout::columns($settings);
             try {$order=json_decode((string)($_POST['column_order']??'[]'),true,16,JSON_THROW_ON_ERROR);} catch(\JsonException) {throw new \InvalidArgumentException('Ordre des colonnes invalide.');}

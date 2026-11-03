@@ -39,7 +39,11 @@ function ticket_url(int $id,string $fragment='',array $query=[]): string
 {
     return App\Services\TicketNavigation::ticket($id,$fragment,$query);
 }
-function query_url(string $path,array $query,array $changes=[]): string { return $path.'?'.http_build_query(array_replace($query,$changes)); }
+function query_url(string $path,array $query,array $changes=[]): string {
+    // Choosing a different header starts a new primary sort; same-field direction toggles retain tie breakers.
+    if(isset($changes['sort']) && $changes['sort']!==($query['sort']??'rank')) $changes+=['sort2'=>'','sort3'=>'','direction2'=>'asc','direction3'=>'asc'];
+    return $path.'?'.http_build_query(array_replace($query,$changes));
+}
 function ticket_context(): string
 {
     $source=App\Services\TicketNavigation::current();
