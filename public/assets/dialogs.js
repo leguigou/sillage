@@ -11,7 +11,11 @@
     return el.value;
   }
   const equal=(a,b)=>JSON.stringify(a,(key,item)=>item instanceof File?[item.name,item.size,item.type,item.lastModified]:item)===JSON.stringify(b,(key,item)=>item instanceof File?[item.name,item.size,item.type,item.lastModified]:item);
-  function commit(dialog) {if(dialog) states.set(dialog,new Map(controls(dialog).map(el=>[el,value(el)])));}
+  function commit(scope) {
+    if(!scope) return;const dialog=scope.closest('dialog');if(!dialog) return;
+    const baseline=scope===dialog?new Map():(states.get(dialog)||new Map());
+    controls(scope).forEach(el=>baseline.set(el,value(el)));states.set(dialog,baseline);
+  }
   function changed(dialog) {
     const baseline=states.get(dialog);if(!baseline) return false;
     return controls(dialog).some(el=>baseline.has(el) && !equal(value(el),baseline.get(el)));

@@ -3,7 +3,7 @@ services:
     build: .
     ports:
       - '127.0.0.1:8088:80'
-    environment:
+    environment: &sillage-app-environment
       APP_ENV: ${APP_ENV:-local}
       APP_URL: ${APP_URL:-http://127.0.0.1:8088}
       APP_KEY: ${APP_KEY:?Configure APP_KEY in .env}
@@ -39,6 +39,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+    restart: unless-stopped
+  git-scheduler:
+    build: .
+    environment: *sillage-app-environment
+    volumes:
+      - sillage_storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "/var/www/html/deploy/entrypoint-dokploy.sh", "git-worker"]
     restart: unless-stopped
 volumes:
   sillage_mysql:

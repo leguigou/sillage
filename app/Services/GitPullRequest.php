@@ -79,13 +79,13 @@ final class GitPullRequest
         });
         return ['ok'=>true,'pull_requests'=>$ids,'has_more'=>$more,'next_page'=>$page+1,'scanned'=>count($rows)];
     }
-    public static function sync(int $ticket,int $eventId): array
+    public static function sync(int $ticket,int $eventId,?array $initial=null): array
     {
-        if(function_exists('set_time_limit')) @set_time_limit(30);
+        if(PHP_SAPI!=='cli' && function_exists('set_time_limit')) @set_time_limit(30);
         $stored=self::eventForTicket($ticket,$eventId);$c=TicketBranch::connection($ticket,(int)$stored['connection_id']);$github=$c['provider']==='github';
         $number=substr($stored['external_key'],3);if(!ctype_digit($number)) throw new \InvalidArgumentException('Identifiant de pull request invalide.');
         $started=microtime(true);$base=($github?'pulls/':'pullrequests/').$number;
-        $raw=Development::request($c,$base,8);$event=DevelopmentPayload::object($c['provider'],'pull_request',$raw,$c['repository']);
+        $raw=$initial??Development::request($c,$base,8);$event=DevelopmentPayload::object($c['provider'],'pull_request',$raw,$c['repository']);
         if($event['external_key']!==$stored['external_key']) throw new \InvalidArgumentException('Le fournisseur a renvoyé une autre pull request.');
         $commits=[];$commitsComplete=false;$retainedBytes=0;
         // GitHub's PR API is limited to 250 commits. Never claim that a larger PR is complete.

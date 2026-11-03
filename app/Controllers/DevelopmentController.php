@@ -130,11 +130,12 @@ final class DevelopmentController
         }
         try {
             $event=(string)($_SERVER['HTTP_X_GITHUB_EVENT']??$_SERVER['HTTP_X_EVENT_KEY']??'');
-            \App\Services\TechnicalLog::incoming(['operation'=>in_array($event,['push','create','delete','pull_request','repo:push','pullrequest:created','pullrequest:updated','pullrequest:fulfilled','pullrequest:rejected'],true)?$event:'unknown_event']);
+            \App\Services\TechnicalLog::incoming(['operation'=>in_array($event,['push','create','delete','pull_request','repo:push','pullrequest:created','pullrequest:updated','pullrequest:fulfilled','pullrequest:rejected','workflow_run','check_run','check_suite','deployment_status','status','repo:commit_status_created','repo:commit_status_updated'],true)?$event:'unknown_event']);
             $events=\App\Services\DevelopmentPayload::webhook($c['provider'],$event,$data,$c['repository']);
             if (count($events)>250) throw new \InvalidArgumentException('Trop d’éléments dans cette livraison ; utilisez la synchronisation paginée.');
             DB::transaction(function() use($c,$events) {
                 foreach($events as $item) \App\Models\DevelopmentEvent::save($c,$item,true);
+                \App\Services\GitSync::webhook($c,$events);
             });
         } catch (\InvalidArgumentException $error) {
             json_response(['error'=>$error->getMessage()],400);

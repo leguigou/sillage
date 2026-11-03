@@ -161,7 +161,7 @@ final class Development
 
     public static function sync(array $c, string $kind = 'pull_request', int $page = 1): int
     {
-        if (!isset(DevelopmentPayload::KINDS[$kind]) || $page<1 || $page>10000) throw new \InvalidArgumentException('Type ou page de synchronisation invalide.');
+        if (!in_array($kind,['branch','commit','pull_request'],true) || $page<1 || $page>10000) throw new \InvalidArgumentException('Type ou page de synchronisation invalide.');
         $github=$c['provider']==='github';
         $resource=$github ? match($kind) { 'branch'=>'branches?per_page=50', 'commit'=>'commits?per_page=50', default=>'pulls?state=all&per_page=50' }
             : match($kind) { 'branch'=>'refs/branches?pagelen=50', 'commit'=>'commits?pagelen=50', default=>'pullrequests?state=OPEN&state=MERGED&state=DECLINED&pagelen=50' };

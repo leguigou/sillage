@@ -1,5 +1,7 @@
 # Saisies en modale et actions de la liste
 
+`SillageDialogs.commit(dialog)` valide la référence de toute la modale ; `commit(form)` valide seulement les contrôles du formulaire sauvegardé. Utiliser cette seconde forme lorsque plusieurs connexions ou réglages indépendants partagent une modale, afin de conserver la protection des brouillons voisins.
+
 ## Liste des tickets
 
 L’échéance et l’estimation sont affichées en lecture seule, avec dates françaises et heures formatées. Elles restent triables et masquables comme les autres colonnes. Leur modification se fait dans **Modifier le ticket** ; la barre d’avancement et le reste à faire utilisent toujours l’estimation totale et le pourcentage d’avancement.

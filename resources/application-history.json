@@ -1,7 +1,22 @@
 {
   "schema": 1,
-  "current_version": "1.6.0",
+  "current_version": "1.7.0",
   "entries": [
+    {
+      "version": "1.7.0",
+      "date": "2026-11-03",
+      "category": "features",
+      "title": "Suivi automatique des développements",
+      "summary": "Une synchronisation persistante, les résultats des pipelines et les déploiements par environnement, avec un signal orange pour les conflits de fusion.",
+      "changes": [
+        "Rattrapage automatique configurable par dépôt, file persistante, reprise après interruption et nouvelles tentatives sur erreur.",
+        "Dernier traitement réussi, état des récupérations et relance sans rechargement depuis le ticket ou la page Développement.",
+        "Résultats GitHub Actions, contrôles et Bitbucket Pipelines rapprochés des commits des tickets.",
+        "Déploiements par environnement distingués des fusions, avec rapprochement des commits de fusion réellement inclus dans la livraison.",
+        "Avertissement orange dans les pull requests et la liste des tickets lorsque le fournisseur confirme un conflit de fusion.",
+        "Service de synchronisation pour Windows et Docker, et corrélation des appels sortants avec les traitements."
+      ]
+    },
     {
       "version": "1.6.0",
       "date": "2026-11-03",

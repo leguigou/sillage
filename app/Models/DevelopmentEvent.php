@@ -23,7 +23,9 @@ final class DevelopmentEvent
             $projects=self::lockProjects((int)$connection['id']);
             $old=DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=? FOR UPDATE',[$connection['id'],$event['external_key']]);
             $oldMeta=$old?json_decode($old['metadata_json']??'{}',true,64,JSON_THROW_ON_ERROR):[];
-            if ($old && ($oldMeta['date_known']??true) && $event['metadata']['date_known'] && $old['occurred_at']>$event['occurred_at']) return (int)$old['id'];
+            $newAttempt=$event['kind']==='build' && (int)($event['metadata']['attempt']??1)>(int)($oldMeta['attempt']??1);
+            if($old && $event['kind']==='build' && (int)($event['metadata']['attempt']??1)<(int)($oldMeta['attempt']??1)) return (int)$old['id'];
+            if (!$newAttempt && $old && ($oldMeta['date_known']??true) && $event['metadata']['date_known'] && $old['occurred_at']>$event['occurred_at']) return (int)$old['id'];
             $tickets=[];
             foreach($projects as $project) {
                 $numbers=[];
@@ -39,15 +41,19 @@ final class DevelopmentEvent
                 $tickets=array_values(array_unique([...$tickets,...array_column($manual,'ticket_id')]));
             }
             if ($event['commit_sha'] && $event['kind']!=='branch') {
-                $linked=DB::all("SELECT DISTINCT l.ticket_id FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE e.connection_id=? AND e.commit_sha=? AND e.kind IN ('branch','commit','pull_request')",[$connection['id'],$event['commit_sha']]);
+                $linked=DB::all("SELECT DISTINCT l.ticket_id FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE e.connection_id=? AND (e.commit_sha=? OR (e.kind='pull_request' AND JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.merge_sha'))=?)) AND e.kind IN ('branch','commit','pull_request')",[$connection['id'],$event['commit_sha'],$event['commit_sha']]);
                 $tickets=array_values(array_unique([...$tickets,...array_column($linked,'ticket_id')]));
+            }
+            if($old && $event['kind']==='deployment') {
+                $proven=DB::all('SELECT DISTINCT l.ticket_id FROM development_deployment_prs d JOIN development_events pr ON pr.id=d.pr_event_id AND pr.connection_id=? JOIN development_event_tickets l ON l.event_id=pr.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=pr.connection_id WHERE d.deployment_event_id=? AND d.head_sha=?',[$connection['id'],$old['id'],$event['commit_sha']]);
+                $tickets=array_values(array_unique([...$tickets,...array_column($proven,'ticket_id')]));
             }
             $url=parse_url($event['external_url']);
             $expected=$connection['provider']==='github'?'github.com':'bitbucket.org';
             $safe=($url['scheme']??'')==='https' && strtolower($url['host']??'')===$expected && !isset($url['user']) && !isset($url['pass']) && !isset($url['port']);
             $metadata=$event['metadata'];
             // Detail snapshots are fetched separately; webhooks must not silently erase them.
-            if($event['kind']==='pull_request' && isset($oldMeta['details'])) $metadata['details']=$oldMeta['details'];
+            if($event['kind']==='pull_request') foreach(['details','merge_check'] as $key) if(isset($oldMeta[$key])) $metadata[$key]=$oldMeta[$key];
             if($event['kind']==='commit' && empty($metadata['author']) && !empty($oldMeta['author'])) $metadata['author']=$oldMeta['author'];
             if (!$safe && $event['external_url']!=='') $metadata['source_url']=$event['external_url'];
             $id=DB::insert('INSERT INTO development_events(connection_id,ticket_id,external_key,kind,title,external_url,state,occurred_at,commit_sha,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),ticket_id=VALUES(ticket_id),title=VALUES(title),external_url=VALUES(external_url),state=VALUES(state),occurred_at=VALUES(occurred_at),commit_sha=VALUES(commit_sha),metadata_json=VALUES(metadata_json)',[
@@ -55,12 +61,33 @@ final class DevelopmentEvent
             ]);
             DB::run('DELETE FROM development_event_tickets WHERE event_id=?',[$id]);
             foreach($tickets as $ticket) DB::run('INSERT INTO development_event_tickets(event_id,ticket_id) VALUES(?,?)',[$id,$ticket]);
+            if(in_array($event['kind'],['branch','commit','pull_request'],true)) foreach(array_unique(array_filter([$event['commit_sha'],$event['metadata']['merge_sha']??null])) as $sha) {
+                DB::run("INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT r.id,l.ticket_id FROM development_events r JOIN development_event_tickets l ON l.event_id=? JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=r.connection_id WHERE r.connection_id=? AND r.kind IN ('build','deployment') AND r.commit_sha=?",[$id,$connection['id'],$sha]);
+            }
             // History imports only establish observations. Live transitions may run opt-in rules once.
             if ($live && $event['trigger'] && (!$old || $old['state']!==$event['state'])) {
                 foreach($tickets as $ticket) Automation::run($event['trigger'],(int)$ticket,null,false,['development_repository'=>$connection['repository']]);
             }
             return $id;
         });
+    }
+    public static function deploymentProof(array $c,int $deployment,int $pr,string $base,string $head): void
+    {
+        DB::transaction(function() use($c,$deployment,$pr,$base,$head) {
+            self::lockProjects((int)$c['id']);$current=DB::one("SELECT * FROM development_events WHERE id=? AND connection_id=? AND kind='deployment' FOR UPDATE",[$deployment,$c['id']]);
+            $source=DB::one("SELECT * FROM development_events WHERE id=? AND connection_id=? AND kind='pull_request'",[$pr,$c['id']]);
+            if(!$current || !$source || $current['commit_sha']!==$head || (self::hydrate($source)['metadata']['merge_sha']??null)!==$base) return;
+            DB::run('INSERT INTO development_deployment_prs(deployment_event_id,pr_event_id,base_sha,head_sha) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE base_sha=VALUES(base_sha),head_sha=VALUES(head_sha),verified_at=UTC_TIMESTAMP()',[$deployment,$pr,$base,$head]);
+            DB::run('INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT ?,l.ticket_id FROM development_event_tickets l JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=? WHERE l.event_id=?',[$deployment,$c['id'],$pr]);
+            DB::run('UPDATE development_events SET ticket_id=(SELECT MIN(ticket_id) FROM development_event_tickets WHERE event_id=?) WHERE id=?',[$deployment,$deployment]);
+        });
+    }
+    public static function conflictsForTickets(array $ids): array
+    {
+        if(!$ids) return [];$result=[];
+        $rows=DB::all('SELECT '.self::summaryColumns('e').',l.ticket_id AS linked_ticket FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE e.kind=\'pull_request\' AND e.state=\'open\' AND l.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).')',$ids);
+        foreach($rows as $row) if(\App\Services\GitMonitor::conflict(self::hydrate($row))['conflict']===true) $result[$row['linked_ticket']]=true;
+        return $result;
     }
 
     public static function savePullRequestDetails(array $connection,array $event,array $commits,array $details,int $ticket): void

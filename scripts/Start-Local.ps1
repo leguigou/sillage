@@ -98,6 +98,7 @@ for($sillageAttempt=0; $sillageAttempt -lt 15; $sillageAttempt++) {
     Start-Sleep -Seconds 1
 }
 if(-not $sillageHttpReady) {throw 'Le port 8088 ne répond pas comme une application Sillage. Consultez les journaux Apache.'}
+& "$PSScriptRoot/Start-GitWorker.ps1"
 Write-Host "Sillage est prêt : $sillageUrl" -ForegroundColor Green
 Write-Host 'Accès de démonstration : .runtime/credentials.txt. E-mails locaux : storage/mail.'
 if($OpenBrowser) { Start-Process $sillageUrl }

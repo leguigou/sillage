@@ -23,3 +23,5 @@ Utiliser `window.SillageDialogs` pour ouvrir une modale, demander sa fermeture e
 ## Suivi Git
 
 Les choix manuels de branches sont dans `ticket_branch_links`, séparément des observations. `DevelopmentPayload` possède les noms, clés et références normalisées ; `DevelopmentEvent` possède leur rapprochement. Le ticket complet et son rafraîchissement utilisent le même modèle de lecture `TicketDevelopment`. Toujours revérifier l’appartenance du dépôt au projet côté serveur. Les doubles de transport dans `tests/git_router.php` ne sont utilisables que pour la base isolée et ne doivent jamais être branchés au front controller de production.
+
+`DevelopmentRunPayload` normalise les faits CI/déploiement. `GitJob` possède les réservations et générations ; `GitSync` orchestre la file et `GitMonitor` collecte les faits fournisseur. Ne pas déduire un conflit d’une politique de fusion bloquée, ni une livraison d’une branche cible. Les preuves d’inclusion d’un commit de fusion appartiennent à `DevelopmentEvent`. Les appels CLI utilisent l’identifiant de corrélation public du travail, jamais son bail. Voir `docs/developpement.md`.

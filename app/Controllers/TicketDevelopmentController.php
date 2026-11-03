@@ -37,6 +37,7 @@ final class TicketDevelopmentController
         $name=DevelopmentPayload::branchName($_POST['branch_name']??null);
         $event=Development::branch($connection,$name);
         $id=TicketBranch::link((int)$ticket,$connection,$event,(int)$user['id']);
+        \App\Services\GitSync::request((int)$connection['id']);
         json_response(['ok'=>true,'id'=>$id]);
     }
     public function unlink(string $ticket,string $link): void

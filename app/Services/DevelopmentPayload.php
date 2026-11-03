@@ -5,8 +5,8 @@ namespace App\Services;
 /** Provider payloads are interpreted once, before persistence or automation. */
 final class DevelopmentPayload
 {
-    public const KINDS = ['branch'=>'Branches','commit'=>'Commits','pull_request'=>'Pull requests'];
-    public const STATES = ['active'=>'Active','deleted'=>'Supprimée','committed'=>'Enregistré','open'=>'Ouverte','merged'=>'Fusionnée','closed'=>'Fermée','declined'=>'Refusée','unknown'=>'État non fourni'];
+    public const KINDS = ['branch'=>'Branches','commit'=>'Commits','pull_request'=>'Pull requests','build'=>'Tests et pipelines','deployment'=>'Déploiements'];
+    public const STATES = ['active'=>'Active','deleted'=>'Supprimée','committed'=>'Enregistré','open'=>'Ouverte','merged'=>'Fusionnée','closed'=>'Fermée','declined'=>'Refusée','unknown'=>'État non fourni','success'=>'Réussi','failure'=>'Échec','pending'=>'En attente','waiting'=>'En attente de lancement','running'=>'En cours','cancelled'=>'Annulé','skipped'=>'Ignoré','inactive'=>'Inactif'];
     public static function branchKey(string $name): string {return 'branch:'.hash('sha256',$name);}
 
     public static function branchName(mixed $name): string
@@ -23,11 +23,11 @@ final class DevelopmentPayload
         if (mb_strlen((string)$value)>$max) throw new \InvalidArgumentException('Donnée de développement trop longue.');
         return (string)$value;
     }
-    private static function sha(mixed $sha): ?string
+    public static function sha(mixed $sha): ?string
     {
         return is_string($sha) && preg_match('/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/iD',$sha) && trim($sha,'0')!=='' ? strtolower($sha) : null;
     }
-    private static function event(string $kind,string $key,string $title,string $url,string $state,mixed $date,?string $branch=null,?string $sha=null,?string $trigger=null): array
+    public static function event(string $kind,string $key,string $title,string $url,string $state,mixed $date,?string $branch=null,?string $sha=null,?string $trigger=null): array
     {
         if ($key==='' || strlen($key)>190 || !isset(self::KINDS[$kind])) throw new \InvalidArgumentException('Identité de développement invalide.');
         $known = is_string($date) && (bool)preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/D',$date);
@@ -66,6 +66,7 @@ final class DevelopmentPayload
             $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;
             $event['metadata']['target_branch']=self::text($item['base']['ref']??$item['destination']['branch']['name']??'')?:null;
             $event['metadata']['target_sha']=self::sha($item['base']['sha']??$item['destination']['commit']['hash']??null);
+            $event['metadata']['merge_conflict']=$github?DevelopmentRunPayload::conflict('github',$item):null;
             $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);return $event;
         }
         throw new \InvalidArgumentException('Type de suivi inconnu.');
@@ -74,6 +75,15 @@ final class DevelopmentPayload
     public static function webhook(string $provider,string $event,array $data,string $repository): array
     {
         $events=[];
+        if($provider==='github') {
+            foreach(['workflow_run'=>'workflow','check_run'=>'check'] as $key=>$type) if($event===$key && is_array($data[$key]??null)) $events[]=DevelopmentRunPayload::object($provider,$type,$data[$key],$repository);
+            if($event==='status') $events[]=DevelopmentRunPayload::object($provider,'status',$data,$repository);
+            if($event==='deployment_status' && is_array($data['deployment']??null) && is_array($data['deployment_status']??null)) $events[]=DevelopmentRunPayload::object($provider,'deployment',$data['deployment'],$repository,$data['deployment_status']);
+        } else {
+            if(in_array($event,['repo:commit_status_created','repo:commit_status_updated'],true) && is_array($data['commit_status']??null)) $events[]=DevelopmentRunPayload::object($provider,'status',$data['commit_status'],$repository,['sha'=>$data['commit']['hash']??$data['commit_status']['commit']['hash']??null]);
+            if(str_starts_with($event,'pipeline:') && is_array($data['pipeline']??null)) $events[]=DevelopmentRunPayload::object($provider,'pipeline',$data['pipeline'],$repository);
+            if(str_starts_with($event,'deployment:') && is_array($data['deployment']??null)) $events[]=DevelopmentRunPayload::object($provider,'deployment',$data['deployment'],$repository);
+        }
         if ($pr=$data['pull_request']??$data['pullrequest']??null) {
             if (!is_array($pr)) throw new \InvalidArgumentException('Pull request invalide.');
             $events[]=self::object($provider,'pull_request',$pr,$repository,true,null,$data['action']??$event);

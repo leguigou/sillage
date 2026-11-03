@@ -14,6 +14,11 @@ final class TechnicalLog
     private static bool $pruned=false;
     private static ?int $actor=null;
     public static function requestId(): string { return self::$requestId??=bin2hex(random_bytes(16)); }
+    public static function background(string $id): void
+    {
+        if(PHP_SAPI!=='cli' || !preg_match('/^[a-f0-9]{32}$/D',$id)) throw new \LogicException('Contexte de journal de fond invalide.');
+        self::$requestId=$id;self::$actor=null;
+    }
     public static function actor(int $id): void { self::$actor=$id>0?$id:null; }
     public static function retention(): int
     {

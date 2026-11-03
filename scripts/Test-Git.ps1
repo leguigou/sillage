@@ -13,6 +13,8 @@ try {
     if(-not $sillageGitReady){throw 'Serveur Git isolé indisponible'}
     python tests/http_ticket_branches.py
     if($LASTEXITCODE -ne 0){throw 'Contrats HTTP des branches en échec'}
+    python tests/http_git_monitoring.py
+    if($LASTEXITCODE -ne 0){throw 'Suivi Git HTTP en échec'}
 } finally {
     $sillageGitCurrent=Get-Process -Id $sillageGitServer.Id -ErrorAction SilentlyContinue
     if($sillageGitCurrent) {

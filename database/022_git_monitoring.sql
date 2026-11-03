@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS git_sync_state (
+ connection_id BIGINT UNSIGNED PRIMARY KEY,
+ enabled TINYINT NOT NULL DEFAULT 1,
+ interval_minutes INT NOT NULL DEFAULT 5,
+ last_poll_at DATETIME NULL,last_success_at DATETIME NULL,last_webhook_at DATETIME NULL,
+ FOREIGN KEY(connection_id) REFERENCES connections(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS git_sync_jobs (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ connection_id BIGINT UNSIGNED NOT NULL,
+ kind VARCHAR(32) CHARACTER SET ascii NOT NULL,
+ target VARCHAR(190) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ payload_json JSON NOT NULL,
+ requested_seq BIGINT UNSIGNED NOT NULL DEFAULT 1,
+ state VARCHAR(16) NOT NULL DEFAULT 'pending',attempts INT NOT NULL DEFAULT 0,
+ available_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ lease_owner CHAR(32) CHARACTER SET ascii NULL,lease_until DATETIME NULL,
+ last_success_at DATETIME NULL,last_error VARCHAR(240) NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(connection_id,kind,target),INDEX git_jobs_due(state,available_at,lease_until),
+ FOREIGN KEY(connection_id) REFERENCES connections(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS git_worker_state (
+ id INT PRIMARY KEY,seen_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

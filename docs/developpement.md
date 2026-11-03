@@ -48,9 +48,9 @@ Bornes par PR : dix pages de cent commits, dix pages de cent fichiers, environ v
 
 ## Quand les informations arrivent-elles ?
 
-Pour `WEB-125`, créer par exemple `feature/WEB-125-correction-sitemap` puis pousser la branche. Un webhook signé accessible depuis Internet transmet les événements au serveur Sillage ; les clés sont reconnues à réception. Une branche uniquement locale n’est pas visible par l’API du fournisseur. Sans webhook, utiliser la synchronisation paginée dans **Développement** pour importer les observations existantes. Aucune interrogation permanente du fournisseur n’est lancée en ouvrant un ticket.
+Pour `WEB-125`, créer par exemple `feature/WEB-125-correction-sitemap` puis pousser la branche. Un webhook signé accessible depuis Internet transmet les événements au serveur Sillage ; les clés sont reconnues à réception. Une branche uniquement locale n’est pas visible par l’API du fournisseur. Sans webhook, le service de synchronisation ci-dessous rattrape les informations disponibles par API. La synchronisation paginée dans **Développement** reste disponible pour des observations ciblées. Ouvrir un ticket lit les données enregistrées, sans appeler le fournisseur.
 
-Cette intégration suit branches, commits et pull requests. Les tickets « Issues » créés dans GitHub ou Bitbucket ne sont pas importés comme tickets Sillage.
+Cette intégration suit branches, commits, pull requests, contrôles, pipelines et déploiements. Les tickets « Issues » créés dans GitHub ou Bitbucket ne sont pas importés comme tickets Sillage.
 
 **Synchroniser** importe une page de 50 branches, commits ou pull requests. Choisir le type et le numéro de page pour remonter l’historique. Les vues affichent les 100 événements les plus récents ; les compteurs de la fiche portent sur les événements enregistrés. Une synchronisation ne constitue pas une récupération exhaustive de tout l’historique Git.
 
@@ -64,8 +64,40 @@ Pour un dépôt déjà configuré, ouvrir **Développement → Configurer GitHub
 
 Dans **Automatisations**, un administrateur peut créer une règle sur la création d’une branche, un commit poussé, l’ouverture ou la fusion d’une pull request. La condition facultative de dépôt limite la règle à un repository. Les actions existantes permettent notamment de passer les tickets en cours ou en revue. Chaque règle reste propre à son projet.
 
-Les imports manuels n’exécutent pas ces règles. Les notifications répétées sans changement d’état ne rejouent pas l’action ; une mise à jour datée plus ancienne ne remplace pas un état plus récent. Les builds et déploiements sont prévus pour une étape ultérieure.
+Les imports et rattrapages n’exécutent pas ces règles. Les notifications répétées sans changement d’état ne rejouent pas l’action ; une mise à jour datée plus ancienne ne remplace pas un état plus récent. Les résultats de pipelines et déploiements sont consultables, sans nouvelle règle automatique de transition dans cette livraison.
 
 Les migrations `008` à `010` reprennent les associations existantes et ajoutent les liens partagés. La colonne historique `connections.project_id` garde uniquement la provenance de création ; les appartenances actives sont dans `project_connections`.
 
 La migration additive `021_ticket_branches.sql` introduit les liens manuels. Déployer le code avec `php bin/console.php migrate`. La liaison manuelle n’altère pas les champs/version métier du ticket. Les tests isolés emploient `tests/git_router.php` et un transport Git synthétique ; ce routeur ne doit jamais remplacer le front controller de production. Aucun hôte ou jeton distant n’est nécessaire pour ces contrats, qui ne prouvent pas un accès effectif à un dépôt privé réel.
+
+## Synchronisation automatique et rattrapage
+
+La version 1.7 utilise les migrations additives **022 à 025**. Exécuter `php bin/console.php migrate` avant de démarrer le worker. Les choix, délais, erreurs et curseurs sont persistants dans MySQL, séparément des observations et des liens manuels. Une seule configuration est partagée par les projets d’un même dépôt.
+
+Dans **Développement → Configurer**, activer le suivi et choisir 1, 5, 15, 30 ou 60 minutes. Le réglage initial est activé avec cinq minutes. Le ticket et la page Développement affichent le dernier traitement réussi, la présence du service, les travaux en attente et leurs erreurs. **Rattraper maintenant** programme une récupération sans bloquer la page ; le panneau Développement du ticket ouvert se rafraîchit toutes les quinze secondes lorsqu’aucune modale n’est ouverte. Ce rafraîchissement consulte MySQL uniquement.
+
+Le worker récupère les PR récentes, les PR des branches liées manuellement, leurs commits/fichiers, les contrôles, les pipelines et les déploiements. Le premier rattrapage des PR générales couvre trente jours ; les suivants reprennent le dernier parcours terminé avec dix minutes de recouvrement. Ce point n’avance qu’après le dernier lot. Les branches explicitement liées disposent du parcours historique existant, indépendamment de ces trente jours. Les pipelines et déploiements sont parcourus par pages ; chaque parcours est borné à cent pages. Une limite atteinte est signalée comme erreur, sans prétendre couvrir tout l’historique.
+
+Les webhooks signés alimentent les observations et la file ; le parcours périodique compense des livraisons manquées. GitHub : ajouter `workflow_run`, `check_run`, `status` et `deployment_status` selon les besoins. Bitbucket Cloud : ajouter les statuts de commit créés/modifiés ; pipelines et déploiements sont aussi lus par API. Les charges OpenTelemetry `pipeline:span_created` ne sont pas interprétées comme des objets pipeline. Les doublons sont rapprochés par identité stable ; une ancienne tentative de workflow ne remplace pas une tentative plus récente.
+
+Un échec est retenté après 1, 2, 4 puis 8 minutes, jusqu’à cinq tentatives par tâche. La relance manuelle reprend immédiatement les travaux en échec. Un prochain cycle périodique peut aussi reprendre les collectes générales. Un processus interrompu libère sa tâche après un bail de deux minutes ; les générations empêchent de perdre une demande arrivée pendant le traitement. Les messages contrôlés restent visibles, sans corps HTTP ni jetons. **Voir les appels** ouvre le journal avec l’identifiant de corrélation du traitement.
+
+### Démarrer le service
+
+- **Windows local** : `scripts/Start-Local.ps1` démarre aussi le worker caché. Pour une application déjà démarrée, `scripts/Start-GitWorker.ps1` est idempotent. `scripts/Stop-Local.ps1` arrête uniquement les processus dont l’identité a été vérifiée.
+- **Docker/Dokploy** : reconstruire et démarrer le service **git-scheduler** des fichiers Compose mis à jour. Il est séparé du worker e-mail et doit recevoir les mêmes variables de base et `APP_KEY` que l’application. Les migrations restent exécutées par le service applicatif.
+- **Autre serveur Apache** : superviser `php bin/console.php git:watch` avec le compte de l’application, ou planifier `php bin/console.php git:work` chaque minute. Le budget de chaque passage est borné et plusieurs workers partagent les réservations MySQL. `git:work` ne remplace pas le serveur HTTP.
+
+Tous les appels fournisseur restent en lecture. Aucune fusion, exécution de pipeline ni livraison n’est déclenchée. Le worker recharge les secrets chiffrés depuis la base ; aucun secret n’est stocké dans la file. Une désactivation empêche de réserver de nouveaux travaux, sans annuler un appel déjà en cours.
+
+## Tests, déploiements et conflits
+
+Les contrôles sont associés par empreinte exacte au commit source ou de fusion connu du ticket. Les résultats d’Actions, de checks et de statuts sont distingués par leur identité, avec succès, échec, attente, exécution ou résultat inconnu. « Terminé » sans conclusion ne devient pas un succès. Les liens externes restent limités aux hôtes GitHub/Bitbucket ; aucun script, journal de build ni code source n’est affiché.
+
+Les déploiements indiquent l’environnement fourni par l’API et le résultat réel. Un environnement nommé `staging` ou une PR fusionnée ne prouve pas une livraison. Le rapprochement utilise le commit exact ou une preuve d’ascendance du commit de fusion dans le commit déployé (compare GitHub, merge-base Bitbucket). Cette preuve est revalidée lors de l’écriture et conservée aux actualisations. Un déploiement en attente ou en échec reste distinct d’un déploiement réussi.
+
+Une PR ouverte affiche un pictogramme orange **Conflit de fusion** seulement si le fournisseur confirme le conflit Git. Les tickets concernés portent aussi **Conflit Git** dans la liste. Un autre blocage de politique ou une réponse non calculée reste inconnu. Le contrôle vaut pour la révision source/cible reçue ; après quinze minutes sans nouveau contrôle, l’état redevient inconnu jusqu’à actualisation. Cela ne modifie pas le champ métier « Bloqué » du ticket.
+
+Autorisations supplémentaires en lecture selon le fournisseur : **Actions**, **Checks** et **Deployments** sur GitHub, **Pipelines** et accès aux déploiements sur Bitbucket, en plus des dépôts et PR. Un jeton limité aux PR conserve les observations déjà reçues mais les rubriques supplémentaires peuvent afficher HTTP 403. Ajuster les droits chez le fournisseur puis relancer ; Sillage n’élargit pas lui-même les permissions.
+
+Contrats des fournisseurs : [GitHub Actions](https://docs.github.com/en/rest/actions/workflow-runs), [checks](https://docs.github.com/en/rest/checks/runs), [déploiements GitHub](https://docs.github.com/en/rest/deployments/deployments), [PR Bitbucket et contrôles de fusion](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/), [déploiements Bitbucket](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-deployments/), [commits et merge-base Bitbucket](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/).

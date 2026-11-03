@@ -15,6 +15,10 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$gitSync=new \App\Controllers\GitSyncController();
+$r->add('GET','/connections/{id}/sync-status',[$gitSync,'status'])
+    ->add('POST','/connections/{id}/recover',[$gitSync,'recover'])
+    ->add('POST','/connections/{id}/sync-settings',[$gitSync,'configure']);
 $ticketDevelopment=new \App\Controllers\TicketDevelopmentController();
 $r->add('GET','/tickets/{id}/development',[$ticketDevelopment,'panel'])
     ->add('POST','/tickets/{id}/development/branches',[$ticketDevelopment,'branches'])

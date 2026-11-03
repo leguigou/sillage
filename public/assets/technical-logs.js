@@ -5,6 +5,8 @@
   const more=root.querySelector('[data-log-more]'),empty=root.querySelector('[data-log-empty]'),reset=root.querySelector('[data-log-reset]');
   const channels={api:'API / AJAX',mcp:'MCP',oauth:'OAuth MCP',development:'Développement Git',llm:'Intelligence artificielle'};
   const providers=Object.fromEntries([...form.elements.provider.options].map(option=>[option.value,option.textContent]));
+  const initialRequest=new URLSearchParams(location.search).get('log_request');
+  if(initialRequest && /^[a-f0-9]{32}$/.test(initialRequest)) {form.elements.request_id.value=initialRequest;form.elements.channel.value='development';}
   let controller=null,next=null,loaded=false,count=0,appliedQuery='';
   const queryFromForm=()=>new URLSearchParams(new FormData(form));
   const clearFilters=()=>form.querySelectorAll('input,select').forEach(field=>field.value='');

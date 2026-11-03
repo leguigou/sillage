@@ -37,7 +37,9 @@ final class Query
                 max(0, $offset),
             $args,
         );
+        $conflicts=\App\Models\DevelopmentEvent::conflictsForTickets(array_column($rows,'id'));
         foreach ($rows as &$row) {
+            $row['has_merge_conflict']=!empty($conflicts[$row['id']]);
             $row['key'] = $row['project_key'] . '-' . $row['number'];
             $row['labels_array'] = json_decode($row['labels'], true);
             $row=\App\Models\Workflow::decorate($row);

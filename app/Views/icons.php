@@ -46,6 +46,7 @@ function icon(string $name, string $class=''): string {
         'bell'=>'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
         'download'=>'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
         'upload'=>'<path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/>',
+        'alert'=>'<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3h.01"/>',
         'flag'=>'<path d="M5 22V3m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/>',
         'spark'=>'<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/>',
         'external'=>'<path d="M14 3h7v7m0-7L10 14M10 3H4v17h17v-6"/>',

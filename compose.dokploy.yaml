@@ -57,7 +57,7 @@ services:
       retries: 30
     restart: unless-stopped
   # File d'attente e-mail des notifications : php bin/console.php notifications:send
-  scheduler:
+  scheduler: &sillage-background
     build:
       context: .
     environment:
@@ -90,6 +90,9 @@ services:
       - sh
       - /var/www/html/deploy/entrypoint-dokploy.sh
       - worker
+  git-scheduler:
+    <<: *sillage-background
+    command: ["sh", "/var/www/html/deploy/entrypoint-dokploy.sh", "git-worker"]
 volumes:
   sillage_mysql:
     name: sillage_mysql

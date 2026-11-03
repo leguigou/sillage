@@ -7,6 +7,11 @@
 set -e
 role="${1:-app}"
 
+if [ "$role" = "git-worker" ]; then
+    sleep 20
+    exec php /var/www/html/bin/console.php git:watch
+fi
+
 if [ -n "${SMTP_HOST:-}" ]; then
     umask 077
     {

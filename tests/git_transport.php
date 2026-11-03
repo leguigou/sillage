@@ -17,8 +17,8 @@ function branch_fixture_items(string $search=''): array
 function git_fixture_pr(bool $github,string $repo,int $id=1387,bool $foreign=false): array
 {
     $sha=str_repeat('c',40);$target=str_repeat('a',40);$source=$foreign?'fork/other':$repo;
-    if($github) return ['number'=>$id,'title'=>'40908 - correction du sitemap','state'=>'closed','merged_at'=>$id===1500?null:'2026-11-02T12:00:00Z','updated_at'=>'2026-11-02T12:00:00Z','head'=>['ref'=>'40908_flow_sitemap','sha'=>$sha,'repo'=>['full_name'=>$source]],'base'=>['ref'=>'staging','sha'=>$target],'html_url'=>'https://github.com/'.$repo.'/pull/'.$id,'commits'=>$id===1500?300:2,'changed_files'=>$id===1500?42:2];
-    return ['id'=>$id,'title'=>'40908 - correction du sitemap','state'=>$id===1500?'DECLINED':'MERGED','updated_on'=>'2026-11-02T12:00:00Z','source'=>['branch'=>['name'=>'40908_flow_sitemap'],'commit'=>['hash'=>$sha],'repository'=>['full_name'=>$source]],'destination'=>['branch'=>['name'=>'staging'],'commit'=>['hash'=>$target]],'links'=>['html'=>['href'=>'https://bitbucket.org/'.$repo.'/pull-requests/'.$id]]];
+    if($github) return ['number'=>$id,'title'=>'40908 - correction du sitemap','state'=>$id===1600?'open':'closed','merged_at'=>in_array($id,[1500,1600],true)?null:'2026-11-02T12:00:00Z','merge_commit_sha'=>$id===1387?str_repeat('9',40):null,'mergeable'=>$id===1600?false:null,'updated_at'=>'2026-11-02T12:00:00Z','head'=>['ref'=>'40908_flow_sitemap','sha'=>$sha,'repo'=>['full_name'=>$source]],'base'=>['ref'=>'staging','sha'=>$target],'html_url'=>'https://github.com/'.$repo.'/pull/'.$id,'commits'=>$id===1500?300:2,'changed_files'=>$id===1500?42:2];
+    return ['id'=>$id,'title'=>'40908 - correction du sitemap','state'=>$id===1600?'OPEN':($id===1500?'DECLINED':'MERGED'),'merge_commit'=>['hash'=>$id===1387?str_repeat('9',40):null],'updated_on'=>'2026-11-02T12:00:00Z','source'=>['branch'=>['name'=>'40908_flow_sitemap'],'commit'=>['hash'=>$sha],'repository'=>['full_name'=>$source]],'destination'=>['branch'=>['name'=>'staging'],'commit'=>['hash'=>$target]],'links'=>['html'=>['href'=>'https://bitbucket.org/'.$repo.'/pull-requests/'.$id]]];
 }
 function curl_exec(object $handle): string|false
 {
@@ -26,7 +26,7 @@ function curl_exec(object $handle): string|false
     if (!in_array($url['host']??'',['api.github.com','api.bitbucket.org'],true) || ($url['scheme']??'')!=='https') throw new \RuntimeException('Fixture Git : destination inattendue.');
     $headers=$handle->options[CURLOPT_HTTPHEADER]??[];
     if (($handle->options[CURLOPT_FOLLOWLOCATION]??true)!==false || ($handle->options[CURLOPT_SSL_VERIFYPEER]??false)!==true || ($handle->options[CURLOPT_PROTOCOLS_STR]??'')!=='https') throw new \RuntimeException('Fixture Git : paramètres de transport inattendus.');
-    if (!in_array('Authorization: Bearer synthetic-git-token',$headers,true)) {$handle->status=401;return '{}';}
+    if (!in_array('Authorization: Bearer synthetic-git-token',$headers,true) && !in_array('Authorization: Bearer synthetic-git-readonly-token',$headers,true)) {$handle->status=401;return '{}';}
     $github=$url['host']==='api.github.com';
     if($github && $path==='/graphql') {
         if(empty($handle->options[CURLOPT_POST])) throw new \RuntimeException('Fixture GraphQL : POST requis.');
@@ -42,6 +42,25 @@ function curl_exec(object $handle): string|false
     $pattern=$github?'#^(/repos/demo/github(?:-[a-f0-9]+)?)(?:/|$)#D':'#^(/2\.0/repositories/demo/bitbucket(?:-[a-f0-9]+)?)(?:/|$)#D';
     if(!preg_match($pattern,$path,$matches)) {$handle->status=404;return '{}';}$prefix=$matches[1];
     $repo=substr($prefix,$github?7:18);$pulls=$prefix.($github?'/pulls':'/pullrequests');
+    if(in_array('Authorization: Bearer synthetic-git-readonly-token',$headers,true) && (str_contains($path,'/actions/') || str_contains($path,'/check-runs') || str_contains($path,'/deployments'))) {$handle->status=403;return '{}';}
+    if($path===$pulls && ($query['per_page']??$query['pagelen']??'')==='50') return json_encode($github?[(git_fixture_pr(true,$repo,1600)),git_fixture_pr(true,$repo)]:['values'=>[git_fixture_pr(false,$repo,1600),git_fixture_pr(false,$repo)]],JSON_THROW_ON_ERROR);
+    if(!$github && preg_match('#/pullrequests/(1387|1500|1600)/mergeability/checks$#D',$path,$m)) return json_encode(['values'=>[['type'=>'git_mergeability_check','status'=>$m[1]==='1600'?'FAILED':'PASSED','reason'=>$m[1]==='1600'?'conflicts':'clean','blocking'=>$m[1]==='1600','required'=>true]]],JSON_THROW_ON_ERROR);
+    if($github && $path===$prefix.'/actions/runs') return json_encode(['workflow_runs'=>[['id'=>501,'name'=>'Tests PHP et compilation','head_sha'=>str_repeat('c',40),'head_branch'=>'40908_flow_sitemap','status'=>'completed','conclusion'=>'failure','updated_at'=>'2026-11-03T00:00:00Z','html_url'=>'https://github.com/'.$repo.'/actions/runs/501']]],JSON_THROW_ON_ERROR);
+    if($github && preg_match('#/commits/([a-f0-9]{40})/(check-runs|statuses)$#D',$path,$m)) {
+        $rows=$m[1]===str_repeat('c',40)?($m[2]==='check-runs'?[['id'=>701,'name'=>'Tests unitaires','head_sha'=>$m[1],'status'=>'completed','conclusion'=>'success','completed_at'=>'2026-11-03T00:00:00Z'],['id'=>702,'name'=>'Tests fonctionnels','head_sha'=>$m[1],'status'=>'completed','conclusion'=>'failure','completed_at'=>'2026-11-03T00:00:00Z']]:[['id'=>801,'context'=>'Qualité','state'=>'success','updated_at'=>'2026-11-03T00:00:00Z']]):[];
+        return json_encode($m[2]==='check-runs'?['check_runs'=>$rows]:$rows,JSON_THROW_ON_ERROR);
+    }
+    if(!$github && preg_match('#/commit/([a-f0-9]{40})/statuses$#D',$path,$m)) return json_encode(['values'=>$m[1]===str_repeat('c',40)?[['key'=>'php-tests','name'=>'Tests PHP','state'=>'FAILED','updated_on'=>'2026-11-03T00:00:00Z']]:[]],JSON_THROW_ON_ERROR);
+    if(!$github && $path===$prefix.'/pipelines/') return json_encode(['values'=>[['uuid'=>'{111-222}','build_number'=>11,'target'=>['ref_name'=>'40908_flow_sitemap','commit'=>['hash'=>str_repeat('c',40)]],'state'=>['name'=>'COMPLETED','result'=>['name'=>'FAILED']],'created_on'=>'2026-11-03T00:00:00Z','completed_on'=>'2026-11-03T00:01:00Z']]],JSON_THROW_ON_ERROR);
+    if($github && str_starts_with($path,$prefix.'/compare/')) return json_encode(['merge_base_commit'=>['sha'=>str_repeat('9',40)],'status'=>'ahead'],JSON_THROW_ON_ERROR);
+    if(!$github && str_starts_with($path,$prefix.'/merge-base/')) return json_encode(['hash'=>str_repeat('9',40)],JSON_THROW_ON_ERROR);
+    if($path===$prefix.'/deployments') {
+        $rows=[];foreach([601=>'staging',602=>'production'] as $id=>$env) $rows[]=$github?['id'=>$id]:['uuid'=>'{'.$id.'-abc}','environment'=>['name'=>$env],'release'=>['commit'=>['hash'=>str_repeat('8',40)],'created_on'=>'2026-11-03T00:01:00Z'],'state'=>['name'=>$id===601?'COMPLETED':'IN_PROGRESS','status'=>['name'=>$id===601?'SUCCESSFUL':''],'start_date'=>'2026-11-03T00:02:00Z','completion_date'=>$id===601?'2026-11-03T00:03:00Z':null]];
+        return json_encode($github?$rows:['values'=>$rows],JSON_THROW_ON_ERROR);
+    }
+    if($github && preg_match('#/deployments/(601|602)(/statuses)?$#D',$path,$m)) {
+        $id=(int)$m[1];return json_encode(isset($m[2])?[['state'=>$id===601?'success':'pending','updated_at'=>'2026-11-03T00:03:00Z','log_url'=>'https://github.com/'.$repo.'/actions/runs/501']]:['id'=>$id,'sha'=>str_repeat('8',40),'ref'=>'staging','environment'=>$id===601?'staging':'production','created_at'=>'2026-11-03T00:01:00Z'],JSON_THROW_ON_ERROR);
+    }
     if($path===$pulls && isset($query['page']) && ($query['per_page']??$query['pagelen']??'')==='20') {
         if($github && (($query['state']??'')!=='all' || ($query['head']??'')!=='demo:40908_flow_sitemap')) return '[]';
         if(!$github && (!str_contains($handle->url,'state=MERGED') || !str_contains($query['q']??'','40908_flow_sitemap'))) return '{"values":[]}';
@@ -49,7 +68,7 @@ function curl_exec(object $handle): string|false
         if($page===1) for($i=1388;$i<=1406;$i++) $rows[]=git_fixture_pr($github,$repo,$i,true);
         return json_encode($github?$rows:['values'=>$rows]+($page===1?['next'=>'https://api.bitbucket.org'.$pulls.'?page=2']:[]),JSON_THROW_ON_ERROR);
     }
-    if(preg_match('#^'.preg_quote($pulls,'#').'/(1387|1500)(?:/(commits|files|diffstat))?$#D',$path,$prMatch)) {
+    if(preg_match('#^'.preg_quote($pulls,'#').'/(1387|1500|1600)(?:/(commits|files|diffstat))?$#D',$path,$prMatch)) {
         $id=(int)$prMatch[1];$kind=$prMatch[2]??'';
         if($kind==='') return json_encode(git_fixture_pr($github,$repo,$id),JSON_THROW_ON_ERROR);
         if($kind==='commits') {

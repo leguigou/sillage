@@ -22,6 +22,14 @@
     if(guide) panel().querySelector('.ticket-development-guide').open=true;
   }
   document.addEventListener('click',async event=>{
+    const button=event.target.closest('[data-git-recover]');if(!button) return;
+    const message=button.closest('[data-git-sync-status]').querySelector('[data-git-recover-message]');button.disabled=true;
+    try {const data=await post('/connections/'+button.dataset.gitRecover+'/recover',new URLSearchParams({_csrf:csrfToken,project_id:button.dataset.project}));message.textContent=data.status.worker?.active?'Rattrapage demandé. Le panneau sera actualisé automatiquement.':'Rattrapage enregistré. Le service de synchronisation doit être démarré sur le serveur.';}
+    catch(error){message.textContent=error.message;}finally{button.disabled=false;}
+  });
+  let automaticRefresh=false;
+  setInterval(async()=>{if(automaticRefresh || historyBusy || document.hidden || !panel() || panel().hidden || document.querySelector('dialog[open]')) return;automaticRefresh=true;try{await refresh();}catch{}finally{automaticRefresh=false;}},15000);
+  document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-ticket-development-refresh]');if(!button) return;
     button.disabled=true;try {await refresh();toast('Informations reçues actualisées.');}catch(error){toast(error.message,true);}finally{if(button.isConnected) button.disabled=false;}
   });

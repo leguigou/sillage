@@ -1034,6 +1034,7 @@ $$('[data-connection-update]').forEach((form) => form.addEventListener('submit',
     const result = await post(form.action, { token: input.value.trim() });
     input.value = '';
     status.textContent = result.preserved ? 'Le jeton enregistré a été conservé.' : 'Le nouveau jeton a été vérifié et enregistré.';
+    window.SillageDialogs.commit(form);
   } catch (error) { status.textContent = error.message; status.classList.add('danger'); }
   finally { button.disabled = false; input.disabled = false;form.removeAttribute('aria-busy'); }
 }));

@@ -6,6 +6,14 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/app/bootstrap.php';
 use App\Core\{DB, Security, Migrator};
 $command = $argv[1] ?? 'help';
+if(in_array($command,['git:work','git:watch'],true)) {
+    do {
+        try {echo json_encode(\App\Services\GitSync::work(),JSON_THROW_ON_ERROR).PHP_EOL;}
+        catch(\Throwable) {fwrite(STDERR,"Traitement Git indisponible. Vérifiez la base et les migrations.\n");if($command!=='git:watch') exit(1);}
+        if($command==='git:watch') sleep(15);
+    } while($command==='git:watch');
+    exit();
+}
 if ($command==='logs:prune') {
     $removed=\App\Services\TechnicalLog::prune(null,10000);
     echo $removed.' appels expirés supprimés (conservation : '.\App\Services\TechnicalLog::retention().' jours).'.PHP_EOL;
@@ -101,4 +109,4 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | admin:create email | user:role email admin/member/viewer\n";
+echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | git:work | git:watch | admin:create email | user:role email admin/member/viewer\n";

@@ -17,6 +17,8 @@ foreach($sillageService in $sillageServices) {
     try {
         if($sillageService.Marker -eq 'apache-local.conf') {
             Stop-SillageApache -ProcessId $sillageService.Id -Started $sillageService.Started -Executable $sillageService.Executable -Marker $sillageService.Marker
+        } elseif($sillageService.Marker -eq 'git:watch') {
+            Stop-Process -Id $sillageProcess.Id
         } else {
             $sillageAdmin=Get-Content -Raw -LiteralPath "$sillageRuntime/mysql-admin.json" | ConvertFrom-Json
             $sillageOptionPath=Join-Path $sillageRuntime 'mysql-stop.cnf'
