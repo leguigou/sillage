@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.7.1",
+  "current_version": "1.7.2",
   "entries": [
+    {
+      "version": "1.7.2",
+      "date": "2026-11-03",
+      "category": "fixes",
+      "title": "Pagination des commits Bitbucket",
+      "summary": "Lecture des commits de pull request avec le curseur fourni par Bitbucket.",
+      "changes": [
+        "Première lecture des commits Bitbucket sans paramètre de page numérique imposé.",
+        "Pages suivantes récupérées avec le curseur opaque du fournisseur, limité au même hôte, dépôt et numéro de PR.",
+        "Refus des boucles de pagination et conservation des bornes de temps, de volume et des derniers relevés complets."
+      ]
+    },
     {
       "version": "1.7.1",
       "date": "2026-11-03",

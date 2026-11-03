@@ -27,4 +27,6 @@ rejects(fn()=>DevelopmentEvent::savePullRequestDetails($tbC,$gpPR,[],$gpDetails,
 check(GitPullRequest::eventForTicket($tbTicket,$gpId)['metadata']['details']==$gpDetails,'échec de synchronisation conserve le dernier instantané complet');
 
 $gpSummary=DB::one('SELECT '.DevelopmentEvent::summaryColumns('e').' FROM development_events e WHERE e.id=?',[$gpId]);$gpSummary=DevelopmentEvent::hydrate($gpSummary);
+check(GitPullRequest::commitResource('https://api.bitbucket.org/2.0/repositories/demo/project/pullrequests/1387/commits?page=opaque%2Bcursor&pagelen=100','demo/project',1387)==='pullrequests/1387/commits?page=opaque%2Bcursor&pagelen=100','curseur Bitbucket conservé sans réinterprétation');
+foreach(['https://evil.example/2.0/repositories/demo/project/pullrequests/1387/commits?page=x','https://api.bitbucket.org/2.0/repositories/demo/other/pullrequests/1387/commits?page=x','https://api.bitbucket.org/2.0/repositories/demo/project/pullrequests/99/commits?page=x'] as $gpBadCursor) rejects(fn()=>GitPullRequest::commitResource($gpBadCursor,'demo/project',1387),'curseur de commits hors hôte dépôt ou PR refusé');
 check(!isset($gpSummary['metadata']['details']['files']) && $gpSummary['metadata']['details']['file_count']===1,'résumé Git évite de charger les fichiers détaillés dans les vues et MCP');

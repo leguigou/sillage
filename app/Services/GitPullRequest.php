@@ -48,6 +48,12 @@ final class GitPullRequest
         if(!$row) throw new \InvalidArgumentException('Cette pull request n’est pas liée au projet et au ticket.');
         return DevelopmentEvent::hydrate($row);
     }
+    public static function commitResource(string $url,string $repository,int $pr): string
+    {
+        $parts=parse_url($url);$expected='/2.0/repositories/'.$repository.'/pullrequests/'.$pr.'/commits';
+        if(!$parts || ($parts['scheme']??'')!=='https' || ($parts['host']??'')!=='api.bitbucket.org' || ($parts['path']??'')!==$expected || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['fragment']) || empty($parts['query']) || strlen($url)>4096 || preg_match('/[\x00-\x20\x7f]/',$url)) throw new \InvalidArgumentException('Pagination des commits Bitbucket refusée.');
+        return 'pullrequests/'.$pr.'/commits?'.$parts['query'];
+    }
     private static function page(array $connection,string $resource,int $page,int $size,float $started,bool $files=false,int $pr=0): array
     {
         $left=20-(microtime(true)-$started);
@@ -56,7 +62,7 @@ final class GitPullRequest
         $github=$connection['provider']==='github';$rows=$github?$data:($data['values']??null);
         if(!is_array($rows) || !array_is_list($rows) || count($rows)>$size) throw new \InvalidArgumentException('Page Git invalide.');
         if(!$github && isset($data['next']) && !is_string($data['next'])) throw new \InvalidArgumentException('Pagination Git invalide.');
-        return [$rows,$github?count($rows)===$size:!empty($data['next'])];
+        return [$rows,$github?count($rows)===$size:!empty($data['next']),$github?null:($data['next']??null)];
     }
     public static function branch(int $ticket,int $link,int $page): array
     {
@@ -91,8 +97,12 @@ final class GitPullRequest
         // GitHub's PR API is limited to 250 commits. Never claim that a larger PR is complete.
         $expected=$github?($raw['commits']??null):null;
         if($expected!==null && (!is_int($expected) || $expected<0)) throw new \InvalidArgumentException('Nombre de commits Git invalide.');
+        $commitResource=$base.'/commits?pagelen=100';$seenCommitPages=[];
         for($page=1;$page<=10;$page++) {
-            [$rows,$more]=self::page($c,$base.'/commits?'.($github?'per_page=100':'pagelen=100').'&page='.$page,$page,100,$started);
+            if($github) $commitResource=$base.'/commits?per_page=100&page='.$page;
+            if(isset($seenCommitPages[$commitResource])) throw new \InvalidArgumentException('Le fournisseur répète une page de commits.');
+            $seenCommitPages[$commitResource]=true;
+            [$rows,$more,$next]=self::page($c,$commitResource,$page,100,$started);
             foreach($rows as $row) {
                 if(!is_array($row)) throw new \InvalidArgumentException('Commit de pull request invalide.');
                 $commit=DevelopmentPayload::object($c['provider'],'commit',$row,$c['repository'],false,strcasecmp((string)($event['metadata']['branch_repository']??''),$c['repository'])===0?$event['metadata']['branch']:null);
@@ -102,6 +112,7 @@ final class GitPullRequest
                 $commits[$commit['external_key']]=$commit;
             }
             if(!$more) {$commitsComplete=$expected===null || count($commits)===$expected;break;}
+            if(!$github) $commitResource=self::commitResource($next,$c['repository'],(int)$number);
         }
         $files=[];$filesComplete=false;
         for($page=1;$page<=10;$page++) {

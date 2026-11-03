@@ -8,6 +8,8 @@ Plusieurs dépôts peuvent rester liés à un projet. Choisir un nouveau dépôt
 
 ## Branches, commits et pull requests
 
+Depuis 1.7.2, la lecture des commits de PR Bitbucket commence sans `page=1`. Cet endpoint utilise une pagination par curseur : les pages suivantes réutilisent le `next` du fournisseur après validation stricte du schéma HTTPS, de l’hôte, du dépôt et de la PR. Le curseur reste opaque ; les boucles sont refusées. La pagination numérique GitHub reste indépendante. [Pagination officielle Bitbucket](https://developer.atlassian.com/cloud/bitbucket/rest/intro/).
+
 Mentionner la clé du ticket, par exemple `WEB-125`, dans le nom d’une branche, le message d’un commit ou le titre d’une pull request. Un événement peut concerner plusieurs tickets, y compris dans plusieurs projets liés au dépôt. Une pull request peut aussi être rapprochée des tickets déjà associés à son commit. Une branche générique n’est pas liée uniquement parce qu’elle pointe sur le même commit.
 
 La fiche ticket affiche trois compteurs et des détails déroulants : dépôt, branche, identifiant du commit, état de la pull request et lien vers le fournisseur. Le bouton de copie propose un nom de branche ; il ne crée pas de branche distante. Les dates absentes restent signalées comme inconnues.

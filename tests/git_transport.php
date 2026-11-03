@@ -72,12 +72,13 @@ function curl_exec(object $handle): string|false
         $id=(int)$prMatch[1];$kind=$prMatch[2]??'';
         if($kind==='') return json_encode(git_fixture_pr($github,$repo,$id),JSON_THROW_ON_ERROR);
         if($kind==='commits') {
+            if(!$github && isset($query['page']) && $query['page']!=='cursor-2') {$handle->status=400;return '{"type":"error","error":{"message":"Invalid page"}}';}
             if($github && $id===1500) {
                 $rows=[];for($i=1;$i<=250;$i++) $rows[]=['sha'=>str_pad(dechex($i),40,'0',STR_PAD_LEFT),'commit'=>['message'=>'Historique '.$i,'author'=>['name'=>'Auteur Exemple','date'=>'2026-11-01T10:00:00Z']]];
                 return json_encode(array_slice($rows,((int)($query['page']??1)-1)*100,100),JSON_THROW_ON_ERROR);
             }
             $rows=[];foreach(['c','d'] as $i=>$letter) $rows[]=$github?['sha'=>str_repeat($letter,40),'commit'=>['message'=>'40908 - '.($i?'correction du sitemap':'fix URL flux XML'),'author'=>['name'=>'Guillaume Exemple','date'=>'2026-11-02T'.($i?'10':'11').':00:00Z']]]:['hash'=>str_repeat($letter,40),'message'=>'40908 - '.($i?'correction du sitemap':'fix URL flux XML'),'author'=>['user'=>['display_name'=>'Guillaume Exemple']],'date'=>'2026-11-02T'.($i?'10':'11').':00:00Z'];
-            return json_encode($github?$rows:['values'=>[$rows[(int)($query['page']??1)-1]]]+((int)($query['page']??1)===1?['next'=>'https://api.bitbucket.org'.$pulls.'/'.$id.'/commits?page=2']:[]),JSON_THROW_ON_ERROR);
+            return json_encode($github?$rows:['values'=>[$rows[isset($query['page'])?1:0]]]+(!isset($query['page'])?['next'=>'https://api.bitbucket.org'.$pulls.'/'.$id.'/commits?pagelen=100&page=cursor-2']:[]),JSON_THROW_ON_ERROR);
         }
         if($kind==='files' && $github) {
             $files=[['filename'=>'app/code/Example/Flow/Cron/Sitemap.php','status'=>'modified','additions'=>580,'deletions'=>185,'patch'=>'DO_NOT_STORE_CODE'],['filename'=>'docs/sitemap.md','previous_filename'=>'docs/old.md','status'=>'renamed','additions'=>0,'deletions'=>0,'patch'=>'DO_NOT_STORE_CODE']];
