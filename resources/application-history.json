@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.8.0",
+  "current_version": "1.8.1",
   "entries": [
+    {
+      "version": "1.8.1",
+      "date": "2026-11-03",
+      "category": "fixes",
+      "title": "Style homogène du tri d’avancement",
+      "summary": "Le tri actif de l’avancement reprend le style des autres en-têtes.",
+      "changes": [
+        "Suppression du fond violet sur Avancement actif et au survol.",
+        "Même style de texte et de flèche que les autres tris, avec indication appliquée uniquement au lien actif."
+      ]
+    },
     {
       "version": "1.8.0",
       "date": "2026-11-03",
