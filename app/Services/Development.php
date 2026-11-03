@@ -86,7 +86,7 @@ final class Development
     {
         $base = match ($provider) { 'github'=>'https://api.github.com', 'bitbucket'=>'https://api.bitbucket.org', default=>throw new \InvalidArgumentException('Fournisseur invalide.') };
         $url = $base . $path;
-        return TechnicalLog::outgoing('development',$provider,$payload===null?'GET':'POST',$url,function(array &$trace) use($url,$token,$timeout,$payload,$diffstatRedirect): array {
+        return TechnicalLog::outgoing('development',$provider,$payload===null?'GET':'POST',$url,function(array &$trace) use($url,$token,$timeout,$payload,$diffstatRedirect,$provider,$path): array {
             $ch = curl_init($url);
             $location=null;
             curl_setopt_array($ch, [
@@ -129,8 +129,9 @@ final class Development
             if($diffstatRedirect && $status===302 && is_string($location)) return ['_diffstat_redirect'=>$location];
             if ($status < 200 || $status >= 300) {
                 throw new \InvalidArgumentException(match ($status) {
+                    400 => 'Requête refusée (HTTP 400) pour '.(str_contains($path,'/mergeability/')?'le contrôle des conflits':(str_contains($path,'/diffstat')?'les statistiques de fichiers':(str_contains($path,'/commits')?'les commits':'la ressource Git'))).'. Consultez l’appel dans les journaux ; relancer seul ne corrige pas une requête refusée.',
                     401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
-                    403 => 'Accès refusé (HTTP 403). Vérifiez les permissions, l’approbation de votre organisation et les limites d’appels du fournisseur.',
+                    403 => $provider==='bitbucket' && (str_contains($path,'/pipelines') || str_contains($path,'/deployments')) ? 'Bitbucket refuse le suivi CI (HTTP 403). Autorisez Pipelines en lecture : read:pipeline:bitbucket (jeton API) ou pipeline (OAuth/jeton de dépôt). Les branches et PR restent indépendantes.' : 'Accès refusé (HTTP 403). Vérifiez les permissions et l’accès au dépôt.',
                     404 => 'Ressource Git introuvable ou inaccessible avec ce jeton (HTTP 404). Vérifiez le dépôt, le nom exact de la branche et les droits de lecture.',
                     429 => 'Limite d’appels du fournisseur atteinte (HTTP 429). Réessayez plus tard.',
                     default => 'Le fournisseur a refusé la vérification (HTTP ' . $status . '). Réessayez plus tard.',

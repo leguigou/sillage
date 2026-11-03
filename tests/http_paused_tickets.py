@@ -16,7 +16,7 @@ status,pause_page,_=call('/tickets/'+pause_id+'/pause',{'_csrf':token(pause_page
 check(status==200 and 'Reprendre le ticket' in pause_page and 'Mis de côté pour plus tard' in pause_page,'ticket pause is visible on its own detail page')
 check(call('/tickets/'+pause_id+'/pause',{'_csrf':token(pause_page),'version':ver,'action':'resume'},True)[0]==422,'stale resume refused by HTTP')
 for view in ['/list','/board','/timeline','/all']:
-    _,default_page,_=call(view+'?project='+pause_pid)
+    _,default_page,_=call(view+'?project='+pause_pid+'&filters_reset=1')
     check('data-ticket-id="'+pause_id+'"' not in default_page,'paused ticket hidden by default in '+view)
     _,only_page,_=call(view+'?project='+pause_pid+'&pause=only')
     check('data-ticket-id="'+pause_id+'"' in only_page,'pause filter recovers ticket in '+view)

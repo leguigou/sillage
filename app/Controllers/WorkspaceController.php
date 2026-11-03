@@ -46,6 +46,7 @@ final class WorkspaceController
         }
         $error = null;
         try {
+            if(in_array($section,['dashboard','list','all','board','timeline','charts'],true)) $filters=\App\Services\FilterMemory::resolve((int)$user['id'],$pid,$filters);
             Filter::where($pid, $filters);
             \App\Services\ListLayout::columns($filters);
         } catch (\InvalidArgumentException $e) {

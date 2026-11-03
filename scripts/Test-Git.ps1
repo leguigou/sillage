@@ -15,6 +15,8 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Contrats HTTP des branches en échec'}
     python tests/http_git_monitoring.py
     if($LASTEXITCODE -ne 0){throw 'Suivi Git HTTP en échec'}
+    python tests/http_filter_memory.py
+    if($LASTEXITCODE -ne 0){throw 'Persistance des filtres en échec'}
 } finally {
     $sillageGitCurrent=Get-Process -Id $sillageGitServer.Id -ErrorAction SilentlyContinue
     if($sillageGitCurrent) {

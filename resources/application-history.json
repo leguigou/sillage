@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.7.0",
+  "current_version": "1.7.1",
   "entries": [
+    {
+      "version": "1.7.1",
+      "date": "2026-11-03",
+      "category": "fixes",
+      "title": "Filtres mémorisés et diagnostic Bitbucket",
+      "summary": "Les filtres suivent la navigation et les refus CI indiquent le droit manquant.",
+      "changes": [
+        "Conservation des filtres par utilisateur et projet dans la session et un cookie chiffré valable trente jours.",
+        "Réinitialisation explicite et critères fournis dans les liens prioritaires sur la mémoire.",
+        "Diagnostic spécifique des permissions Bitbucket Pipelines pour les exécutions et déploiements."
+      ]
+    },
     {
       "version": "1.7.0",
       "date": "2026-11-03",
