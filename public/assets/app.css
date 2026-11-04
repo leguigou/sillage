@@ -3659,3 +3659,5 @@ section[aria-busy='true'] { cursor: progress; }
 .ticket-title-line .ticket-git-link{display:inline-flex;align-items:center;justify-content:center;flex:none;width:26px;height:26px;border-radius:6px;color:var(--text)}.ticket-title-line .ticket-git-link .icon{width:18px;height:18px}.ticket-title-line .ticket-git-bitbucket{color:#2684ff}.ticket-title-line .ticket-git-link:hover{background:var(--accent-soft);color:var(--accent)}
 
 .ticket-title-line{flex-wrap:wrap}.ticket-title-line>.ticket-summary-link{flex:1 1 180px;min-width:120px}.ticket-git-links{display:inline-flex;align-items:center;gap:3px}
+
+.ticket-card.drag-source-hidden{display:none}.board-drop-placeholder{border:2px dashed var(--accent);border-radius:11px;background:var(--accent-soft);box-sizing:border-box;pointer-events:none}.ticket-card.board-saving{opacity:.55;cursor:wait}

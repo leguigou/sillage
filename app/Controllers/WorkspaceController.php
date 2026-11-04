@@ -56,9 +56,10 @@ final class WorkspaceController
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $limit = in_array($section, ['board', 'timeline'], true) ? 1000 : 50;
         $count = Query::count($pid, $filters);
+        $ticketFilters=$section==='board'?array_replace($filters,['sort'=>'rank','direction'=>'asc','sort2'=>'','sort3'=>'']):$filters;
         $tickets = Query::tickets(
             $pid,
-            $filters,
+            $ticketFilters,
             $limit,
             $section === 'list' || $all ? ($page - 1) * $limit : 0,
         );

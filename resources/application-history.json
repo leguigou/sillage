@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.9.0",
+  "current_version": "1.9.1",
   "entries": [
+    {
+      "version": "1.9.1",
+      "date": "2026-11-04",
+      "category": "fixes",
+      "title": "Réordonner les cartes avec un aperçu clair",
+      "summary": "Un emplacement visible pendant le déplacement et un ordre de tableau indépendant du tri des listes.",
+      "changes": [
+        "Emplacement de la taille de la carte inséré au survol pour écarter les cartes voisines.",
+        "Position enregistrée déterminée par cet emplacement, avant ou après les autres cartes.",
+        "Ordre manuel du tableau conservé même après un tri simple ou multiple de la liste.",
+        "Annulation du déplacement sans changement et restauration de la position si la sauvegarde échoue."
+      ]
+    },
     {
       "version": "1.9.0",
       "date": "2026-11-03",

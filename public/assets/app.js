@@ -387,53 +387,6 @@ $$('[data-edit-field]').forEach((button) =>
     }
   }),
 );
-let dragged = null;
-$$('.ticket-card[draggable="true"]').forEach((card) => {
-  card.addEventListener('dragstart', (e) => {
-    if (e.target.closest('a,button,summary')) {
-      e.preventDefault();
-      return;
-    }
-    dragged = card;
-    card.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', card.dataset.ticketId);
-  });
-  card.addEventListener('dragend', () => {
-    card.classList.remove('dragging');
-    $$('.drop-hover').forEach((c) => c.classList.remove('drop-hover'));
-    dragged = null;
-  });
-});
-$$('[data-drop-status]').forEach((column) => {
-  column.addEventListener('dragover', (e) => {
-    if (dragged) {
-      e.preventDefault();
-      column.classList.add('drop-hover');
-    }
-  });
-  column.addEventListener('dragleave', (e) => {
-    if (!column.contains(e.relatedTarget)) column.classList.remove('drop-hover');
-  });
-  column.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    column.classList.remove('drop-hover');
-    const card = dragged;
-    const targetCard = e.target.closest('.ticket-card');
-    if (!card || targetCard === card) return;
-    try {
-      await post(`/tickets/${card.dataset.ticketId}/move`, {
-        status: column.dataset.dropStatus,
-        before_id: targetCard?.dataset.ticketId || '',
-        version: card.dataset.version,
-      });
-      sessionStorage.setItem('sillage.notice', 'Ticket déplacé. Le projet avance.');
-      location.reload();
-    } catch (error) {
-      toast(error.message, true);
-    }
-  });
-});
 function selectedTickets() {
   const n = $$('[data-select-ticket]:checked').length;
   const bulk = $('#bulk-form');

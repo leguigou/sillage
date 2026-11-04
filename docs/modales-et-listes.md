@@ -1,5 +1,13 @@
 # Saisies en modale et actions de la liste
 
+## Ordre manuel du tableau
+
+Le tableau utilise toujours le rang manuel des tickets, indépendamment des tris mémorisés ou transmis par la liste et les rapports. Les filtres continuent de s’appliquer. Une navigation vers le tableau ne réécrit pas la préférence de tri de la liste.
+
+Pendant un glisser-déposer, un emplacement de la hauteur de la carte s’insère avant ou après les cartes survolées, selon le milieu de chaque carte. Les autres cartes laissent cette place ; la requête utilise le voisin suivant cet emplacement, et non la carte sous le pointeur au relâchement. Le déplacement peut changer la colonne d’état à l’intérieur d’un même groupe. Les colonnes repliées et les autres groupes ne sont pas des cibles. Les bords de la zone des cartes permettent son défilement pendant le déplacement.
+
+Un abandon restaure l’affichage ; une sauvegarde refusée remet la carte à sa place. Une position inchangée n’envoie aucune modification. L’enregistrement conserve les contrôles existants de version, CSRF, projet et état. Le gestionnaire dédié est `public/assets/board-drag.js`.
+
 `SillageDialogs.commit(dialog)` valide la référence de toute la modale ; `commit(form)` valide seulement les contrôles du formulaire sauvegardé. Utiliser cette seconde forme lorsque plusieurs connexions ou réglages indépendants partagent une modale, afin de conserver la protection des brouillons voisins.
 
 ## Liste des tickets
