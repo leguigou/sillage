@@ -26,6 +26,7 @@ for progress in [50,100,0]:
 for direction,values in [('asc',[0,50,100]),('desc',[100,50,0])]:
  _,html,_=call('/list?project='+pid+'&sort=progress_percent&direction='+direction)
  positions=[html.index('data-ticket-id="'+progress_tickets[v]+'"') for v in values]
+ check('data-column="updated"' in html and 'data-ticket-modified datetime="' in html,'list includes sortable modification date with explicit UTC timestamp')
  check(positions==sorted(positions),'numeric progress sort '+direction+' includes zero and completed')
  check(('Trier par avancement décroissant' if direction=='asc' else 'Trier par avancement croissant') in html and html.count('class="list-progress-sort"')==1,'single progress arrow toggles current order')
  _,remembered,_=call('/list?project='+pid);check('sort=progress_percent' in remembered and 'aria-current="true"' in remembered,'progress sort retained during navigation '+direction)

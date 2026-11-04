@@ -4,6 +4,10 @@
 
 ## Liste des tickets
 
+Une icône GitHub ou Bitbucket à côté du résumé indique une branche liée manuellement ou une branche active reconnue automatiquement. Chaque fournisseur apparaît une fois ; les deux peuvent être affichés. Cliquer ouvre directement l’onglet Développement du ticket, avec le contexte de retour à la liste. Une connexion du projet sans branche associée ne suffit pas à afficher l’icône ; les dépôts détachés sont exclus.
+
+La colonne **Modification** affiche la dernière modification du ticket. Dans le fuseau du navigateur : « Aujourd’hui », « Hier », puis « Il y a 2 jours » jusqu’à six jours ; à partir de sept jours, la date complète est affichée. Le survol précise la date et l’heure. Le tri utilise l’horodatage réel et les modifications rapides actualisent le libellé. La colonne est disponible dans les rapports personnels et les options de colonnes ; les rapports déjà enregistrés conservent leur sélection de colonnes.
+
 À droite de **Résumé**, une seule flèche **Avancement** indique le sens du tri actif ; cliquer l’inverse. Les filtres, le projet et le rapport sont conservés et la pagination revient à la première page. Ce tri est également proposé dans les rapports personnels et mémorisé avec les préférences de filtres. Les regroupements et la hiérarchie conservent leur structure.
 
 Les rapports acceptent trois critères distincts, dans l’ordre : **Trier par**, **Puis par (2)** et **Puis par (3)**. Chaque critère possède son propre sens ; « Aucun critère supplémentaire » retire un niveau. Les critères suivants départagent les égalités, puis l’identifiant stabilise l’ordre. Modifier le critère principal depuis un autre en-tête de la liste repart sur un tri simple ; inverser le même critère conserve les tris secondaires. Les anciens rapports à un critère restent valides.

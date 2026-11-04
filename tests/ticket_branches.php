@@ -16,6 +16,7 @@ $tbLink=TicketBranch::link($tbTicket,$tbC,$tbEvent,$uid);$tbAgain=TicketBranch::
 check((int)DB::one('SELECT COUNT(*) n FROM development_event_tickets WHERE event_id=? AND ticket_id=?',[$tbPast,$tbTicket])['n']===1,'liaison reprend les observations déjà reçues pour cette branche');
 check($tbLink===$tbAgain && count(TicketBranch::all($tbTicket))===1,'liaison de branche idempotente sans clé du ticket');
 check(Ticket::find($tbTicket)['version']===$tbInitialVersion,'lier une branche ne modifie pas les champs du ticket');
+check(TicketBranch::providersForTickets([$tbTicket,$tbUnlinked=Ticket::create($tbProject,['title'=>'Sans branche'],$uid)])===[$tbTicket=>['github']],'fournisseur lié disponible sans marquer les autres tickets du projet');
 $tbEventId=DB::one('SELECT id FROM development_events WHERE connection_id=? AND external_key=?',[$tbConnection,$tbEvent['external_key']])['id'];
 check((int)DB::one('SELECT COUNT(*) n FROM development_event_tickets WHERE event_id=? AND ticket_id=?',[$tbEventId,$tbTicket])['n']===1,'branche vérifiée associée immédiatement');
 $tbEvent['commit_sha']=str_repeat('b',40);DevelopmentEvent::save($tbC,$tbEvent,true);
@@ -40,6 +41,10 @@ check((int)DB::one('SELECT COUNT(*) n FROM development_event_tickets WHERE event
 $tbAuto=DevelopmentPayload::object('github','branch',['name'=>'feature/'.Ticket::find($tbTicket)['key'].'-auto'],$tbC['repository']);$tbAutoLink=TicketBranch::link($tbTicket,$tbC,$tbAuto,$uid);TicketBranch::unlink($tbTicket,$tbAutoLink);
 $tbAutoId=DB::one('SELECT id FROM development_events WHERE connection_id=? AND external_key=?',[$tbConnection,$tbAuto['external_key']])['id'];
 check((int)DB::one('SELECT COUNT(*) n FROM development_event_tickets WHERE event_id=? AND ticket_id=?',[$tbAutoId,$tbTicket])['n']===1,'retrait manuel conserve le rapprochement automatique par clé');
+check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['github']],'branche automatique conserve son indicateur après retrait manuel');
+$tbBBConnection=DB::insert('INSERT INTO connections(project_id,provider,repository,secret_cipher,webhook_cipher) VALUES(?,?,?,?,?)',[$tbProject,'bitbucket','sample/bb',Security::encrypt('test-token'),Security::encrypt('test-hook')]);RepositoryConnection::attach($tbProject,$tbBBConnection);$tbBBC=DB::one('SELECT * FROM connections WHERE id=?',[$tbBBConnection]);$tbBBEvent=DevelopmentPayload::object('bitbucket','branch',['name'=>'feature/bb'],$tbBBC['repository']);$tbBBLink=TicketBranch::link($tbTicket,$tbBBC,$tbBBEvent,$uid);
+check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['bitbucket','github']],'deux fournisseurs dédupliqués quand plusieurs branches sont liées');
+RepositoryConnection::detach($tbProject,$tbBBConnection);check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['github']],'dépôt détaché ne produit plus de pictogramme');
 $tbUnrelated=Ticket::create(Project::save(['name'=>'Sans dépôt','key'=>'BU'.strtoupper(bin2hex(random_bytes(3)))]),['title'=>'Hors projet Git'],$uid);
 rejects(fn()=>TicketBranch::link($tbUnrelated,$tbC,$tbEvent,$uid),'dépôt étranger au projet du ticket refusé');
 foreach(['../main','feature/../main','https://example.com/branch','refs/heads/main','main?token=x','bad branch','main.lock','feature/.hidden','feature//branch'] as $invalidBranch) rejects(fn()=>DevelopmentPayload::branchName($invalidBranch),'nom de branche mal formé refusé');

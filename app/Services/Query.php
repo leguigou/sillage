@@ -40,7 +40,9 @@ final class Query
             $args,
         );
         $conflicts=\App\Models\DevelopmentEvent::conflictsForTickets(array_column($rows,'id'));
+        $branchProviders=\App\Models\TicketBranch::providersForTickets(array_column($rows,'id'));
         foreach ($rows as &$row) {
+            $row['branch_providers']=$branchProviders[$row['id']]??[];
             $row['has_merge_conflict']=!empty($conflicts[$row['id']]);
             $row['key'] = $row['project_key'] . '-' . $row['number'];
             $row['labels_array'] = json_decode($row['labels'], true);

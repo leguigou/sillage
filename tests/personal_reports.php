@@ -21,6 +21,8 @@ $rpOld=Ticket::create($rpProject,['title'=>'Ancien'],$uid);$rpNew=Ticket::create
 DB::run("UPDATE tickets SET created_at='2026-01-01 10:00:00' WHERE id=?",[$rpOld]);DB::run("UPDATE tickets SET created_at='2026-02-01 10:00:00' WHERE id=?",[$rpNew]);
 check(array_column(Query::tickets($rpProject,['sort'=>'created','direction'=>'desc']),'id')===[$rpNew,$rpOld],'tri de création décroissant du plus récent au plus ancien');
 check(array_column(Query::tickets($rpProject,['sort'=>'created','direction'=>'asc']),'id')===[$rpOld,$rpNew],'tri de création croissant du plus ancien au plus récent');
+DB::run("UPDATE tickets SET updated_at='2026-10-01 12:00:00' WHERE id=?",[$rpOld]);DB::run("UPDATE tickets SET updated_at='2026-11-03 12:00:00' WHERE id=?",[$rpNew]);
+check(array_column(Query::tickets($rpProject,['sort'=>'updated','direction'=>'desc']),'id')===[$rpNew,$rpOld] && ListLayout::columns(['columns'=>['title','updated']])===['title','updated'],'colonne Modification disponible et triée par horodatage réel');
 SavedView::delete($rpId,$uid);check(DB::one('SELECT id FROM saved_views WHERE id=?',[$rpId])===null,'suppression personnelle sans supprimer les tickets');
 
 check(ListLayout::settings($rpProject,['show_progress'=>false,'hierarchy'=>true])===['show_progress'=>'0','hierarchy'=>'1'],'options de rapport booléennes normalisées une seule fois');

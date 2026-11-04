@@ -7,6 +7,12 @@ use App\Services\DevelopmentPayload;
 /** Explicit branch choices are separate from the observations recomputed on each Git delivery. */
 final class TicketBranch
 {
+    public static function providersForTickets(array $ids): array
+    {
+        if(!$ids) return [];$slots=implode(',',array_fill(0,count($ids),'?'));
+        $rows=DB::all("SELECT DISTINCT b.ticket_id,c.provider FROM ticket_branch_links b JOIN tickets t ON t.id=b.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id JOIN connections c ON c.id=b.connection_id WHERE b.ticket_id IN ($slots) UNION SELECT DISTINCT l.ticket_id,c.provider FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id JOIN connections c ON c.id=e.connection_id WHERE l.ticket_id IN ($slots) AND e.kind='branch' AND e.state='active' ORDER BY provider",[...$ids,...$ids]);
+        $result=[];foreach($rows as $row) if(in_array($row['provider'],['github','bitbucket'],true)) $result[$row['ticket_id']][]=$row['provider'];return $result;
+    }
     public static function connection(int $ticket,int $connection): array
     {
         $row=DB::one('SELECT c.* FROM connections c JOIN project_connections pc ON pc.connection_id=c.id JOIN tickets t ON t.project_id=pc.project_id WHERE t.id=? AND c.id=?',[$ticket,$connection]);

@@ -248,6 +248,18 @@ function updateTicketProgress(row,ticket) {
     ?'Estimation manquante'
     :'≈ '+formatTicketHours(ticket.remaining_hours)+' restantes';
 }
+function ticketModifiedLabel(value,now=new Date()) {
+  const date=new Date(value);if(Number.isNaN(date.getTime())) return {label:'—',title:''};
+  const day=d=>Date.UTC(d.getFullYear(),d.getMonth(),d.getDate());
+  const days=(day(now)-day(date))/86400000;
+  return {label:days===0?'Aujourd’hui':days===1?'Hier':days>1&&days<7?'Il y a '+days+' jours':date.toLocaleDateString('fr-FR'),title:date.toLocaleString('fr-FR')};
+}
+function refreshTicketModified(root=document) {
+  root.querySelectorAll('[data-ticket-modified]').forEach(time=>{const display=ticketModifiedLabel(time.dateTime);time.textContent=display.label;time.title=display.title;});
+}
+refreshTicketModified();
+setInterval(()=>{if(!document.hidden) refreshTicketModified();},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) refreshTicketModified();});
 async function quick(row, field, value) {
   const previousVersion = Number(row.dataset.version);
   const data = await post(`/tickets/${row.dataset.ticketId}/quick`, {
@@ -261,6 +273,8 @@ async function quick(row, field, value) {
       r.dataset.priority = data.ticket.priority;
       r.dataset.status = data.ticket.status;
       updateTicketProgress(r,data.ticket);
+      const modified=r.querySelector('[data-ticket-modified]');
+      if(modified && data.ticket.updated_at) {modified.dateTime=data.ticket.updated_at.replace(' ','T')+'Z';refreshTicketModified(r);}
       const statusSelect=$('[data-quick-field="status"]',r);
       if(statusSelect && data.ticket.status_options) {
         r.dataset.bulkStatuses=JSON.stringify(data.ticket.status_options);

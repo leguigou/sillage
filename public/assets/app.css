@@ -3655,3 +3655,7 @@ section[aria-busy='true'] { cursor: progress; }
 .git-event-heading .pill.warning{color:#b91c1c;background:#ef444418}.git-sync-status .pill.warning{color:#b45309;background:#f59e0b18}[data-theme=dark] .git-event-heading .pill.warning{color:#fca5a5}[data-theme=dark] .git-sync-status .pill.warning{color:#fbbf24}
 
 .list-title-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.list-progress-sort{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-size:10px}.list-progress-sort>a{display:inline-flex;align-items:center;justify-content:center;min-width:26px;min-height:28px;border-radius:6px}.list-progress-sort>a:hover{color:var(--accent)}
+
+.ticket-title-line .ticket-git-link{display:inline-flex;align-items:center;justify-content:center;flex:none;width:26px;height:26px;border-radius:6px;color:var(--text)}.ticket-title-line .ticket-git-link .icon{width:18px;height:18px}.ticket-title-line .ticket-git-bitbucket{color:#2684ff}.ticket-title-line .ticket-git-link:hover{background:var(--accent-soft);color:var(--accent)}
+
+.ticket-title-line{flex-wrap:wrap}.ticket-title-line>.ticket-summary-link{flex:1 1 180px;min-width:120px}.ticket-git-links{display:inline-flex;align-items:center;gap:3px}

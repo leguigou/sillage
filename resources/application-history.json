@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.8.2",
+  "current_version": "1.9.0",
   "entries": [
+    {
+      "version": "1.9.0",
+      "date": "2026-11-03",
+      "category": "features",
+      "title": "Branches Git visibles dans la liste",
+      "summary": "Les tickets indiquent leurs branches GitHub et Bitbucket par des pictogrammes cliquables.",
+      "changes": [
+        "Icône GitHub ou Bitbucket à côté du résumé pour les branches liées manuellement ou reconnues automatiquement.",
+        "Affichage des deux fournisseurs si nécessaire, sans doublonner leurs icônes.",
+        "Accès direct au développement du ticket avec contexte de retour conservé.",
+        "Dépôts sans branche associée et connexions détachées sans pictogramme.",
+        "Colonne Modification triable : aujourd’hui, hier et jours écoulés avant sept jours, puis date complète selon le fuseau du navigateur."
+      ]
+    },
     {
       "version": "1.8.2",
       "date": "2026-11-03",
