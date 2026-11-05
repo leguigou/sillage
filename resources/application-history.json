@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.15.0",
+  "current_version": "1.16.0",
   "entries": [
+    {
+      "version": "1.16.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Badges de déploiement dans les listes",
+      "summary": "Une colonne dédiée au dernier jalon Git observé pour chaque ticket.",
+      "changes": [
+        "Colonne Déploiement après le résumé : PR ouverte, fusion, À tester, En production, déploiement en attente/en cours/échoué et conflit confirmé.",
+        "Badges colorés cliquables vers le développement du ticket, avec environnement ou PR et infobulle datée.",
+        "Une fusion seule ne devient pas une livraison ; une nouvelle PR reçue après un déploiement remplace le badge vert et une date inconnue reste à confirmer.",
+        "Colonne disponible dans les options de lecture, le réagencement et les rapports personnalisés ; lecture groupée des événements sans appel fournisseur depuis la liste."
+      ]
+    },
     {
       "version": "1.15.0",
       "date": "2026-11-05",

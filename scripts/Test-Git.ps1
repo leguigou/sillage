@@ -21,6 +21,8 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Ordre manuel du tableau en échec'}
     python tests/http_ticket_people.py
     if($LASTEXITCODE -ne 0){throw 'Affectations de tickets en échec'}
+    python tests/http_deployment_badges.py
+    if($LASTEXITCODE -ne 0){throw 'Badges de déploiement en échec'}
 } finally {
     $sillageGitCurrent=Get-Process -Id $sillageGitServer.Id -ErrorAction SilentlyContinue
     if($sillageGitCurrent) {

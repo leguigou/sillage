@@ -3696,3 +3696,11 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table [data-type-label]{font-size:11px;white-space:nowrap}
 
 .list-column-heading{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.deployment-badge{--badge-color:var(--subtle);display:inline-flex;align-items:center;gap:8px;min-width:160px;max-width:280px;padding:6px 9px;border:1px solid color-mix(in srgb,var(--badge-color) 45%,transparent);border-radius:10px;background:color-mix(in srgb,var(--badge-color) 10%,transparent);color:var(--badge-color);text-decoration:none;vertical-align:middle}
+.deployment-badge>.icon{width:18px;height:18px;flex-shrink:0}
+.deployment-badge>span{min-width:0;display:grid;gap:2px}
+.deployment-badge strong{font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deployment-badge small{font-size:9px;color:var(--subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deployment-badge:hover{border-color:var(--badge-color);background:color-mix(in srgb,var(--badge-color) 17%,transparent)}
+.deployment-review{--badge-color:#7651c5}.deployment-info{--badge-color:#2168b4}.deployment-success{--badge-color:#168443}.deployment-testing,.deployment-warning{--badge-color:#a65b00}.deployment-failure{--badge-color:#bd3542}
+:root[data-theme=dark] .deployment-review{--badge-color:#c4a4ff}:root[data-theme=dark] .deployment-info{--badge-color:#80bfff}:root[data-theme=dark] .deployment-success{--badge-color:#6ade96}:root[data-theme=dark] .deployment-testing,:root[data-theme=dark] .deployment-warning{--badge-color:#f4b44e}:root[data-theme=dark] .deployment-failure{--badge-color:#ff818b}

@@ -9,7 +9,7 @@ final class DevelopmentEvent
     public static function summaryColumns(string $alias): string
     {
         if(!preg_match('/^[a-z]$/D',$alias)) throw new \InvalidArgumentException('Alias de lecture Git invalide.');
-        return "$alias.*,JSON_REMOVE($alias.metadata_json,'$.details.files','$.details.commit_shas') AS metadata_json";
+        return implode(',',array_map(fn($column)=>$alias.'.'.$column,['id','connection_id','ticket_id','external_key','kind','title','external_url','state','occurred_at','commit_sha'])).",JSON_REMOVE($alias.metadata_json,'$.details.files','$.details.commit_shas') AS metadata_json";
     }
     public static function lockProjects(int $connection): array
     {

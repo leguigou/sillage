@@ -1,6 +1,7 @@
 <?php
 use App\Models\Ticket;
 use App\Services\ListLayout;
+$deploymentBadges=App\Services\TicketDevelopment::badges($tickets);
 $listColumns=ListLayout::columns($filters);$listOrder=ListLayout::order($filters);
 ?><template id="priority-mark-templates"><?php foreach(Ticket::PRIORITIES as $priority=>$label) echo work_mark('priority',$priority); ?></template><?php
 if(!empty($filters['hierarchy'])) {
