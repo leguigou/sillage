@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.14.0",
+  "current_version": "1.14.1",
   "entries": [
+    {
+      "version": "1.14.1",
+      "date": "2026-11-05",
+      "category": "fixes",
+      "title": "Bouton de création du tableau",
+      "summary": "Une action plus lisible et compacte en haut de chaque colonne.",
+      "changes": [
+        "Cadre pointillé remplacé par un fond de bouton avec bordure discrète, texte contrasté et pictogramme plus sur une pastille.",
+        "Hauteur compacte de 36 px, survol et focus clavier visibles, couleurs adaptées aux thèmes clair et sombre."
+      ]
+    },
     {
       "version": "1.14.0",
       "date": "2026-11-05",
