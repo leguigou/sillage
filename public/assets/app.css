@@ -3648,3 +3648,17 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .git-access-check.is-error{color:var(--text)}
 .git-access-check.is-error strong{color:var(--orange,#e6a34c)}
 .git-access-check p{font-size:12px;margin:6px 0 0;line-height:1.5;color:var(--muted)}
+.kanban-column:not(.drop-hover){background:var(--column-background,var(--surface-soft))}
+.kanban-column.has-column-width:not(.collapsed){width:var(--column-width);min-width:var(--column-width);flex:0 0 var(--column-width)}
+.kanban-column.collapsed,.board-fixed .kanban-column.collapsed{width:70px;min-width:70px;max-width:70px;flex:0 0 70px}
+.column-header .column-settings-button{margin-left:auto}
+.column-header .column-settings-button + [data-collapse-column]{margin-left:0}
+.kanban-column.collapsed .column-header{gap:10px}
+.kanban-column.collapsed [data-collapse-column] .icon{transform:rotate(180deg)}
+.kanban-column.column-compact .column-cards{gap:8px}
+.kanban-column.column-compact .ticket-card{padding:10px}
+.kanban-column.column-compact .card-title{margin:8px 0;font-size:11px}
+.board-column-dialog-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+#board-column-settings input[type=color]{width:100%;height:40px;padding:4px}
+#board-column-settings input[type=range]{padding:0;accent-color:var(--accent)}
+#board-column-settings output{float:right;color:var(--muted)}

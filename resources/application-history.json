@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.12.2",
+  "current_version": "1.13.0",
   "entries": [
+    {
+      "version": "1.13.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Personnaliser chaque colonne du tableau",
+      "summary": "Réglages indépendants depuis une roue crantée et repli qui libère réellement de la place.",
+      "changes": [
+        "Une roue crantée dans chaque en-tête ouvre les réglages de couleur de fond, opacité, largeur et espacement des cartes.",
+        "Aperçu immédiat, enregistrement explicite, retour aux valeurs par défaut et confirmation d’abandon des modifications.",
+        "Préférences personnelles mémorisées dans le navigateur par compte, projet et état, également pour le repli.",
+        "Colonne repliée limitée à 70 px, y compris avec les largeurs fixes ; les autres colonnes conservent leurs réglages."
+      ]
+    },
     {
       "version": "1.12.2",
       "date": "2026-11-05",

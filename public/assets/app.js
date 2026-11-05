@@ -206,13 +206,6 @@ $$('[data-create-status]').forEach((b) =>
     openDialog('ticket-dialog');
   }),
 );
-$$('[data-collapse-column]').forEach((b) =>
-  b.addEventListener('click', () => {
-    const c = b.closest('.kanban-column');
-    c.classList.toggle('collapsed');
-    b.setAttribute('aria-expanded', c.classList.contains('collapsed') ? 'false' : 'true');
-  }),
-);
 async function post(path, values) {
   const form = new FormData();
   Object.entries(values).forEach(([k, v]) => form.set(k, v ?? ''));
