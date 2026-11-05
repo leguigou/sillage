@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.14.1",
+  "current_version": "1.15.0",
   "entries": [
+    {
+      "version": "1.15.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Libellés des icônes dans la liste",
+      "summary": "Personnaliser séparément les colonnes Type et Priorité depuis leur en-tête.",
+      "changes": [
+        "Roue crantée à droite des en-têtes Type et Priorité ouvrant le choix d’afficher ou masquer leur libellé.",
+        "Choix immédiatement appliqué et mémorisé par compte, projet et rapport dans le navigateur.",
+        "Priorité toujours modifiable au clic et au clavier en mode icône seule, avec infobulle actualisée et indication de focus."
+      ]
+    },
     {
       "version": "1.14.1",
       "date": "2026-11-05",

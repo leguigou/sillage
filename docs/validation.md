@@ -1,5 +1,8 @@
 # Validation locale — 28 octobre 2026
 
+Version 1.15.0, 5 novembre 2026 : contrôle navigateur des roues crantées Type et Priorité, sur la même ligne que chaque titre. Priorité sans libellé et Type avec libellé conservés après rechargement ; un autre projet garde les valeurs par défaut. En mode icône seule, la sélection native modifie réellement la priorité de Moyenne à Critique par AJAX ; l’icône et son infobulle sont actualisées puis conservées après rechargement. Rendu clair/sombre contrôlé, aucune erreur JavaScript. Capture `.runtime/list-labels-final.png`. Les noms accessibles des icônes et du sélecteur sont conservés, avec focus visible sur le sélecteur transparent. Le lien de tri actif reste stylé à travers son nouveau conteneur. Syntaxes PHP/JavaScript, manifeste et diff vérifiés. Pas de migration ni de tests serveur supplémentaires pour cette préférence d’affichage ; uniquement un ticket isolé modifié pendant la vérification.
+
+
 Version 1.14.1, 5 novembre 2026 : vérification navigateur du bouton Créer un ticket en haut des colonnes, en clair et sombre. Bordure pleine, hauteur calculée de 36 px et couleurs de texte/fond du thème vérifiées. Un clic dans En cours ouvre le formulaire avec cet état prérempli. Aucune erreur JavaScript. Capture `.runtime/board-create-button-final.png`. Règle d’origine consolidée et remplacement du style pointillé retiré, historique et diff vérifiés. Ajustement CSS uniquement, sans migration ni tests serveur supplémentaires.
 
 

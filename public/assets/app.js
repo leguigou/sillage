@@ -279,6 +279,8 @@ async function quick(row, field, value) {
       const mark=$('.priority-mark',r), templates=$('#priority-mark-templates');
       const next=templates && $$('[data-mark-key]',templates.content).find(el=>el.dataset.markKey===data.ticket.priority);
       if(mark && next) { mark.replaceWith(next.cloneNode(true));initAppearanceMarks(r); }
+      const prioritySelect=$('[data-quick-field="priority"]',r);
+      if(prioritySelect && next) {prioritySelect.value=data.ticket.priority;prioritySelect.title=next.title;}
     },
   );
   updateBulkValues();
@@ -447,6 +449,14 @@ function applyPreferences() {
       : reportLayout?.columns?reportLayout.columns.includes(key):preferences[`column.${key}`] !== false;
     $$(`[data-column="${el.dataset.columnToggle}"]`).forEach((cell) => (cell.hidden = !el.checked));
   });
+  const table=$('.ticket-table');
+  if(table) {
+    const typeLabel=preferences['column-label.'+columnLayoutKey+'.type']===true;
+    const priorityLabel=preferences['column-label.'+columnLayoutKey+'.priority']!==false;
+    table.classList.toggle('priority-icon-only',!priorityLabel);
+    $$('[data-type-label]',table).forEach(label=>label.hidden=!typeLabel);
+    $$('[data-column="priority"] select',table).forEach(select=>select.title=select.selectedOptions[0]?.textContent||'Priorité');
+  }
   $$('.table-group td').forEach(cell=>cell.colSpan=$$('.ticket-table thead th:not([hidden])').length);
   const age = Number(preferences['done-age'] || 0);
   $$('.ticket-card').forEach((c) => {
@@ -479,6 +489,20 @@ document.addEventListener('click',event=>{
   if(index<0 || next<0 || next>=keys.length) return;
   [keys[index],keys[next]]=[keys[next],keys[index]];preferences['column-order.'+table.dataset.columnLayoutKey]=keys;
   savePreferences();button.focus({preventScroll:true});
+});
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-list-label-options]');if(!button) return;
+  const dialog=$('#list-label-options'),key=button.dataset.listLabelOptions;
+  dialog.dataset.labelColumn=key;
+  $('[data-list-label-title]',dialog).textContent='Affichage · '+(key==='type'?'Type':'Priorité');
+  const stored=preferences['column-label.'+columnLayoutKey+'.'+key];
+  $('[data-list-label-visible]',dialog).checked=typeof stored==='boolean'?stored:key==='priority';
+  window.SillageDialogs.show(dialog);
+});
+$('[data-list-label-visible]')?.addEventListener('change',event=>{
+  const dialog=event.target.closest('dialog');
+  preferences['column-label.'+columnLayoutKey+'.'+dialog.dataset.labelColumn]=event.target.checked;
+  savePreferences();window.SillageDialogs.commit(dialog);
 });
 function savePreferences() {
   try {
