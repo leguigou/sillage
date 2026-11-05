@@ -15,11 +15,11 @@
  <ol>
   <li>Dans votre compte Atlassian, ouvrez <strong>Security → Create and manage API tokens</strong>, puis <strong>Create API token with scopes</strong>.</li>
   <li>Nommez-le <strong>Sillage</strong>, choisissez une expiration, puis sélectionnez l’application <strong>Bitbucket</strong>.</li>
-  <li>Accordez <strong>Repositories → Read</strong> (<code>read:repository:bitbucket</code>) et <strong>Pull requests → Read</strong> (<code>read:pullrequest:bitbucket</code>).</li>
+  <li>Accordez <strong>Repositories → Read</strong> (<code>read:repository:bitbucket</code>), <strong>Pull requests → Read</strong> (<code>read:pullrequest:bitbucket</code>) et <strong>Pipelines → Read</strong> (<code>read:pipeline:bitbucket</code>, pour les pipelines, environnements et déploiements).</li>
   <li>Créez le jeton et copiez-le dans le champ ci-dessous. Sillage l’utilise directement, sans demander votre adresse Atlassian.</li>
  </ol>
- <p>Pour les mises à jour automatiques, activez les événements webhook de push et de pull requests (création, mise à jour, fusion et refus).</p>
+ <p>Aucun droit d’écriture ou d’administration n’est nécessaire au suivi actuel. Pour les mises à jour automatiques, activez les événements webhook de push et de pull requests (création, mise à jour, fusion et refus).</p>
  <p>Dépôt attendu : <code>workspace/nom-du-depot</code>, sans URL complète.</p>
- <p>Un <strong>Repository access token</strong> est aussi accepté avec <strong>Repositories → Read</strong> et <strong>Pull requests → Read</strong>, si cette option est disponible sur votre dépôt.</p>
+ <p>Un <strong>Repository access token</strong> est aussi accepté avec <strong>Repositories → Read</strong>, <strong>Pull requests → Read</strong> et <strong>Pipelines → Read</strong>, si cette option est disponible sur votre dépôt.</p>
  <p><a href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/" target="_blank" rel="noopener noreferrer">Guide Atlassian</a> · <a href="https://support.atlassian.com/bitbucket-cloud/docs/api-token-permissions/" target="_blank" rel="noopener noreferrer">Permissions Bitbucket</a></p>
 </details>

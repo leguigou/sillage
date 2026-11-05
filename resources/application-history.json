@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.12.0",
+  "current_version": "1.12.1",
   "entries": [
+    {
+      "version": "1.12.1",
+      "date": "2026-11-05",
+      "category": "fixes",
+      "title": "Statistiques des fichiers Bitbucket",
+      "summary": "Prise en charge des références de comparaison encodées dans les redirections de PR.",
+      "changes": [
+        "Les références de comparaison Bitbucket contenant un séparateur encodé sont conservées sans transformer ce séparateur en caractère de contrôle HTTP.",
+        "La destination reste limitée aux statistiques du même dépôt sur api.bitbucket.org en HTTPS ; traversées de chemin et redirections externes refusées.",
+        "Guide du jeton complété avec Pipelines en lecture pour le suivi des exécutions, environnements et déploiements."
+      ]
+    },
     {
       "version": "1.12.0",
       "date": "2026-11-05",

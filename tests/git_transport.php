@@ -86,11 +86,12 @@ function curl_exec(object $handle): string|false
             return json_encode($files,JSON_THROW_ON_ERROR);
         }
         if($kind==='diffstat' && !$github) {
-            $handle->status=302;$location=$id===1500?'https://evil.example/stolen':'https://api.bitbucket.org'.$prefix.'/diffstat/'.str_repeat('c',40).'..'.str_repeat('a',40).'?from_pullrequest_id=1387&topic=true';
+            $handle->status=302;$location=$id===1500?'https://evil.example/stolen':'https://api.bitbucket.org'.$prefix.'/diffstat/'.$repo.':'.str_repeat('c',40).'%0D'.str_repeat('a',40).'?from_pullrequest_id=1387&topic=true';
             ($handle->options[CURLOPT_HEADERFUNCTION])($handle,'Location: '.$location."\r\n");return '';
         }
     }
     if(!$github && str_starts_with($path,$prefix.'/diffstat/')) {
+        if(!str_contains($path,'%0D') || str_contains($path,"\r")) throw new \RuntimeException('Fixture : revspec encodé Bitbucket attendu sans contrôle HTTP littéral.');
         if(($query['topic']??'')!=='true' || ($query['from_pullrequest_id']??'')!=='1387') throw new \RuntimeException('Fixture : comparaison de PR attendue.');
         $page=(int)($query['page']??1);$file=$page===1?['status'=>'modified','new'=>['path'=>'app/code/Example/Flow/Cron/Sitemap.php'],'old'=>['path'=>'app/code/Example/Flow/Cron/Sitemap.php'],'lines_added'=>580,'lines_removed'=>185]:['status'=>'renamed','new'=>['path'=>'docs/sitemap.md'],'old'=>['path'=>'docs/old.md'],'lines_added'=>0,'lines_removed'=>0];
         return json_encode(['values'=>[$file]]+($page===1?['next'=>'https://api.bitbucket.org'.$path.'?page=2']:[]),JSON_THROW_ON_ERROR);

@@ -31,16 +31,29 @@ final class GitPullRequest
     /** A PR diffstat may redirect only to the same repository's statistics endpoint. */
     public static function diffstatResource(string $url,string $repository,int $page): string
     {
-        $parts=parse_url($url);$prefix='/2.0/repositories/'.$repository.'/diffstat/';$path=rawurldecode($parts['path']??'');
-        if(($parts['scheme']??'')!=='https' || ($parts['host']??'')!=='api.bitbucket.org' || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['fragment']) || !str_starts_with($path,$prefix) || strlen($path)>2048 || preg_match('/[\x00-\x20\x7f\\\\?#]/',$path) || array_intersect(explode('/',$path),['.','..'])) throw new \InvalidArgumentException('Redirection des statistiques Bitbucket refusée.');
+        $prefix='/2.0/repositories/'.$repository.'/diffstat/';
+        // Bitbucket revspecs can contain a percent-encoded CR between revisions.
+        // Validate the URL boundary before decoding, then re-encode each path segment.
+        // An encoded separator in an opaque revspec must never become a literal HTTP control.
+        if(strlen($url)>8192 || preg_match('/[\x00-\x20\x7f]/',$url)) throw new \InvalidArgumentException('Redirection des statistiques Bitbucket refusée.');
+        $parts=parse_url($url);$path=$parts['path']??'';
+        if(!$parts || ($parts['scheme']??'')!=='https' || ($parts['host']??'')!=='api.bitbucket.org' || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['fragment']) || !str_starts_with($path,$prefix) || strlen($path)>2048) throw new \InvalidArgumentException('Redirection des statistiques Bitbucket refusée.');
         $spec=substr($path,strlen($prefix));if($spec==='') throw new \InvalidArgumentException('Comparaison Bitbucket sans référence.');
+        $segments=[];
+        foreach(explode('/',$spec) as $segment) {
+            if(preg_match('/%(?![0-9a-f]{2})/i',$segment)) throw new \InvalidArgumentException('Référence de comparaison Bitbucket invalide.');
+            $decoded=rawurldecode($segment);
+            if($decoded==='' || in_array($decoded,['.','..'],true) || preg_match('~[\x00-\x0c\x0e-\x20\x7f\\\\/?#%]~',$decoded)) throw new \InvalidArgumentException('Référence de comparaison Bitbucket invalide.');
+            $segments[]=rawurlencode($decoded);
+        }
+        $spec=implode('/',$segments);
         parse_str($parts['query']??'',$query);$safe=[];
         foreach($query as $key=>$value) {
             if(in_array($key,['page','pagelen'],true)) continue;
             if(!in_array($key,['topic','merge','from_pullrequest_id','ignore_whitespace','renames'],true) || !is_string($value) || !preg_match('/^(?:true|false|[0-9]+)$/D',$value)) throw new \InvalidArgumentException('Paramètres de statistiques Bitbucket inattendus.');
             $safe[$key]=$value;
         }
-        return 'diffstat/'.implode('/',array_map('rawurlencode',explode('/',$spec))).'?'.http_build_query($safe+['pagelen'=>100,'page'=>$page]);
+        return 'diffstat/'.$spec.'?'.http_build_query($safe+['pagelen'=>100,'page'=>$page]);
     }
     public static function eventForTicket(int $ticket,int $event): array
     {
