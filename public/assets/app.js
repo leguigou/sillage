@@ -1016,7 +1016,7 @@ $$('[data-connect-repositories]').forEach((form) => {
 
 $$('[data-connection-update]').forEach((form) => form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const button = $('button', form), input = $('[name="token"]', form), status = $('[data-update-status]', form);
+  const button = $('button:not([type="button"])', form), input = $('[name="token"]', form), status = $('[data-update-status]', form);
   if (button.disabled) return;
   button.disabled = true; input.disabled = true; status.classList.remove('danger');
   form.setAttribute('aria-busy','true');

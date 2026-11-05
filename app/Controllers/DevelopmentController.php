@@ -6,6 +6,18 @@ use App\Models\Project;
 use App\Services\Development;
 final class DevelopmentController
 {
+    public function testAccess(string $id): void
+    {
+        $user=Auth::admin();Security::limit('git-access-test:'.$user['id'],10,60);
+        $project=filter_var($_POST['project_id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        $connection=$project?DB::one('SELECT c.* FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE c.id=? AND pc.project_id=?',[(int)$id,$project]):null;
+        if(!$connection) throw new \InvalidArgumentException('Ce dépôt n’est pas lié au projet.');
+        $token=trim((string)($_POST['token']??''));
+        if($token!=='') $connection['secret_cipher']=Security::encrypt(Development::accessToken($token));
+        if(function_exists('set_time_limit')) @set_time_limit(40);
+        header('Cache-Control: no-store');
+        json_response(['checks'=>\App\Services\GitAccessTest::run($connection),'credential'=>$token===''?'saved':'draft','request_id'=>\App\Services\TechnicalLog::requestId()]);
+    }
     public function webhookSetup(string $id): void
     {
         $user=Auth::admin();Security::limit('webhook-setup:'.$user['id'],30,60);

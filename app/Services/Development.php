@@ -128,7 +128,7 @@ final class Development
             }
             if($diffstatRedirect && $status===302 && is_string($location)) return ['_diffstat_redirect'=>$location];
             if ($status < 200 || $status >= 300) {
-                throw new \InvalidArgumentException(match ($status) {
+                throw new GitAccessException($status,match ($status) {
                     400 => 'Requête refusée (HTTP 400) pour '.(str_contains($path,'/mergeability/')?'le contrôle des conflits':(str_contains($path,'/diffstat')?'les statistiques de fichiers':(str_contains($path,'/commits')?'les commits':'la ressource Git'))).'. Consultez l’appel dans les journaux ; relancer seul ne corrige pas une requête refusée.',
                     401 => 'Jeton refusé par le fournisseur (HTTP 401). Vérifiez qu’il est valide et non expiré.',
                     403 => $provider==='bitbucket' && (str_contains($path,'/pipelines') || str_contains($path,'/deployments')) ? 'Bitbucket refuse le suivi CI (HTTP 403). Autorisez Pipelines en lecture : read:pipeline:bitbucket (jeton API) ou pipeline (OAuth/jeton de dépôt). Les branches et PR restent indépendantes.' : 'Accès refusé (HTTP 403). Vérifiez les permissions et l’accès au dépôt.',

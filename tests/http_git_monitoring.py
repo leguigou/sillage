@@ -28,6 +28,16 @@ for provider,cid in connections.items():
     status,body,_=call('/connections/'+str(cid)+'/sync-status?project='+pid,json_accept=True);data=json.loads(body)
     check(status==200 and data['worker']['active']==1 and data['settings']['last_success_at'],provider+' last success and live worker status available without secrets')
     check('synthetic-git-token' not in body and 'payload_json' not in body and 'lease_owner' not in body,'monitor status excludes credentials and internal payloads')
+# Access diagnostics exercise each provider independently without changing its credential.
+for provider,cid in connections.items():
+    endpoint='/connections/'+str(cid)+'/test-access'
+    check(call(endpoint,{'project_id':pid},True)[0]==403,'access test requires CSRF')
+    status,body,_=call(endpoint,{'_csrf':csrf,'project_id':pid,'token':'synthetic-git-readonly-token'},True);data=json.loads(body)
+    checks={row['key']:row for row in data['checks']}
+    check(status==200 and data['credential']=='draft' and checks['repository']['ok'] and checks['pull_requests']['ok'] and checks['pipelines']['http_status']==403 and checks['deployments']['http_status']==403,provider+' distinguishes repository access from missing CI permissions')
+    check('synthetic-git-' not in body and re.fullmatch('[a-f0-9]{32}',data['request_id']),provider+' diagnostic excludes credentials and exposes correlation')
+    status,body,_=call(endpoint,{'_csrf':csrf,'project_id':pid},True);data=json.loads(body)
+    check(status==200 and data['credential']=='saved' and len(data['checks'])==4 and all(row['ok'] for row in data['checks']),provider+' draft test did not overwrite saved credential')
 # Signed provider event updates tests immediately and enqueues reconciliation; no remote run is started.
 cid=connections['github'];setup=json.loads(call('/connections/'+str(cid)+'/webhook',{'_csrf':csrf},True)[1]);payload={'repository':{'full_name':repos['github']},'workflow_run':{'id':501,'name':'Tests PHP et compilation','head_sha':'c'*40,'head_branch':'40908_flow_sitemap','status':'completed','conclusion':'success','run_attempt':2,'updated_at':'2026-11-03T02:00:00Z'}};raw=json.dumps(payload).encode();signature='sha256='+hmac.new(setup['secret'].encode(),raw,hashlib.sha256).hexdigest()
 with urllib.request.urlopen(urllib.request.Request(BASE+'/webhooks/'+str(cid),data=raw,headers={'Content-Type':'application/json','X-Hub-Signature-256':signature,'X-GitHub-Event':'workflow_run'})) as response:check(response.status==200,'signed workflow completion received through actual webhook')
@@ -44,10 +54,12 @@ call('/connections/'+str(cid)+'/recover',{'_csrf':csrf,'project_id':pid},True);w
 # Cross-project and read-only boundaries.
 _,_,url=call('/projects',{'_csrf':csrf,'name':'Autre suivi '+suffix,'key':'GX'+suffix.upper()});other=urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)['project'][0]
 check(call('/connections/'+str(cid)+'/recover',{'_csrf':csrf,'project_id':other},True)[0]==422,'recovery cannot use a repository outside its project')
+check(call('/connections/'+str(cid)+'/test-access',{'_csrf':csrf,'project_id':other},True)[0]==422,'access test rejects unrelated project')
 support.client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()));vcsrf,_=get_token('/login');_,vhtml,_=call('/login',{'_csrf':vcsrf,'email':'qa.viewer@example.com','password':'Tests-Sillage-2026!'});vcsrf=token(vhtml)
 check(call('/connections/'+str(cid)+'/recover',{'_csrf':vcsrf,'project_id':pid},True)[0]==403,'read-only viewer cannot queue recovery')
 check(call('/connections/'+str(cid)+'/sync-settings',{'_csrf':vcsrf,'project_id':pid,'enabled':'0','interval':'5'},True)[0]==403,'read-only viewer cannot change automatic monitoring')
 check(call('/connections/'+str(cid)+'/sync-status?project='+pid,json_accept=True)[0]==200,'read-only viewer can inspect public monitoring facts')
+check(call('/connections/'+str(cid)+'/test-access',{'_csrf':vcsrf,'project_id':pid},True)[0]==403,'viewer cannot test provider credentials')
 support.client=admin
 print('Monitoring UI project '+pid+' ticket '+tid)
 print('\n',passed_count(),'Git monitoring HTTP checks passed (synthetic providers).')

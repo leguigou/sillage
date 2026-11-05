@@ -15,6 +15,7 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$r->add('POST','/connections/{id}/test-access',[new DevelopmentController(),'testAccess']);
 $gitSync=new \App\Controllers\GitSyncController();
 $r->add('GET','/connections/{id}/sync-status',[$gitSync,'status'])
     ->add('POST','/connections/{id}/recover',[$gitSync,'recover'])

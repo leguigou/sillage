@@ -3642,3 +3642,9 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .column-picker.column-order-picker{display:flex;flex-direction:column;gap:3px;max-height:clamp(140px,calc(100dvh - 540px),260px);overflow-y:auto;padding-right:6px}.column-option-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:5px}.column-option-row .check-label{min-width:0}.column-option-row .icon-button{width:28px;height:28px;padding:5px;border:1px solid var(--line);border-radius:7px}.column-option-row .icon-button .icon{width:13px;height:13px}
 
 .column-option-row .icon-button:not(:disabled){color:var(--text)}.column-option-row .icon-button:not(:disabled):hover{color:var(--accent)}
+
+.git-access-check{border:1px solid var(--line);border-left:3px solid currentColor;border-radius:10px;padding:12px;margin:8px 0;background:var(--surface-soft)}
+.git-access-check.is-success{color:var(--teal,#38b8a6)}
+.git-access-check.is-error{color:var(--text)}
+.git-access-check.is-error strong{color:var(--orange,#e6a34c)}
+.git-access-check p{font-size:12px;margin:6px 0 0;line-height:1.5;color:var(--muted)}
