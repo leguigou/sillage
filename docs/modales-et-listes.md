@@ -12,6 +12,8 @@ Un abandon restaure l’affichage ; une sauvegarde refusée remet la carte à sa
 
 ## Liste des tickets
 
+**Date de début** et **Échéance** sont proposées dans les informations affichées et dans les colonnes des rapports. Les deux dates sont en lecture seule, au format jour/mois/année ; elles restent modifiables depuis le ticket. Le tri utilise les valeurs de date, avec un tiret pour une date absente. Les rapports déjà enregistrés conservent leur sélection de colonnes.
+
 Les sélecteurs de responsable et de priorité utilisent le même traitement compact et arrondi que l’état. Les options natives possèdent explicitement les couleurs de texte et de fond du thème pour rester lisibles en clair comme en sombre.
 
 Une icône GitHub ou Bitbucket à côté du résumé indique une branche liée manuellement ou une branche active reconnue automatiquement. Chaque fournisseur apparaît une fois ; les deux peuvent être affichés. Cliquer ouvre directement l’onglet Développement du ticket, avec le contexte de retour à la liste. Une connexion du projet sans branche associée ne suffit pas à afficher l’icône ; les dépôts détachés sont exclus.

@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.10.0",
+  "current_version": "1.10.1",
   "entries": [
+    {
+      "version": "1.10.1",
+      "date": "2026-11-05",
+      "category": "fixes",
+      "title": "Dates de début et échéances dans les listes",
+      "summary": "Date de début proposée avec Échéance dans les colonnes et les rapports.",
+      "changes": [
+        "Colonne Date de début disponible dans les options d’affichage de la liste et les rapports personnalisés.",
+        "Dates de début et échéances affichées au format français et triables dans les deux sens.",
+        "Valeur absente affichée par un tiret, avec choix des colonnes conservé."
+      ]
+    },
     {
       "version": "1.10.0",
       "date": "2026-11-05",
