@@ -14,6 +14,7 @@ final class View
         foreach ($data['members'] ?? [] as $person) $avatarIds[] = $person['id'];
         foreach ($data['comments'] ?? [] as $comment) $avatarIds[] = $comment['user_id'];
         foreach ($data['activity'] ?? [] as $event) $avatarIds[] = $event['user_id'];
+        foreach ($data['history']['entries'] ?? [] as $event) $avatarIds[] = $event['actor_id'];
         foreach ($data['tickets'] ?? [] as $ticket) $avatarIds[] = $ticket['assignee_id'];
         foreach ($data['teamMembers'] ?? [] as $people) foreach ($people as $person) $avatarIds[] = $person['id'];
         if (array_filter($avatarIds)) \App\Models\UserAvatar::prime($avatarIds);

@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.9.1",
+  "current_version": "1.10.0",
   "entries": [
+    {
+      "version": "1.10.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Interface plus lisible et historique chronologique",
+      "summary": "Sélecteurs homogènes, fil des modifications et identité d’entreprise compacte.",
+      "changes": [
+        "Sélecteurs de responsable et priorité lisibles dans les deux thèmes, comme celui des états.",
+        "Historique présenté en fil chronologique avec avatar, auteur, action, regroupement par jour et valeurs avant/après.",
+        "Création retirée du fil affiché, avec pagination calculée sur les modifications.",
+        "Nom et logo configurés de l’entreprise dans le bandeau supérieur du menu, sans bloc ni cadenas redondant.",
+        "Identité du menu actualisée après une sauvegarde des paramètres sans rechargement."
+      ]
+    },
     {
       "version": "1.9.1",
       "date": "2026-11-04",

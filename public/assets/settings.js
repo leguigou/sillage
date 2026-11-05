@@ -87,7 +87,7 @@
     updateRegion(id,page);
     if (id==='company') {
       updateRegion('company-summary',page);
-      for (const selector of ['.company-badge','.app-footer']) {
+      for (const selector of ['.sidebar-heading .wordmark','.app-footer']) {
         const current=document.querySelector(selector), next=page.querySelector(selector);
         if(current && next) current.replaceWith(next);
       }

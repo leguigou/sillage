@@ -54,11 +54,12 @@ final class TicketHistory
         if (!DB::connection()->inTransaction()) throw new \RuntimeException('Historique hors transaction métier.');
         DB::run('INSERT INTO ticket_history(ticket_id,actor_id,ticket_version,action,source,changes_json) VALUES(?,?,?,?,?,?)',[$ticket,$actor,$version,$action,$source,json_encode($changes,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
     }
-    public static function page(int $ticket,int $offset=0,int $limit=30): array
+    public static function page(int $ticket,int $offset=0,int $limit=30,bool $changesOnly=false): array
     {
         Ticket::find($ticket);$limit=max(1,min(100,$limit));$offset=max(0,$offset);
-        $rows=DB::all("SELECT h.*,u.name actor_name FROM ticket_history h LEFT JOIN users u ON u.id=h.actor_id WHERE ticket_id=? ORDER BY h.id DESC LIMIT $limit OFFSET $offset",[$ticket]);
+        $where='ticket_id=?'.($changesOnly?" AND action<>'created' AND JSON_LENGTH(changes_json)>0":'');
+        $rows=DB::all("SELECT h.*,u.name actor_name FROM ticket_history h LEFT JOIN users u ON u.id=h.actor_id WHERE $where ORDER BY h.id DESC LIMIT $limit OFFSET $offset",[$ticket]);
         foreach($rows as &$row){$row['changes']=json_decode($row['changes_json'],true,64,JSON_THROW_ON_ERROR);unset($row['changes_json']);}
-        return ['total'=>(int)DB::one('SELECT COUNT(*) n FROM ticket_history WHERE ticket_id=?',[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>$rows];
+        return ['total'=>(int)DB::one('SELECT COUNT(*) n FROM ticket_history WHERE '.$where,[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>$rows];
     }
 }

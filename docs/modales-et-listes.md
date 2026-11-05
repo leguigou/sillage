@@ -12,6 +12,8 @@ Un abandon restaure l’affichage ; une sauvegarde refusée remet la carte à sa
 
 ## Liste des tickets
 
+Les sélecteurs de responsable et de priorité utilisent le même traitement compact et arrondi que l’état. Les options natives possèdent explicitement les couleurs de texte et de fond du thème pour rester lisibles en clair comme en sombre.
+
 Une icône GitHub ou Bitbucket à côté du résumé indique une branche liée manuellement ou une branche active reconnue automatiquement. Chaque fournisseur apparaît une fois ; les deux peuvent être affichés. Cliquer ouvre directement l’onglet Développement du ticket, avec le contexte de retour à la liste. Une connexion du projet sans branche associée ne suffit pas à afficher l’icône ; les dépôts détachés sont exclus.
 
 La colonne **Modification** affiche la dernière modification du ticket. Dans le fuseau du navigateur : « Aujourd’hui », « Hier », puis « Il y a 2 jours » jusqu’à six jours ; à partir de sept jours, la date complète est affichée. Le survol précise la date et l’heure. Le tri utilise l’horodatage réel et les modifications rapides actualisent le libellé. La colonne est disponible dans les rapports personnels et les options de colonnes ; les rapports déjà enregistrés conservent leur sélection de colonnes.
@@ -29,6 +31,16 @@ Les trois points ouvrent un menu : ouvrir, modifier, commenter, copier le lien, 
 Le menu reste visible hors du conteneur défilant grâce à la couche supérieure des popovers, avec position bornée à la fenêtre. Flèches, Début/Fin et Échap permettent de l’utiliser au clavier. La copie utilise le lien canonique, sans y ajouter les filtres de la liste.
 
 La colonne **Création** permet le tri croissant ou décroissant ; le sens actif est annoncé par `aria-sort`. Les modifications groupées proposent une liste selon le champ : états communs autorisés par les tickets sélectionnés, priorités, noms des personnes avec « Non assigné », ou blocage oui/non. L’édition rapide réactualise les choix d’état utilisés par la sélection. Le serveur garde la validation de chaque ticket et l’écriture groupée atomique. Les filtres et le tri sont conservés au retour.
+
+## Fil des modifications
+
+L’onglet Historique d’un ticket présente un fil chronologique, du plus récent au plus ancien, avec avatar, auteur, action et date. Les événements sont regroupés par jour dans le fuseau du navigateur et conservent les valeurs avant/après. Les descriptions longues restent dépliables. Les ajouts, corrections et suppressions de temps ainsi que validations restent visibles.
+
+La création est exclue de ce fil avant le calcul du total et des pages. L’événement d’audit enregistré et la lecture MCP existante restent conservés. Les avatars sont préparés en lot et les dates sont réactualisées lors des sauvegardes AJAX du suivi.
+
+## Identité du menu
+
+Le bandeau supérieur reprend le nom et le logo ou symbole configurés de l’entreprise, dans le style de l’ancien mot-symbole Sillage. Le bloc entreprise séparé et son cadenas sont retirés. Le bouton de repli conserve le logo lorsque le nom est masqué. Les noms longs sont tronqués visuellement et restent accessibles dans le titre du lien. Une sauvegarde des paramètres d’identité actualise aussi ce bandeau sans rechargement.
 
 ## Rapports personnels
 

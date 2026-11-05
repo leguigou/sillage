@@ -8,6 +8,7 @@ $tpOther=Project::save(['name'=>'Autre livraison','key'=>'TX'.strtoupper(bin2hex
 $tu=DB::insert("INSERT INTO users(email,name,password_hash,role,verified_at) VALUES(?,?,?,'member',UTC_TIMESTAMP())",['time.'.bin2hex(random_bytes(4)).'@example.com','Collaborateur temps',Security::password('Tests-Time-2026!')]);
 $tv=DB::insert("INSERT INTO users(email,name,password_hash,role,verified_at) VALUES(?,?,?,'viewer',UTC_TIMESTAMP())",['read.'.bin2hex(random_bytes(4)).'@example.com','Lecture temps',Security::password('Tests-Time-2026!')]);
 $tt=Ticket::create($tp,['title'=>'Suivi de réalisation','estimated_hours'=>'10','progress_percent'=>60],$uid);
+check(TicketHistory::page($tt,0,30,true)['total']===0 && TicketHistory::page($tt)['total']===1,'création conservée dans l’audit mais exclue du fil de modifications');
 $externalTicket=Ticket::create($tpOther,['title'=>'Demande externe auditée'],$uid,'demandeur@example.net');
 $externalHistory=TicketHistory::page($externalTicket)['entries'][0];
 check($externalHistory['actor_id']===null && $externalHistory['source']==='external','création externe ne se fait pas passer pour le propriétaire du formulaire');
@@ -94,6 +95,7 @@ rejects(fn()=>Ticket::patch($tt,['status'=>$doneCode],$uid,$t['version']),'statu
 $t=TicketClosure::review($tt,true,'Validé',$tu,$t['version']);Ticket::patch($tt,['status'=>$doneCode,'resolution'=>'duplicate'],$uid,$t['version']);
 check(Ticket::find($tt)['resolution']==='duplicate','résolution appliquée aux statuts terminés personnalisés');
 $historic=TicketHistory::page($tt,0,1);
+check(TicketHistory::page($tt,0,100,true)['total']===TicketHistory::page($tt)['total']-1 && !in_array('created',array_column(TicketHistory::page($tt,0,100,true)['entries'],'action'),true),'pagination des modifications compte uniquement les événements affichables');
 check(count($historic['entries'])===1 && $historic['total']>1 && (int)$historic['entries'][0]['actor_id']===$uid,'historique paginé avec identité de l’acteur');
 Ticket::archive($tt,true,$uid,Ticket::find($tt)['version']);
 check(TicketHistory::page($tt,0,1)['entries'][0]['action']==='archived','archivage tracé avec ancienne valeur');

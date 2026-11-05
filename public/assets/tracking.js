@@ -31,6 +31,7 @@
         });
         document.querySelectorAll('input[name="version"]').forEach(input=>input.value=result.ticket.version);
         initAppearanceMarks();
+        window.refreshTicketHistory?.();
       } else {
         const current=document.querySelector('[data-release-space]'),incoming=page.querySelector('[data-release-space]');
         if(!current || !incoming) throw new Error('Affichage indisponible.');

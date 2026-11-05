@@ -36,6 +36,7 @@ status, body, url = call('/login', {'_csrf': csrf, 'email': 'qa.admin@example.co
 check(status == 200 and not url.endswith('/login'), 'existing administrator signs in after domain change')
 csrf = token(body)
 check('Atelier Horizon &amp; Associés' in body and 'Entreprise de test' not in body, 'sidebar and footer use configured company')
+check('aria-label="Atelier Horizon &amp; Associés — Accueil"' in body and 'company-badge' not in body and 'company-lock' not in body,'compact sidebar uses company identity without duplicate badge or lock')
 status, settings, _ = call('/settings')
 check(status == 200 and 'Configuration de la société' in settings and 'Entreprise de test' not in settings, 'settings and team instructions follow company configuration')
 if open_signup:
