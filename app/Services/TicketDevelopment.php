@@ -7,6 +7,24 @@ use App\Models\{DevelopmentEvent,RepositoryConnection,TicketBranch};
 /** Read model shared by the ticket page and its in-place development refresh. */
 final class TicketDevelopment
 {
+    public static function timeline(array $events): array
+    {
+        usort($events,static fn($a,$b)=>strcmp($b['occurred_at'],$a['occurred_at']) ?: ((int)$b['id']<=>(int)$a['id']));
+        $days=[];$unknown=[];
+        foreach($events as $event) {
+            if(($event['metadata']['date_known']??true)===false) $unknown[]=$event;
+            else $days[substr($event['occurred_at'],0,10)][]=$event;
+        }
+        if($unknown) $days['unknown']=$unknown;
+        return $days;
+    }
+    public static function presentation(array $event): array
+    {
+        $kind=$event['kind'];$state=$event['state'];
+        $icon=match($kind){'branch'=>'git-branch','commit'=>'git-commit','pull_request'=>$state==='merged'?'git-merge':'git-pull','build'=>'flask','deployment'=>'rocket',default=>'code'};
+        $tone=match($kind){'branch'=>'neutral','commit'=>'info','pull_request'=>$state==='merged'?'merge':($state==='open'?'review':'neutral'),default=>match($state){'success'=>'success','failure'=>'failure','cancelled'=>'warning',default=>'info'}};
+        return ['icon'=>$icon,'tone'=>$tone,'label'=>match($kind){'branch'=>'Branche','commit'=>'Commit','pull_request'=>'Pull request','build'=>'Tests et pipeline','deployment'=>'Déploiement',default=>'Événement Git'}];
+    }
     /** Latest observed Git milestone per ticket; no provider call and no inferred deployment. */
     public static function badges(array $tickets): array
     {

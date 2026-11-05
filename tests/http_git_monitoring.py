@@ -20,6 +20,8 @@ result=work();check(result['processed']>5,'worker executes queued catch-up and f
 _,panel,_=call(path)
 check('Conflit de fusion' in panel and 'merge-conflict-badge' in panel,'confirmed merge conflict has orange warning pictogram')
 check('Tests PHP et compilation' in panel and 'Tests fonctionnels' in panel and 'Échec' in panel,'GitHub workflows and per-commit checks visible')
+check('data-git-day' in panel and 'data-git-timeline-search' in panel and 'git-time-node' in panel,'Git events share a dated searchable chronological view')
+check('git-merge-sha' in panel and 'Commit de fusion' in panel and 'git-event-route' in panel,'merge commit and source-to-target route are explicit')
 check('Pipeline #11' in panel and 'Tests PHP' in panel,'Bitbucket pipelines and commit statuses visible')
 check('staging' in panel and 'production' in panel and 'Déploiement confirmé par le fournisseur' in panel and 'Déploiement non confirmé comme réussi' in panel,'deployment environments distinguish success from pending or running')
 _,listing,_=call('/list?project='+pid);check('Conflit Git' in listing,'ticket list flags confirmed PR merge conflicts')

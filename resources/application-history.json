@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.17.0",
+  "current_version": "1.18.0",
   "entries": [
+    {
+      "version": "1.18.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Chronologie Git plus lisible",
+      "summary": "Un parcours par jour pour distinguer branches, commits, PR, fusions, pipelines et déploiements.",
+      "changes": [
+        "Une chronologie commune remplace les rubriques repliées : icônes et couleurs distinctes, branche source vers cible, SHA et numéros de PR explicites.",
+        "Les compteurs filtrent la chronologie ; recherche par branche, commit, PR, dépôt ou auteur parmi les observations affichées, conservée lors de l’actualisation.",
+        "Fichiers modifiés, lignes ajoutées/supprimées, conflits et actions de récupération restent accessibles depuis les cartes de PR.",
+        "Onglet Développement en pleine largeur, détails de connexion et liens manuels repliables ; informations du ticket restituées au retour au suivi.",
+        "Dates inconnues séparées et limite des observations annoncée ; fusion, déploiement, avancement et validation métier restent distincts."
+      ]
+    },
     {
       "version": "1.17.0",
       "date": "2026-11-05",

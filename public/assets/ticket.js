@@ -11,6 +11,7 @@
   function select(id,updateHash=false) {
     if(!tabs.some(tab=>tab.dataset.ticketTab===id)) return;
     panels.forEach(panel=>panel.hidden=panel.id!==id);
+    root.classList.toggle('git-development-wide',id==='development');
     tabs.forEach(tab=>{
       const active=tab.dataset.ticketTab===id;
       tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;

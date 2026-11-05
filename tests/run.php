@@ -405,6 +405,7 @@ try {
     require __DIR__ . '/personal_reports.php';
     require __DIR__ . '/git_monitoring.php';
     require __DIR__ . '/deployment_badges.php';
+    require __DIR__ . '/git_timeline.php';
     require __DIR__ . '/team_projects.php';
     require __DIR__ . '/ticket_people.php';
     require __DIR__ . '/llm.php';

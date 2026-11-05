@@ -2,11 +2,20 @@
   'use strict';
   const panel=()=>document.getElementById('development');if(!panel()) return;
   const endpoint=location.pathname+'/development';
-  document.addEventListener('click',event=>{
-    const button=event.target.closest('[data-development-open]');if(!button) return;
-    const details=document.getElementById(button.dataset.developmentOpen);
-    if(details) {details.open=true;details.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
-  });
+  let gitKind='all',gitQuery='';
+  function filterTimeline() {
+    const root=panel();if(!root) return;
+    root.querySelectorAll('[data-git-kind]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gitKind===gitKind)));
+    const input=root.querySelector('[data-git-timeline-search]');if(input && input.value!==gitQuery) input.value=gitQuery;
+    const query=gitQuery.trim().toLocaleLowerCase();let visible=0;
+    root.querySelectorAll('[data-git-event-kind]').forEach(item=>{item.hidden=(gitKind!=='all' && item.dataset.gitEventKind!==gitKind)||(query!=='' && !item.textContent.toLocaleLowerCase().includes(query));if(!item.hidden) visible++;});
+    root.querySelectorAll('[data-git-day]').forEach(day=>day.hidden=![...day.querySelectorAll('[data-git-event-kind]')].some(item=>!item.hidden));
+    root.querySelectorAll('[data-git-day-label]').forEach(time=>{const date=new Date(time.dateTime+'T00:00:00Z');if(!Number.isNaN(date.getTime())) time.textContent=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);});
+    const status=root.querySelector('[data-git-timeline-result]');if(status) status.textContent=visible?visible+' observation'+(visible>1?'s affichées.':' affichée.'):'Aucun élément reçu pour ces filtres.';
+  }
+  document.addEventListener('click',event=>{const button=event.target.closest('[data-git-kind]');if(!button) return;gitKind=button.dataset.gitKind;filterTimeline();if(button.closest('.development-counts')) panel().querySelector('.git-timeline-toolbar')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});});
+  document.addEventListener('input',event=>{if(!event.target.matches('[data-git-timeline-search]')) return;gitQuery=event.target.value;filterTimeline();});
+  filterTimeline();
   async function post(path,body) {
     const response=await fetch(path,{method:'POST',body,headers:{Accept:'application/json'}});
     if(response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a expiré. Rechargez la page.');
@@ -20,6 +29,7 @@
     const opened=[...panel().querySelectorAll('details[open][id]')].map(node=>node.id),guide=panel().querySelector('.ticket-development-guide')?.open;
     panel().replaceChildren(...incoming.childNodes);opened.forEach(id=>{const node=document.getElementById(id);if(node) node.open=true;});
     if(guide) panel().querySelector('.ticket-development-guide').open=true;
+    filterTimeline();
   }
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-git-recover]');if(!button) return;
@@ -28,7 +38,7 @@
     catch(error){message.textContent=error.message;}finally{button.disabled=false;}
   });
   let automaticRefresh=false;
-  setInterval(async()=>{if(automaticRefresh || historyBusy || document.hidden || !panel() || panel().hidden || document.querySelector('dialog[open]')) return;automaticRefresh=true;try{await refresh();}catch{}finally{automaticRefresh=false;}},15000);
+  setInterval(async()=>{if(automaticRefresh || historyBusy || document.hidden || !panel() || panel().hidden || document.querySelector('dialog[open]') || document.activeElement?.matches('[data-git-timeline-search]')) return;automaticRefresh=true;try{await refresh();}catch{}finally{automaticRefresh=false;}},15000);
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-ticket-development-refresh]');if(!button) return;
     button.disabled=true;try {await refresh();toast('Informations reçues actualisées.');}catch(error){toast(error.message,true);}finally{if(button.isConnected) button.disabled=false;}
