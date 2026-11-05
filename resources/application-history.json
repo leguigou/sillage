@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.12.1",
+  "current_version": "1.12.2",
   "entries": [
+    {
+      "version": "1.12.2",
+      "date": "2026-11-05",
+      "category": "fixes",
+      "title": "Mémorisation des colonnes visibles",
+      "summary": "Les options de lecture restent appliquées après rechargement, y compris dans les rapports.",
+      "changes": [
+        "Les colonnes décochées, dont Type, restent masquées après rechargement et navigation.",
+        "Visibilité mémorisée par compte, projet et rapport, indépendamment des autres vues ; même fonctionnement pour l’avancement sous le résumé.",
+        "Réactivation conservée et définition du rapport reprise après une nouvelle révision enregistrée ; le résumé reste toujours visible."
+      ]
+    },
     {
       "version": "1.12.1",
       "date": "2026-11-05",

@@ -91,3 +91,8 @@ Utiliser `window.SillageDialogs` :
 - `confirm(message)` et `prompt(options)` renvoient une promesse : attendre le résultat avant d’exécuter l’action.
 
 Les attributs `data-close` et `data-confirm` sont traités centralement, y compris pour les formulaires insérés à la demande. Après un abandon, `sillage:dialog-discarded` permet au producteur de réconcilier ses aperçus et sélections internes. Les brouillons restent uniquement en mémoire dans l’onglet ; ils ne sont ni journalisés ni copiés dans le stockage du navigateur.
+
+
+### Visibilité locale des colonnes
+
+Les options de lecture de la liste mémorisent chaque case sous `column-visibility.<compte>:<projet>:<rapport>:<révision>` dans les préférences locales du navigateur (ou le suffixe `default` sans rapport). Une valeur booléenne locale explicite prévaut sur la définition du rapport ; sans valeur locale, la définition enregistrée s’applique. Les anciennes préférences globales restent le repli de la vue sans définition de colonnes. La définition du rapport n’est plus mutée pour représenter une préférence locale. L’avancement suit la même règle et Résumé est toujours visible. Une nouvelle révision enregistrée d’un rapport repart de sa définition, comme l’ordre des colonnes. La sauvegarde explicite d’un rapport reprend les en-têtes et cases effectivement affichés. L’absence de stockage navigateur permet encore le changement pendant la page courante, sans garantie de persistance après rechargement.

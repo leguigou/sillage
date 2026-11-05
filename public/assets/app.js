@@ -427,9 +427,11 @@ $$('[data-enable-bulk]').forEach((b) =>
 );
 let preferences = {};
 let reportLayout=null;
+const columnLayoutKey=$('.ticket-table')?.dataset.columnLayoutKey;
 try {reportLayout=JSON.parse($('.ticket-table[data-report-layout]')?.dataset.reportLayout||'null');} catch {}
 try {
-  preferences = JSON.parse(localStorage.getItem('sillage.preferences') || '{}');
+  const stored=JSON.parse(localStorage.getItem('sillage.preferences') || '{}');
+  if(stored && typeof stored==='object' && !Array.isArray(stored)) preferences=stored;
 } catch {}
 function applyPreferences() {
   applyColumnOrder();
@@ -446,7 +448,8 @@ function applyPreferences() {
   );
   $$('[data-column-toggle]').forEach((el) => {
     const key=el.dataset.columnToggle;
-    el.checked = key==='title'?true:key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
+    const saved=columnLayoutKey?preferences['column-visibility.'+columnLayoutKey]?.[key]:undefined;
+    el.checked = key==='title'?true:typeof saved==='boolean'?saved:key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
       ? String(reportLayout.show_progress)!=='0'
       : reportLayout?.columns?reportLayout.columns.includes(key):preferences[`column.${key}`] !== false;
     $$(`[data-column="${el.dataset.columnToggle}"]`).forEach((cell) => (cell.hidden = !el.checked));
@@ -482,7 +485,6 @@ document.addEventListener('click',event=>{
   const keys=$$('thead th[data-column]',table).map(header=>header.dataset.column),index=keys.indexOf(row.dataset.listColumn),next=index+(button.dataset.columnMove==='up'?-1:1);
   if(index<0 || next<0 || next>=keys.length) return;
   [keys[index],keys[next]]=[keys[next],keys[index]];preferences['column-order.'+table.dataset.columnLayoutKey]=keys;
-  if(reportLayout?.columns) reportLayout.columns=keys.filter(key=>reportLayout.columns.includes(key));
   savePreferences();button.focus({preventScroll:true});
 });
 function savePreferences() {
@@ -500,9 +502,12 @@ $$('[data-preference]').forEach((el) =>
 );
 $$('[data-column-toggle]').forEach((el) =>
   el.addEventListener('change', () => {
-    preferences[`column.${el.dataset.columnToggle}`] = el.checked;
-    if(reportLayout && el.dataset.columnToggle==='progress_percent') reportLayout.show_progress=el.checked?'1':'0';
-    else if(reportLayout?.columns) reportLayout.columns=$$('.ticket-table thead th[data-column]').map(node=>node.dataset.column).filter(key=>key==='title'||$(`[data-column-toggle="${key}"]`)?.checked);
+    const key=el.dataset.columnToggle;
+    if(columnLayoutKey) {
+      const name='column-visibility.'+columnLayoutKey,stored=preferences[name];
+      const values=stored && typeof stored==='object' && !Array.isArray(stored)?stored:{};
+      preferences[name]={...values,[key]:key==='title'?true:el.checked};
+    } else preferences[`column.${key}`]=el.checked;
     savePreferences();
   }),
 );
