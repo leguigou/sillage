@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.13.0",
+  "current_version": "1.14.0",
   "entries": [
+    {
+      "version": "1.14.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Affectations partagées sur le tableau",
+      "summary": "Créer en haut des colonnes et affecter le travail à un responsable, des collaborateurs et une équipe.",
+      "changes": [
+        "Bouton Créer un ticket placé en haut de chaque colonne avec son état prérempli.",
+        "Avatars des personnes assignées sur les cartes, compteur au-delà de trois et équipe responsable visible.",
+        "Icône personne + pour un ticket sans personne ; fenêtre avec responsable principal, collaborateurs assignés recherchables et équipe du projet.",
+        "Enregistrement sans rechargement, historique des collaborateurs, protection des modifications concurrentes et consultation seule pour les comptes en lecture seule."
+      ]
+    },
     {
       "version": "1.13.0",
       "date": "2026-11-05",

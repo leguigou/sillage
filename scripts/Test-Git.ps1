@@ -19,6 +19,8 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Persistance des filtres en échec'}
     python tests/http_board_order.py
     if($LASTEXITCODE -ne 0){throw 'Ordre manuel du tableau en échec'}
+    python tests/http_ticket_people.py
+    if($LASTEXITCODE -ne 0){throw 'Affectations de tickets en échec'}
 } finally {
     $sillageGitCurrent=Get-Process -Id $sillageGitServer.Id -ErrorAction SilentlyContinue
     if($sillageGitCurrent) {

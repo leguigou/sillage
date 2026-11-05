@@ -15,6 +15,8 @@ use App\Controllers\{
     CompanyController,
 };
 $r = new Router();
+$ticketPeople=new \App\Controllers\TicketPeopleController();
+$r->add('GET','/tickets/{id}/people',[$ticketPeople,'show'])->add('POST','/tickets/{id}/people',[$ticketPeople,'save']);
 $r->add('POST','/connections/{id}/test-access',[new DevelopmentController(),'testAccess']);
 $gitSync=new \App\Controllers\GitSyncController();
 $r->add('GET','/connections/{id}/sync-status',[$gitSync,'status'])

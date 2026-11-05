@@ -1,0 +1,24 @@
+<?php
+use App\Models\{TicketPeople,Ticket,Team,Project,TicketHistory};
+use App\Core\DB;
+$peopleProject=Project::save(['name'=>'Affectations partagées','key'=>'AP'.strtoupper(bin2hex(random_bytes(3)))]);
+$peopleTeam=Team::save(null,'Équipe affectations');Team::projectMembership($peopleTeam,$peopleProject,true);
+$peopleOtherTeam=Team::save(null,'Équipe étrangère');
+$peopleUser=DB::insert('INSERT INTO users(email,name,password_hash,verified_at) VALUES(?,?,?,UTC_TIMESTAMP())',['people-'.bin2hex(random_bytes(5)).'@example.com','Collaborateur test','unused']);
+$peopleInactive=DB::insert('INSERT INTO users(email,name,password_hash,active,verified_at) VALUES(?,?,?,0,UTC_TIMESTAMP())',['inactive-'.bin2hex(random_bytes(5)).'@example.com','Inactif test','unused']);
+$peopleTicket=Ticket::create($peopleProject,['title'=>'Une tâche partagée','description'=>'Contenu conservé','labels'=>'abc,def','estimated_hours'=>'2','progress_percent'=>25],$uid);
+$peopleBefore=Ticket::find($peopleTicket);
+$peopleAfter=TicketPeople::save($peopleTicket,['assignee_id'=>$uid,'team_id'=>$peopleTeam,'collaborators'=>[$peopleUser,$peopleUser,$uid]],$uid,(int)$peopleBefore['version']);
+check((int)$peopleAfter['assignee_id']===$uid && (int)$peopleAfter['team_id']===$peopleTeam,'affectations individuelles et équipe responsable conservées ensemble');
+check(array_map('intval',array_column(TicketPeople::forTickets([$peopleTicket])[$peopleTicket],'id'))===[$peopleUser],'collaborateurs dédupliqués et responsable affiché une seule fois');
+check($peopleAfter['description']===$peopleBefore['description'] && $peopleAfter['labels_array']===$peopleBefore['labels_array'] && $peopleAfter['progress_percent']===$peopleBefore['progress_percent'],'affectations préservent description étiquettes et avancement');
+$peopleVersion=(int)$peopleAfter['version'];TicketPeople::save($peopleTicket,['assignee_id'=>$uid,'team_id'=>$peopleTeam,'collaborators'=>[$peopleUser]],$uid,$peopleVersion);
+check((int)Ticket::find($peopleTicket)['version']===$peopleVersion,'enregistrement identique des personnes sans modification du ticket');
+rejects(fn()=>TicketPeople::save($peopleTicket,['collaborators'=>[]],$uid,$peopleVersion-1),'affectations périmées refusées');
+foreach([['collaborators'=>[$peopleInactive]],['collaborators'=>[999999999]],['collaborators'=>'abc'],['assignee_id'=>'abc'],['team_id'=>$peopleOtherTeam]] as $peopleBad) rejects(fn()=>TicketPeople::save($peopleTicket,$peopleBad,$uid,$peopleVersion),'affectations invalides refusées atomiquement');
+check((int)Ticket::find($peopleTicket)['version']===$peopleVersion && count(TicketPeople::forTickets([$peopleTicket])[$peopleTicket])===1,'échec conserve affectations et version');
+$peopleAfter=TicketPeople::save($peopleTicket,['collaborators'=>[]],$uid,$peopleVersion);
+check((int)$peopleAfter['version']===$peopleVersion+1 && (int)$peopleAfter['assignee_id']===$uid && (int)$peopleAfter['team_id']===$peopleTeam && !TicketPeople::forTickets([$peopleTicket]),'retrait collaborateur conserve responsable et équipe avec version actualisée');
+$peopleHistory=TicketHistory::page($peopleTicket,0,30,true)['entries'];check(count(array_filter($peopleHistory,fn($entry)=>in_array('collaborators',array_column($entry['changes'],'field'),true)))===2,'ajout et retrait des collaborateurs présents dans historique');
+Ticket::archive($peopleTicket,true,$uid,(int)Ticket::find($peopleTicket)['version']);
+rejects(fn()=>TicketPeople::save($peopleTicket,['collaborators'=>[$peopleUser]],$uid,(int)Ticket::find($peopleTicket)['version']),'affectations du ticket archivé protégées');
