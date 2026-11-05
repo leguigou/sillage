@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.10.1",
+  "current_version": "1.11.0",
   "entries": [
+    {
+      "version": "1.11.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Réagencer les colonnes depuis la liste",
+      "summary": "Des flèches de déplacement directement dans les options de lecture.",
+      "changes": [
+        "Déplacer les colonnes vers le haut ou le bas dans Votre espace, votre lecture.",
+        "En-têtes et cellules déplacés ensemble, avec résumé toujours visible et cases de sélection/actions conservées aux extrémités.",
+        "Ordre mémorisé dans le navigateur par compte, projet et rapport, avec reprise des nouvelles définitions de rapports.",
+        "Ordre affiché repris lors de la création ou de la modification d’un rapport personnalisé."
+      ]
+    },
     {
       "version": "1.10.1",
       "date": "2026-11-05",

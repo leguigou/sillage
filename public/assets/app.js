@@ -432,6 +432,7 @@ try {
   preferences = JSON.parse(localStorage.getItem('sillage.preferences') || '{}');
 } catch {}
 function applyPreferences() {
+  applyColumnOrder();
   document.body.classList.toggle(
     'board-fixed',
     (preferences['column-width'] || 'fixed') === 'fixed',
@@ -445,7 +446,7 @@ function applyPreferences() {
   );
   $$('[data-column-toggle]').forEach((el) => {
     const key=el.dataset.columnToggle;
-    el.checked = key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
+    el.checked = key==='title'?true:key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
       ? String(reportLayout.show_progress)!=='0'
       : reportLayout?.columns?reportLayout.columns.includes(key):preferences[`column.${key}`] !== false;
     $$(`[data-column="${el.dataset.columnToggle}"]`).forEach((cell) => (cell.hidden = !el.checked));
@@ -461,6 +462,29 @@ function applyPreferences() {
     );
   });
 }
+function applyColumnOrder() {
+  const table=$('.ticket-table');if(!table) return;
+  const headers=$$('thead th[data-column]',table),keys=headers.map(header=>header.dataset.column);
+  const saved=preferences['column-order.'+table.dataset.columnLayoutKey];
+  const chosen=Array.isArray(saved)?[...new Set(saved.filter(key=>keys.includes(key)))]:[];
+  const order=[...chosen,...keys.filter(key=>!chosen.includes(key))];
+  $$('thead tr,tbody tr[data-ticket-id]',table).forEach(row=>{
+    const cells=new Map([...row.children].filter(cell=>cell.dataset.column).map(cell=>[cell.dataset.column,cell]));
+    const end=row.lastElementChild;order.forEach(key=>{const cell=cells.get(key);if(cell) row.insertBefore(cell,end);});
+  });
+  const picker=$('[data-list-column-options]');if(!picker) return;
+  order.forEach(key=>{const row=[...picker.children].find(node=>node.dataset.listColumn===key);if(row) picker.append(row);});
+  [...picker.children].forEach((row,index)=>{const up=$('[data-column-move="up"]',row),down=$('[data-column-move="down"]',row);if(up) up.disabled=index===0;if(down) down.disabled=index===picker.children.length-1;});
+}
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-column-move]');if(!button || button.disabled) return;
+  const table=$('.ticket-table'),row=button.closest('[data-list-column]');if(!table || !row) return;
+  const keys=$$('thead th[data-column]',table).map(header=>header.dataset.column),index=keys.indexOf(row.dataset.listColumn),next=index+(button.dataset.columnMove==='up'?-1:1);
+  if(index<0 || next<0 || next>=keys.length) return;
+  [keys[index],keys[next]]=[keys[next],keys[index]];preferences['column-order.'+table.dataset.columnLayoutKey]=keys;
+  if(reportLayout?.columns) reportLayout.columns=keys.filter(key=>reportLayout.columns.includes(key));
+  savePreferences();button.focus({preventScroll:true});
+});
 function savePreferences() {
   try {
     localStorage.setItem('sillage.preferences', JSON.stringify(preferences));

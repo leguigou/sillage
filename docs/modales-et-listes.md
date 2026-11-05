@@ -12,6 +12,10 @@ Un abandon restaure l’affichage ; une sauvegarde refusée remet la carte à sa
 
 ## Liste des tickets
 
+**Votre espace, votre lecture** permet de modifier l’ordre des colonnes avec les flèches Monter/Descendre. Les en-têtes et les cellules sont réagencés ensemble ; sélection et actions restent aux extrémités. Le résumé peut être déplacé mais reste toujours visible ; l’avancement demeure sous le résumé. Le sélecteur possède son propre défilement et indique aussi les colonnes masquées.
+
+L’ordre est mémorisé dans le navigateur par utilisateur, projet et rapport. La révision d’un rapport fait partie du contexte : sa nouvelle définition enregistrée est donc reprise au prochain chargement. Créer ou modifier un rapport depuis la vue réagencée reprend l’ordre affiché dans son formulaire, puis dans les paramètres enregistrés.
+
 **Date de début** et **Échéance** sont proposées dans les informations affichées et dans les colonnes des rapports. Les deux dates sont en lecture seule, au format jour/mois/année ; elles restent modifiables depuis le ticket. Le tri utilise les valeurs de date, avec un tiret pour une date absente. Les rapports déjà enregistrés conservent leur sélection de colonnes.
 
 Les sélecteurs de responsable et de priorité utilisent le même traitement compact et arrondi que l’état. Les options natives possèdent explicitement les couleurs de texte et de fond du thème pour rester lisibles en clair comme en sombre.

@@ -3638,3 +3638,7 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 @media(max-width:600px){.history-timeline-row{gap:10px;grid-template-columns:30px minmax(0,1fr)}.history-marker{width:30px;height:30px}.history-timeline-row:before{left:14px}.history-event-body>header{gap:6px}}
 
 [data-theme=dark] .history-action[data-history-action="validation.approved"]{color:#81c9ad}[data-theme=dark] .history-action[data-history-action="validation.rejected"]{color:#fbbf24}
+
+.column-picker.column-order-picker{display:flex;flex-direction:column;gap:3px;max-height:clamp(140px,calc(100dvh - 540px),260px);overflow-y:auto;padding-right:6px}.column-option-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:5px}.column-option-row .check-label{min-width:0}.column-option-row .icon-button{width:28px;height:28px;padding:5px;border:1px solid var(--line);border-radius:7px}.column-option-row .icon-button .icon{width:13px;height:13px}
+
+.column-option-row .icon-button:not(:disabled){color:var(--text)}.column-option-row .icon-button:not(:disabled):hover{color:var(--accent)}
