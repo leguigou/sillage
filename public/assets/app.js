@@ -279,6 +279,12 @@ async function quick(row, field, value) {
       const mark=$('.priority-mark',r), templates=$('#priority-mark-templates');
       const next=templates && $$('[data-mark-key]',templates.content).find(el=>el.dataset.markKey===data.ticket.priority);
       if(mark && next) { mark.replaceWith(next.cloneNode(true));initAppearanceMarks(r); }
+      const assigneeSelect=$('[data-quick-field="assignee_id"]',r), avatarDisplay=$('.assignee-avatar-display',r);
+      if(assigneeSelect) {
+        assigneeSelect.value=data.ticket.assignee_id||'';assigneeSelect.title=data.ticket.assignee_name||'Non assigné';
+        const template=$('#list-assignee-avatars')?.content.querySelector('[data-avatar-user="'+(Number(data.ticket.assignee_id)||0)+'"]');
+        if(avatarDisplay && template) avatarDisplay.replaceChildren(...[...template.childNodes].map(node=>node.cloneNode(true)));
+      }
       const prioritySelect=$('[data-quick-field="priority"]',r);
       if(prioritySelect && next) {prioritySelect.value=data.ticket.priority;prioritySelect.title=next.title;}
     },
@@ -454,6 +460,8 @@ function applyPreferences() {
     const typeLabel=preferences['column-label.'+columnLayoutKey+'.type']===true;
     const priorityLabel=preferences['column-label.'+columnLayoutKey+'.priority']!==false;
     table.classList.toggle('priority-icon-only',!priorityLabel);
+    table.classList.toggle('assignee-avatar-only',preferences['column-label.'+columnLayoutKey+'.assignee']===false);
+    $$('[data-quick-field="assignee_id"]',table).forEach(select=>select.title=select.selectedOptions[0]?.textContent||'Non assigné');
     $$('[data-type-label]',table).forEach(label=>label.hidden=!typeLabel);
     $$('[data-column="priority"] select',table).forEach(select=>select.title=select.selectedOptions[0]?.textContent||'Priorité');
   }
@@ -494,14 +502,24 @@ document.addEventListener('click',event=>{
   const button=event.target.closest('[data-list-label-options]');if(!button) return;
   const dialog=$('#list-label-options'),key=button.dataset.listLabelOptions;
   dialog.dataset.labelColumn=key;
-  $('[data-list-label-title]',dialog).textContent='Affichage · '+(key==='type'?'Type':'Priorité');
+  const isAssignee=key==='assignee';
+  $('[data-list-label-title]',dialog).textContent='Affichage · '+({type:'Type',priority:'Priorité',assignee:'Personne assignée'}[key]);
+  $('[data-list-label-control]',dialog).hidden=isAssignee;
+  $('[data-list-assignee-control]',dialog).hidden=!isAssignee;
+  $('[data-list-label-help]',dialog).textContent=(isAssignee?'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.':'L’icône et son infobulle restent visibles. La priorité reste modifiable en cliquant sur son icône.')+' Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport.';
   const stored=preferences['column-label.'+columnLayoutKey+'.'+key];
   $('[data-list-label-visible]',dialog).checked=typeof stored==='boolean'?stored:key==='priority';
+  $('[data-list-assignee-mode]',dialog).value=stored===false?'avatar':'name';
   window.SillageDialogs.show(dialog);
 });
 $('[data-list-label-visible]')?.addEventListener('change',event=>{
   const dialog=event.target.closest('dialog');
   preferences['column-label.'+columnLayoutKey+'.'+dialog.dataset.labelColumn]=event.target.checked;
+  savePreferences();window.SillageDialogs.commit(dialog);
+});
+$('[data-list-assignee-mode]')?.addEventListener('change',event=>{
+  const dialog=event.target.closest('dialog');
+  preferences['column-label.'+columnLayoutKey+'.assignee']=event.target.value==='name';
   savePreferences();window.SillageDialogs.commit(dialog);
 });
 function savePreferences() {

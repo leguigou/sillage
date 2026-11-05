@@ -1,0 +1,1 @@
+<template id="list-assignee-avatars"><span data-avatar-user="0"><?= avatar(null,'small') ?></span><?php foreach($members as $person): ?><span data-avatar-user="<?= (int)$person['id'] ?>"><?= avatar($person['name'],'small',(int)$person['id']) ?></span><?php endforeach; ?></template>

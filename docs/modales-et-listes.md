@@ -115,3 +115,10 @@ La migration `026_ticket_collaborators.sql` ajoute une relation dédiée ; aucun
 ### Libellés Type et Priorité
 
 Chaque en-tête possède une roue crantée ouvrant le choix « Afficher le libellé à côté de l’icône ». La priorité conserve son sélecteur natif en mode icône seule : il recouvre l’icône avec transparence et garde ses fonctions clavier, son intitulé accessible et un focus visible. Le libellé du type utilise les réglages du workflow du projet. La préférence `column-label.<clé de disposition>.<type|priority>` partage la portée compte/projet/rapport/révision des colonnes, avec affichage immédiat et fermeture sans brouillon puisque le choix est enregistré. Par défaut, Type reste en icône seule et Priorité affiche son libellé. Les préférences locales ne modifient aucune valeur métier ni la définition du rapport.
+
+
+### Nom ou avatar du responsable dans la liste
+
+La roue crantée de Personne assignée partage la fenêtre d’affichage de Type/Priorité, avec un choix Nom de la personne ou Avatar. Le choix utilise `column-label.<clé de disposition>.assignee` (true = nom, false = avatar ; nom par défaut), dans la même portée compte/projet/rapport/révision. Il concerne le responsable principal ; les collaborateurs assignés restent accessibles dans les cartes du tableau. Le sélecteur natif reste présent et accessible en mode avatar, recouvrant la photo ou les initiales avec transparence. Le nom complet est dans son infobulle, avec focus clavier visible. En mode Nom, l’avatar est masqué.
+
+La liste rend les avatars et des modèles HTML inertes avec le helper serveur existant ; les métadonnées d’avatar des membres sont déjà préchargées en lot par View. La réaffectation AJAX clone le modèle du nouveau responsable et met à jour valeur du sélecteur et infobulle ensemble, sans reparcourir les noms ni reconstruire les URL de photos côté JavaScript. Le modèle Non assigné utilise le même helper. Aucune valeur métier n’est changée lors du seul basculement d’affichage.

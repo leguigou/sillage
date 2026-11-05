@@ -3694,6 +3694,11 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table.priority-icon-only .cell-priority .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
 .ticket-table.priority-icon-only .cell-priority:focus-within{outline:2px solid var(--accent);outline-offset:3px}
 .ticket-table [data-type-label]{font-size:11px;white-space:nowrap}
+.assignee-avatar-display{display:none}
+.ticket-table.assignee-avatar-only .cell-assignee{position:relative;display:inline-flex;min-width:30px;min-height:30px;border-radius:50%;align-items:center;justify-content:center}
+.ticket-table.assignee-avatar-only .assignee-avatar-display{display:inline-flex;pointer-events:none}
+.ticket-table.assignee-avatar-only .cell-assignee .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
+.ticket-table.assignee-avatar-only .cell-assignee:focus-within{outline:2px solid var(--accent);outline-offset:3px}
 
 .list-column-heading{display:flex;align-items:center;gap:4px;white-space:nowrap}
 .deployment-badge{--badge-color:var(--subtle);display:inline-flex;align-items:center;gap:8px;min-width:160px;max-width:280px;padding:6px 9px;border:1px solid color-mix(in srgb,var(--badge-color) 45%,transparent);border-radius:10px;background:color-mix(in srgb,var(--badge-color) 10%,transparent);color:var(--badge-color);text-decoration:none;vertical-align:middle}

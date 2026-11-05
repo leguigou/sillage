@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.16.0",
+  "current_version": "1.17.0",
   "entries": [
+    {
+      "version": "1.17.0",
+      "date": "2026-11-05",
+      "category": "features",
+      "title": "Nom ou avatar de la personne assignée",
+      "summary": "Un réglage indépendant dans l’en-tête de la colonne Personne assignée.",
+      "changes": [
+        "Roue crantée ouvrant le choix Nom de la personne ou Avatar, mémorisé par compte, projet et rapport dans le navigateur.",
+        "Avatar cliquable conservant la modification de l’affectation au clic et au clavier, avec nom complet en infobulle.",
+        "Après une réaffectation sans rechargement, avatar, nom sélectionné et infobulle sont actualisés ensemble ; sans responsable, affichage Non assigné."
+      ]
+    },
     {
       "version": "1.16.0",
       "date": "2026-11-05",
