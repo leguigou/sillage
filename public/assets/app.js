@@ -241,7 +241,11 @@ function updateTicketProgress(row,ticket) {
   const estimate = $('[data-progress-estimate]', row);
   const duration = formatTicketHours(ticket.estimated_hours);
   estimate.textContent = ticket.estimated_hours === null ? 'Estimation manquante' : 'Estimé : ' + duration;
-  estimate.title = ticket.remaining_hours === null ? '' : 'Reste estimé : ' + formatTicketHours(ticket.remaining_hours);
+  const remaining = $('[data-progress-remaining]', row);
+  const remainingDuration = formatTicketHours(ticket.remaining_hours);
+  remaining.textContent = ticket.remaining_hours === null ? 'Estimation manquante' : 'Restant : ' + remainingDuration;
+  estimate.title = ticket.remaining_hours === null ? '' : 'Reste estimé : ' + remainingDuration;
+  remaining.title = ticket.estimated_hours === null ? '' : 'Estimé : ' + duration;
   $('[data-column="estimated_hours"] .ticket-estimate-value', row).textContent = duration;
   const title = $('.ticket-summary-link', row);
   if (title) title.title = ticket.title;
@@ -469,8 +473,12 @@ function applyPreferences() {
   const table=$('.ticket-table');
   if(table) {
     const mode = preferences['column-progress.'+columnLayoutKey] ?? 'both';
-    $$('[data-progress-bar]', table).forEach(bar => bar.hidden = mode === 'estimate');
-    $$('[data-progress-estimate]', table).forEach(estimate => estimate.hidden = mode === 'bar');
+    const showBar = ['both', 'bar', 'bar-remaining'].includes(mode);
+    const showEstimate = ['both', 'estimate'].includes(mode);
+    const showRemaining = ['bar-remaining', 'remaining'].includes(mode);
+    $$('[data-progress-bar]', table).forEach(bar => bar.hidden = !showBar);
+    $$('[data-progress-estimate]', table).forEach(estimate => estimate.hidden = !showEstimate);
+    $$('[data-progress-remaining]', table).forEach(remaining => remaining.hidden = !showRemaining);
     const typeLabel=preferences['column-label.'+columnLayoutKey+'.type']===true;
     const priorityMode = listPriorityMode();
     table.classList.toggle('priority-compact', priorityMode !== 'label');
@@ -535,7 +543,7 @@ document.addEventListener('click',event=>{
   $('[data-list-priority-control]',dialog).hidden = !isPriority;
   $('[data-list-assignee-control]',dialog).hidden = !isAssignee;
   $('[data-list-progress-control]',dialog).hidden = !isProgress;
-  const help = isProgress ? 'Le temps affiché correspond à l’estimation totale du ticket.'
+  const help = isProgress ? 'Le temps restant est calculé à partir de l’estimation totale et du pourcentage d’avancement.'
     : isAssignee ? 'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.'
     : isPriority ? 'P1 correspond à Critique et P6 à Très basse. Cliquez sur la priorité pour la modifier.'
     : 'L’icône et son infobulle restent visibles.';

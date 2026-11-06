@@ -5,7 +5,9 @@
       <progress value="<?= (int)$t['progress_percent'] ?>" max="100" aria-label="<?= e('Avancement de '.$t['key']) ?>" data-progress-meter><?= (int)$t['progress_percent'] ?> %</progress>
       <span data-progress-percent aria-hidden="true"><?= (int)$t['progress_percent'] ?> %</span>
     </div>
-    <small data-progress-estimate<?= $t['remaining_hours']===null?'':' title="'.e('Reste estimé : '.App\Core\View::hours($t['remaining_hours'])).'"' ?>><?= $t['estimated_hours']===null?'Estimation manquante':'Estimé : '.e(App\Core\View::hours($t['estimated_hours'])) ?></small>
+    <?php $totalHours=App\Core\View::hours($t['estimated_hours']); $remainingHours=App\Core\View::hours($t['remaining_hours']); ?>
+    <small class="ticket-progress-time" data-progress-estimate<?= $t['remaining_hours']===null?'':' title="'.e('Reste estimé : '.$remainingHours).'"' ?>><?= $t['estimated_hours']===null?'Estimation manquante':'Estimé : '.e($totalHours) ?></small>
+    <small class="ticket-progress-time" data-progress-remaining hidden<?= $t['estimated_hours']===null?'':' title="'.e('Estimé : '.$totalHours).'"' ?>><?= $t['remaining_hours']===null?'Estimation manquante':'Restant : '.e($remainingHours) ?></small>
   </div>
 </td><?php break; case 'git': ?>
 <td data-column="git" <?= in_array($column,$listColumns,true)?'':'hidden' ?>>

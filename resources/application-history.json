@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.22.0",
+  "current_version": "1.23.0",
   "entries": [
+    {
+      "version": "1.23.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Temps restant dans la colonne Avancement",
+      "summary": "La roue crantée de la colonne Avancement permet de choisir la durée affichée.",
+      "changes": [
+        "Choisissez le temps restant ou l’estimation totale, avec ou sans barre de progression.",
+        "Le temps restant est calculé à partir de l’estimation totale et du pourcentage d’avancement."
+      ]
+    },
     {
       "version": "1.22.0",
       "date": "2026-11-06",
