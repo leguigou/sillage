@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.24.13",
+  "current_version": "1.24.14",
   "entries": [
+    {
+      "version": "1.24.14",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Pictogramme Git pour les pull requests liées",
+      "summary": "La colonne Git de la liste signale aussi les tickets reliés uniquement par une pull request.",
+      "changes": [
+        "Un ticket dont la clé figure dans une pull request GitHub ou Bitbucket affiche le pictogramme du fournisseur, même sans branche liée.",
+        "Le pictogramme reste unique par fournisseur quand un ticket a à la fois une branche et une pull request."
+      ]
+    },
     {
       "version": "1.24.13",
       "date": "2026-11-06",
