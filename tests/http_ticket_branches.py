@@ -73,7 +73,11 @@ check(call(path+'/branches',{'_csrf':csrf,'connection_id':gh,'search':'x'*101},T
 status,body,_=call(path+'/link',{'_csrf':csrf,'connection_id':bb,'branch_name':'feature/sitemap-sans-cle'},True)
 link=json.loads(body)['id'];check(status==200,'Bitbucket branch without ticket key linked after verification')
 _,branch_list,_=call('/list?project='+pid)
-check('ticket-git-link ticket-git-bitbucket' in branch_list and 'ticket-git-link ticket-git-github' not in branch_list,'list identifies Bitbucket branch on its ticket only')
+git_cells=re.findall(r'<td data-column="git"[^>]*>(.*?)</td>',branch_list,re.S)
+check(sum('ticket-git-link ticket-git-bitbucket' in cell for cell in git_cells)==1
+      and 'ticket-git-link ticket-git-github' not in branch_list,'Git column identifies Bitbucket branch on its ticket only')
+check('ticket-git-link' not in ''.join(re.findall(r'<td class="title-cell"[^>]*>(.*?)</td>',branch_list,re.S)),
+      'summary no longer contains Git icons')
 branch_href=re.search(r'class="ticket-git-link ticket-git-bitbucket" href="([^"]+)"',branch_list).group(1)
 check(branch_href.endswith('#development') and '/tickets/'+tid in branch_href,'provider icon targets ticket development and retains list context')
 gh_link=json.loads(call(path+'/link',{'_csrf':csrf,'connection_id':gh,'branch_name':'feature/sitemap-sans-cle'},True)[1])['id'];_,branch_list,_=call('/list?project='+pid)
