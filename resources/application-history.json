@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.24.10",
+  "current_version": "1.24.11",
   "entries": [
+    {
+      "version": "1.24.11",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Boutons du menu Plus d’options réparés",
+      "summary": "Les boutons Modification groupée et Reprendre ma vue précédente réagissent de nouveau au clic.",
+      "changes": [
+        "Modification groupée affiche la sélection des tickets et le formulaire de modification.",
+        "Reprendre ma vue précédente rétablit les filtres mémorisés dans ce navigateur."
+      ]
+    },
     {
       "version": "1.24.10",
       "date": "2026-11-06",
