@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.4",
+  "current_version": "1.24.5",
   "entries": [
+    {
+      "version": "1.24.5",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Gélule d’affectation simplifiée",
+      "summary": "La gélule Personne assignée reprend la présentation épurée des états.",
+      "changes": [
+        "Cliquez sur le nom dans la liste pour ouvrir le choix de la personne assignée."
+      ]
+    },
     {
       "version": "1.24.4",
       "date": "2026-11-06",

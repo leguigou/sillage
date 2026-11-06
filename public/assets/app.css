@@ -2793,6 +2793,11 @@ label small {
   width: auto;
   font-size: 10px;
 }
+.ticket-table .cell-assignee .cell-select {
+  appearance: none;
+  padding-inline: 9px;
+  cursor: pointer;
+}
 .ticket-table .status-select {
   appearance: none;
   padding: 3px 9px;
