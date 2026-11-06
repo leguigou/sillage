@@ -30,7 +30,11 @@ final class Workflow
         foreach (Ticket::STATUSES as $code=>$label) $items['status'][$code]=['code'=>$code,'label'=>$label,'category'=>$code,'icon'=>$icons[$code],'color'=>$colors[$code],'position'=>count($items['status'])*10,'enabled'=>true];
         foreach (Ticket::TYPES as $code=>$label) $items['type'][$code]=['code'=>$code,'label'=>$label,'category'=>$code,'icon'=>null,'color'=>null,'position'=>count($items['type'])*10,'enabled'=>true];
         $settings=$project?DB::one('SELECT version,restricted,transitions_json FROM project_workflows WHERE project_id=?',[$project]):null;
-        $rows=$project?DB::all('SELECT * FROM workflow_items WHERE project_id=?',[$project]):DB::all('SELECT w.*,p.project_key FROM workflow_items w JOIN projects p ON p.id=w.project_id');
+        $rows=$project?DB::all('SELECT *
+            FROM workflow_items
+            WHERE project_id=?',[$project]):DB::all('SELECT w.*,p.project_key
+            FROM workflow_items w
+            JOIN projects p ON p.id=w.project_id');
         foreach ($rows as $row) {
             if (!$project && isset($items[$row['kind']][$row['code']])) continue;
             if (!$project) $row['label']=$row['project_key'].' · '.$row['label'];
@@ -115,17 +119,32 @@ final class Workflow
                 $position=filter_var($input['position']??($previous['position']??0),FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999]]);
                 if ($position===false) throw new \InvalidArgumentException('Ordre compris entre 0 et 999 requis.');
                 $enabled=$action==='add_item' || (array_key_exists('enabled',$input)?!empty($input['enabled']):(bool)$previous['enabled']);
-                $used=(int)DB::one('SELECT COUNT(*) n FROM tickets WHERE project_id=? AND '.($kind==='status'?'(status=? OR paused_from_status=?)':'type=?'),$kind==='status'?[$project,$code,$code]:[$project,$code])['n'];
+                $used=(int)DB::one('SELECT COUNT(*) n
+                    FROM tickets
+                    WHERE project_id=? AND '.($kind==='status'?'(status=? OR paused_from_status=?)':'type=?'),$kind==='status'?[$project,$code,$code]:[$project,$code])['n'];
                 if ($previous && $category!==$previous['category'] && ($used || isset(($kind==='status'?Ticket::STATUSES:Ticket::TYPES)[$code]))) throw new \InvalidArgumentException('La catégorie d’un élément standard ou utilisé est immuable ; créez un nouvel élément.');
                 if (!$enabled) {
                     if (in_array($code,['todo','paused','task'],true) || $used) throw new \InvalidArgumentException('Cet élément est standard ou utilisé par des tickets, y compris archivés. Il doit rester disponible.');
-                    if ($kind==='type' && DB::one('SELECT id FROM public_forms WHERE project_id=? AND ticket_type=? LIMIT 1',[$project,$code])) throw new \InvalidArgumentException('Un formulaire utilise encore ce type.');
-                    if (DB::one("SELECT id FROM formatting_rules WHERE project_id=? AND field=? AND match_value=? LIMIT 1",[$project,$kind,$code]) || DB::one("SELECT id FROM automation_rules WHERE project_id=? AND (JSON_UNQUOTE(JSON_EXTRACT(conditions_json,?))=? OR JSON_UNQUOTE(JSON_EXTRACT(actions_json,?))=?) LIMIT 1",[$project,'$.'.$kind,$code,'$.'.$kind,$code])) throw new \InvalidArgumentException('Une règle utilise encore cet élément.');
+                    if ($kind==='type' && DB::one('SELECT id
+                        FROM public_forms
+                        WHERE project_id=? AND ticket_type=?
+                        LIMIT 1',[$project,$code])) throw new \InvalidArgumentException('Un formulaire utilise encore ce type.');
+                    if (DB::one("SELECT id
+                        FROM formatting_rules
+                        WHERE project_id=? AND field=? AND match_value=?
+                        LIMIT 1",[$project,$kind,$code]) || DB::one("SELECT id
+                        FROM automation_rules
+                        WHERE project_id=? AND (JSON_UNQUOTE(JSON_EXTRACT(conditions_json,?))=? OR JSON_UNQUOTE(JSON_EXTRACT(actions_json,?))=?)
+                        LIMIT 1",[$project,'$.'.$kind,$code,'$.'.$kind,$code])) throw new \InvalidArgumentException('Une règle utilise encore cet élément.');
                 }
-                DB::run('INSERT INTO workflow_items(project_id,kind,code,label,category,icon,color,position,enabled) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE label=VALUES(label),category=VALUES(category),icon=VALUES(icon),color=VALUES(color),position=VALUES(position),enabled=VALUES(enabled)',[$project,$kind,$code,$label,$category,$mark['icon'],$mark['color'],$position,(int)$enabled]);
+                DB::run('INSERT INTO workflow_items(project_id,kind,code,label,category,icon,color,position,enabled)
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    ON DUPLICATE KEY UPDATE label=VALUES(label),category=VALUES(category),icon=VALUES(icon),color=VALUES(color),position=VALUES(position),enabled=VALUES(enabled)',[$project,$kind,$code,$label,$category,$mark['icon'],$mark['color'],$position,(int)$enabled]);
                 $normalized=$old['transitions'];$restricted=$old['restricted'];
             } else throw new \InvalidArgumentException('Action de circuit inconnue.');
-            DB::run('INSERT INTO project_workflows(project_id,version,restricted,transitions_json) VALUES(?,1,?,?) ON DUPLICATE KEY UPDATE version=version+1,restricted=VALUES(restricted),transitions_json=VALUES(transitions_json)',[$project,(int)$restricted,json_encode((object)$normalized,JSON_THROW_ON_ERROR)]);
+            DB::run('INSERT INTO project_workflows(project_id,version,restricted,transitions_json)
+                VALUES(?,1,?,?)
+                ON DUPLICATE KEY UPDATE version=version+1,restricted=VALUES(restricted),transitions_json=VALUES(transitions_json)',[$project,(int)$restricted,json_encode((object)$normalized,JSON_THROW_ON_ERROR)]);
             self::reset();return self::get($project);
         });
     }

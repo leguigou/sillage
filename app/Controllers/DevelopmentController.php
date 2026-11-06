@@ -32,7 +32,10 @@ final class DevelopmentController
     {
         $user=Auth::admin();Security::limit('git-access-test:'.$user['id'],10,60);
         $project=filter_var($_POST['project_id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
-        $connection=$project?DB::one('SELECT c.* FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE c.id=? AND pc.project_id=?',[(int)$id,$project]):null;
+        $connection=$project?DB::one('SELECT c.*
+            FROM connections c
+            JOIN project_connections pc ON pc.connection_id=c.id
+            WHERE c.id=? AND pc.project_id=?',[(int)$id,$project]):null;
         if(!$connection) throw new \InvalidArgumentException('Ce dépôt n’est pas lié au projet.');
         $token=trim((string)($_POST['token']??''));
         if($token!=='') $connection['secret_cipher']=Security::encrypt(Development::accessToken($token));
@@ -57,7 +60,9 @@ final class DevelopmentController
         if ($token !== '') {
             $replacement = Security::encrypt(Development::accessToken($token));
             Development::verifyConnection(array_replace($connection,['secret_cipher'=>$replacement]));
-            if (DB::run('UPDATE connections SET secret_cipher=? WHERE id=? AND BINARY secret_cipher=?',[$replacement,(int)$id,$connection['secret_cipher']])->rowCount() !== 1) {
+            if (DB::run('UPDATE connections
+                SET secret_cipher=?
+                WHERE id=? AND BINARY secret_cipher=?',[$replacement,(int)$id,$connection['secret_cipher']])->rowCount() !== 1) {
                 throw new \InvalidArgumentException('Cette connexion a changé. Rechargez la page avant de réessayer.');
             }
         }
@@ -75,7 +80,10 @@ final class DevelopmentController
         $page = filter_var($_POST['page'] ?? 1, FILTER_VALIDATE_INT);
         if ($page === false) throw new \InvalidArgumentException('Page de dépôts invalide.');
         $result = Development::discover($provider,(string)($_POST['token']??''),$page,trim((string)($_POST['workspace']??'')));
-        $connected = array_map('strtolower', array_column(DB::all('SELECT c.repository FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? AND c.provider=?',[$pid,$provider]),'repository'));
+        $connected = array_map('strtolower', array_column(DB::all('SELECT c.repository
+            FROM connections c
+            JOIN project_connections pc ON pc.connection_id=c.id
+            WHERE pc.project_id=? AND c.provider=?',[$pid,$provider]),'repository'));
         foreach ($result['repositories'] as &$repository) $repository['connected'] = in_array(strtolower($repository['repository']),$connected,true);
         json_response($result);
     }

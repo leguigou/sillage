@@ -12,11 +12,17 @@ final class RepositoryConnection
     }
     public static function forProject(int $project): array
     {
-        return DB::all('SELECT c.id,c.provider,c.repository,c.last_sync_at FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY c.id',[$project]);
+        return DB::all('SELECT c.id,c.provider,c.repository,c.last_sync_at
+            FROM connections c
+            JOIN project_connections pc ON pc.connection_id=c.id
+            WHERE pc.project_id=?
+            ORDER BY c.id',[$project]);
     }
     public static function contextProject(int $connection,int $preferred=0): int
     {
-        if ($preferred && DB::one('SELECT project_id FROM project_connections WHERE project_id=? AND connection_id=?',[$preferred,$connection])) return $preferred;
+        if ($preferred && DB::one('SELECT project_id
+            FROM project_connections
+            WHERE project_id=? AND connection_id=?',[$preferred,$connection])) return $preferred;
         $row=DB::one('SELECT project_id FROM project_connections WHERE connection_id=? ORDER BY project_id LIMIT 1',[$connection]);
         if (!$row) throw new \InvalidArgumentException('Cette connexion Git n’est liée à aucun projet.');
         return (int)$row['project_id'];
@@ -35,9 +41,13 @@ final class RepositoryConnection
         DB::transaction(function() use($project,$connection) {
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$project]);
             DB::one('SELECT id FROM connections WHERE id=? FOR UPDATE',[$connection]);
-            if (!DB::run('DELETE FROM project_connections WHERE project_id=? AND connection_id=?',[$project,$connection])->rowCount()) throw new \InvalidArgumentException('Ce dépôt n’est pas lié au projet.');
+            if (!DB::run('DELETE FROM project_connections
+                WHERE project_id=? AND connection_id=?',[$project,$connection])->rowCount()) throw new \InvalidArgumentException('Ce dépôt n’est pas lié au projet.');
             DB::run('UPDATE projects SET repository_connection_id=NULL WHERE id=? AND repository_connection_id=?',[$project,$connection]);
-            if (!DB::one('SELECT project_id FROM project_connections WHERE connection_id=? LIMIT 1',[$connection])) DB::run('DELETE FROM connections WHERE id=?',[$connection]);
+            if (!DB::one('SELECT project_id
+                FROM project_connections
+                WHERE connection_id=?
+                LIMIT 1',[$connection])) DB::run('DELETE FROM connections WHERE id=?',[$connection]);
         });
     }
 }

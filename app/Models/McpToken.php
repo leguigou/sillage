@@ -54,7 +54,11 @@ final class McpToken
             return null;
         }
         $row = DB::one(
-            'SELECT k.id token_id,k.scopes,k.auth_version token_version,u.id,u.name,u.email,u.role,u.auth_version,g.scopes grant_scopes FROM mcp_tokens k JOIN users u ON u.id=k.user_id LEFT JOIN oauth_grants g ON g.id=k.oauth_grant_id WHERE k.token_hash=? AND (k.expires_at IS NULL OR k.expires_at>UTC_TIMESTAMP()) AND u.active=1 AND u.verified_at IS NOT NULL AND (k.oauth_grant_id IS NULL OR (g.id IS NOT NULL AND g.expires_at>UTC_TIMESTAMP() AND g.auth_version=u.auth_version AND g.resource=?))',
+            'SELECT k.id token_id,k.scopes,k.auth_version token_version,u.id,u.name,u.email,u.role,u.auth_version,g.scopes grant_scopes
+                FROM mcp_tokens k
+                JOIN users u ON u.id=k.user_id
+                LEFT JOIN oauth_grants g ON g.id=k.oauth_grant_id
+                WHERE k.token_hash=? AND (k.expires_at IS NULL OR k.expires_at>UTC_TIMESTAMP()) AND u.active=1 AND u.verified_at IS NOT NULL AND (k.oauth_grant_id IS NULL OR (g.id IS NOT NULL AND g.expires_at>UTC_TIMESTAMP() AND g.auth_version=u.auth_version AND g.resource=?))',
             [hash('sha256', $raw),url('/mcp')],
         );
         if (!$row || (int) $row['token_version'] !== (int) $row['auth_version']) {

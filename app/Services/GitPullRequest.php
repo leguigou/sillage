@@ -57,7 +57,12 @@ final class GitPullRequest
     }
     public static function eventForTicket(int $ticket,int $event): array
     {
-        $row=DB::one("SELECT e.* FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE l.ticket_id=? AND e.id=? AND e.kind='pull_request'",[$ticket,$event]);
+        $row=DB::one("SELECT e.*
+            FROM development_events e
+            JOIN development_event_tickets l ON l.event_id=e.id
+            JOIN tickets t ON t.id=l.ticket_id
+            JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id
+            WHERE l.ticket_id=? AND e.id=? AND e.kind='pull_request'",[$ticket,$event]);
         if(!$row) throw new \InvalidArgumentException('Cette pull request n’est pas liée au projet et au ticket.');
         return DevelopmentEvent::hydrate($row);
     }
@@ -93,7 +98,9 @@ final class GitPullRequest
         }
         $ids=DB::transaction(function() use($c,$ticket,$link,$events) {
             DevelopmentEvent::lockProjects((int)$c['id']);TicketBranch::connection($ticket,(int)$c['id']);$ids=[];
-            if(!DB::one('SELECT 1 FROM ticket_branch_links WHERE id=? AND ticket_id=?',[$link,$ticket])) throw new \InvalidArgumentException('Le lien de branche a été retiré pendant la synchronisation.');
+            if(!DB::one('SELECT 1
+                FROM ticket_branch_links
+                WHERE id=? AND ticket_id=?',[$link,$ticket])) throw new \InvalidArgumentException('Le lien de branche a été retiré pendant la synchronisation.');
             foreach($events as $event) $ids[]=DevelopmentEvent::save($c,$event,false);return $ids;
         });
         return ['ok'=>true,'pull_requests'=>$ids,'has_more'=>$more,'next_page'=>$page+1,'scanned'=>count($rows)];

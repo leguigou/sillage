@@ -73,7 +73,10 @@ final class Team
             foreach($selected as $id) self::find($id);
             $current=array_map('intval',array_column(self::forProject($project),'id'));
             foreach(array_diff($current,$selected) as $id) {
-                if (DB::one('SELECT id FROM tickets WHERE project_id=? AND team_id=? LIMIT 1',[$project,$id])) throw new \InvalidArgumentException('Réaffectez les tickets de cette équipe avant de la retirer du projet (y compris les tickets archivés).');
+                if (DB::one('SELECT id
+                    FROM tickets
+                    WHERE project_id=? AND team_id=?
+                    LIMIT 1',[$project,$id])) throw new \InvalidArgumentException('Réaffectez les tickets de cette équipe avant de la retirer du projet (y compris les tickets archivés).');
             }
             foreach(array_diff($current,$selected) as $id) {
                 DB::run('DELETE FROM team_projects WHERE team_id=? AND project_id=?',[$id,$project]);

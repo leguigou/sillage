@@ -33,7 +33,8 @@ final class OAuth
         $local=env('APP_ENV')==='local' && ($parts['scheme']??'')==='http' && in_array($parts['host']??'',['127.0.0.1','localhost','[::1]'],true);
         if ($name==='' || mb_strlen($name)>120 || preg_match('/[\x00-\x1f\x7f]/',$name) || !in_array($method,self::METHODS,true) || !$parts || strlen($redirect)>1000 || !filter_var($redirect,FILTER_VALIDATE_URL) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass']) || (!$local && ($parts['scheme']??'')!=='https')) throw new \InvalidArgumentException('Nom, méthode ou URL de rappel invalide. Copiez exactement l’URL HTTPS affichée par ChatGPT.');
         $id='slg_client_'.bin2hex(random_bytes(16));$secret=$method==='none'?null:bin2hex(random_bytes(32));
-        DB::run('INSERT INTO oauth_clients(id,name,redirect_uri,auth_method,secret_hash) VALUES(?,?,?,?,?)',[$id,$name,$redirect,$method,$secret===null?null:hash('sha256',$secret)]);
+        DB::run('INSERT INTO oauth_clients(id,name,redirect_uri,auth_method,secret_hash)
+            VALUES(?,?,?,?,?)',[$id,$name,$redirect,$method,$secret===null?null:hash('sha256',$secret)]);
         return ['id'=>$id,'secret'=>$secret];
     }
     public static function client(string $id): array
@@ -61,7 +62,8 @@ final class OAuth
             if (!$client || $client['redirect_uri']!==$request['redirect_uri']) throw new OAuthError('invalid_client');
             if (!$scopes || array_filter($scopes,fn($s)=>!is_string($s)) || array_diff($scopes,$request['scopes']) || array_diff($scopes,[...McpToken::availableScopes($current['role']),'offline_access']) || !array_intersect($scopes,array_keys(McpToken::SCOPES))) throw new OAuthError('invalid_scope');
             $raw=bin2hex(random_bytes(32));
-            DB::run('INSERT INTO oauth_codes(code_hash,client_id,user_id,auth_version,redirect_uri,resource,scopes,challenge,expires_at) VALUES(?,?,?,?,?,?,?,?,?)',[hash('sha256',$raw),$client['id'],$user['id'],$user['auth_version'],$request['redirect_uri'],$request['resource'],json_encode(array_values(array_unique($scopes)),JSON_THROW_ON_ERROR),$request['challenge'],gmdate('Y-m-d H:i:s',time()+300)]);
+            DB::run('INSERT INTO oauth_codes(code_hash,client_id,user_id,auth_version,redirect_uri,resource,scopes,challenge,expires_at)
+                VALUES(?,?,?,?,?,?,?,?,?)',[hash('sha256',$raw),$client['id'],$user['id'],$user['auth_version'],$request['redirect_uri'],$request['resource'],json_encode(array_values(array_unique($scopes)),JSON_THROW_ON_ERROR),$request['challenge'],gmdate('Y-m-d H:i:s',time()+300)]);
             return $raw;
         });
     }
@@ -106,7 +108,8 @@ final class OAuth
             DB::run('DELETE FROM oauth_codes WHERE code_hash=?',[$hash]);
             $id=bin2hex(random_bytes(16));$scopes=json_decode($code['scopes'],true);$refresh=in_array('offline_access',$scopes,true)?'slg_refresh_'.$id.'_'.bin2hex(random_bytes(32)):null;
             $expires=gmdate('Y-m-d H:i:s',time()+30*86400);
-            DB::run('INSERT INTO oauth_grants(id,client_id,user_id,auth_version,resource,scopes,refresh_hash,expires_at) VALUES(?,?,?,?,?,?,?,?)',[$id,$client['id'],$user['id'],$user['auth_version'],$resource,$code['scopes'],$refresh===null?null:hash('sha256',$refresh),$expires]);
+            DB::run('INSERT INTO oauth_grants(id,client_id,user_id,auth_version,resource,scopes,refresh_hash,expires_at)
+                VALUES(?,?,?,?,?,?,?,?)',[$id,$client['id'],$user['id'],$user['auth_version'],$resource,$code['scopes'],$refresh===null?null:hash('sha256',$refresh),$expires]);
             $grant=DB::one('SELECT * FROM oauth_grants WHERE id=?',[$id]);$result=self::access($grant,$user,$liveClient['name']);
             if ($refresh!==null) $result['refresh_token']=$refresh;
             return $result;
@@ -124,7 +127,9 @@ final class OAuth
             $grant=DB::one('SELECT * FROM oauth_grants WHERE id=? FOR UPDATE',[$match[1]]);$hash=hash('sha256',$raw);
             if (!$grant || !$liveClient || $grant['client_id']!==$client['id'] || $grant['resource']!==$resource) throw new OAuthError('invalid_grant');
             if ($grant['refresh_hash']===null || !hash_equals($grant['refresh_hash'],$hash)) {
-                if (DB::one('SELECT token_hash FROM oauth_refresh_history WHERE token_hash=? AND grant_id=?',[$hash,$grant['id']])) { DB::run('DELETE FROM oauth_grants WHERE id=?',[$grant['id']]);return ['reused'=>true]; }
+                if (DB::one('SELECT token_hash
+                    FROM oauth_refresh_history
+                    WHERE token_hash=? AND grant_id=?',[$hash,$grant['id']])) { DB::run('DELETE FROM oauth_grants WHERE id=?',[$grant['id']]);return ['reused'=>true]; }
                 throw new OAuthError('invalid_grant');
             }
             if (!$user || !$user['active'] || !$user['verified_at'] || (int)$user['auth_version']!==(int)$grant['auth_version'] || strtotime($grant['expires_at'].' UTC')<time()+60) throw new OAuthError('invalid_grant');
@@ -148,7 +153,12 @@ final class OAuth
     {
         $hash=hash('sha256',$raw);
         DB::transaction(function() use($client,$hash) {
-            $row=DB::one('SELECT g.id FROM oauth_grants g LEFT JOIN mcp_tokens k ON k.oauth_grant_id=g.id LEFT JOIN oauth_refresh_history h ON h.grant_id=g.id WHERE g.client_id=? AND (g.refresh_hash=? OR k.token_hash=? OR h.token_hash=?) LIMIT 1',[$client['id'],$hash,$hash,$hash]);
+            $row=DB::one('SELECT g.id
+                FROM oauth_grants g
+                LEFT JOIN mcp_tokens k ON k.oauth_grant_id=g.id
+                LEFT JOIN oauth_refresh_history h ON h.grant_id=g.id
+                WHERE g.client_id=? AND (g.refresh_hash=? OR k.token_hash=? OR h.token_hash=?)
+                LIMIT 1',[$client['id'],$hash,$hash,$hash]);
             if ($row) DB::run('DELETE FROM oauth_grants WHERE id=?',[$row['id']]);
         });
     }

@@ -118,7 +118,9 @@ final class Security
             env('APP_KEY'),
         );
         DB::run(
-            'INSERT INTO rate_limits (bucket, hits, expires_at) VALUES (?, 1, ?) ON DUPLICATE KEY UPDATE hits=IF(expires_at < UNIX_TIMESTAMP(),1,hits+1), expires_at=IF(expires_at < UNIX_TIMESTAMP(),VALUES(expires_at),expires_at)',
+            'INSERT INTO rate_limits (bucket, hits, expires_at)
+                VALUES (?, 1, ?)
+                ON DUPLICATE KEY UPDATE hits=IF(expires_at < UNIX_TIMESTAMP(),1,hits+1), expires_at=IF(expires_at < UNIX_TIMESTAMP(),VALUES(expires_at),expires_at)',
             [$key, time() + $window],
         );
         if ((int) DB::one('SELECT hits FROM rate_limits WHERE bucket=?', [$key])['hits'] > $max) {

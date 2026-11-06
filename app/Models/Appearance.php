@@ -81,7 +81,9 @@ final class Appearance
             $old=DB::one('SELECT version FROM appearance_settings WHERE id=1 FOR UPDATE');
             if ((int)$old['version']!==$version) throw new \InvalidArgumentException('Les pictogrammes ont changé. Rechargez cette section avant de réessayer.');
             foreach ($marks as $kind=>$rows) foreach ($rows as $key=>$mark) {
-                DB::run('INSERT INTO appearance_marks(kind,mark_key,icon,color) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE icon=VALUES(icon),color=VALUES(color)',[$kind,$key,$mark['icon'],$mark['color']]);
+                DB::run('INSERT INTO appearance_marks(kind,mark_key,icon,color)
+                    VALUES(?,?,?,?)
+                    ON DUPLICATE KEY UPDATE icon=VALUES(icon),color=VALUES(color)',[$kind,$key,$mark['icon'],$mark['color']]);
             }
             DB::run('UPDATE appearance_settings SET version=version+1 WHERE id=1');
         });

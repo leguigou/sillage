@@ -38,7 +38,9 @@ final class Mentions
     public static function people(array $ids,bool $active=true): array
     {
         if (!$ids) return [];
-        $rows=DB::all('SELECT id,name FROM users WHERE id IN ('.implode(',',array_fill(0,count($ids),'?')).')'.($active?' AND active=1 AND verified_at IS NOT NULL':''),$ids);
+        $rows=DB::all('SELECT id,name
+            FROM users
+            WHERE id IN ('.implode(',',array_fill(0,count($ids),'?')).')'.($active?' AND active=1 AND verified_at IS NOT NULL':''),$ids);
         $people=array_column($rows,'name','id');
         if ($active && count($people)!==count($ids)) throw new \InvalidArgumentException('Une personne mentionnée n’est plus disponible. Choisissez un compte actif et vérifié.');
         return $people;

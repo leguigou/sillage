@@ -21,7 +21,9 @@ final class TicketTime
     {
         Ticket::find($ticket);
         $limit=max(1,min(100,$limit));$offset=max(0,$offset);
-        return ['total'=>(int)DB::one('SELECT COUNT(*) n FROM ticket_worklogs WHERE ticket_id=? AND deleted=0',[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>DB::all("SELECT w.*,u.name FROM ticket_worklogs w JOIN users u ON u.id=w.user_id WHERE ticket_id=? AND deleted=0 ORDER BY worked_on DESC,id DESC LIMIT $limit OFFSET $offset",[$ticket])];
+        return ['total'=>(int)DB::one('SELECT COUNT(*) n
+            FROM ticket_worklogs
+            WHERE ticket_id=? AND deleted=0',[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>DB::all("SELECT w.*,u.name FROM ticket_worklogs w JOIN users u ON u.id=w.user_id WHERE ticket_id=? AND deleted=0 ORDER BY worked_on DESC,id DESC LIMIT $limit OFFSET $offset",[$ticket])];
     }
     public static function save(int $ticket,array $input,int $actor,int $version,?int $entry=null,bool $delete=false): array
     {
@@ -40,7 +42,8 @@ final class TicketTime
                 $note=trim((string)($input['note']??''));
                 if (!preg_match('/^\d{1,2}(?:\.\d{1,2})?$/D',$hours) || (float)$hours<=0 || (float)$hours>24 || !$day || $day>gmdate('Y-m-d') || mb_strlen($note)>2000) throw new \InvalidArgumentException('Saisissez de 0,01 à 24 heures, une date passée ou du jour et une note de 2 000 caractères maximum.');
                 if ($entry) DB::run('UPDATE ticket_worklogs SET hours=?,worked_on=?,note=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$hours,$day,$note,$entry]);
-                else $entry=DB::insert('INSERT INTO ticket_worklogs(ticket_id,user_id,hours,worked_on,note) VALUES(?,?,?,?,?)',[$ticket,$actor,$hours,$day,$note]);
+                else $entry=DB::insert('INSERT INTO ticket_worklogs(ticket_id,user_id,hours,worked_on,note)
+                    VALUES(?,?,?,?,?)',[$ticket,$actor,$hours,$day,$note]);
             }
             DB::run('UPDATE tickets SET version=version+1,updated_at=UTC_TIMESTAMP() WHERE id=?',[$ticket]);
             $after=DB::one('SELECT * FROM ticket_worklogs WHERE id=?',[$entry]);
