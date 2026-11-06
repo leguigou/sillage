@@ -2793,7 +2793,8 @@ label small {
   width: auto;
   font-size: 10px;
 }
-.ticket-table .cell-assignee .cell-select {
+.ticket-table .cell-assignee .cell-select,
+.ticket-table .cell-priority .cell-select {
   appearance: none;
   padding-inline: 9px;
   cursor: pointer;

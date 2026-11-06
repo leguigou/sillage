@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.8",
+  "current_version": "1.24.9",
   "entries": [
+    {
+      "version": "1.24.9",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Gélules de priorité simplifiées",
+      "summary": "Les gélules de priorité dans la liste reprennent la présentation des autres sélecteurs.",
+      "changes": [
+        "Le chevron est retiré. Cliquez sur la gélule pour modifier la priorité."
+      ]
+    },
     {
       "version": "1.24.8",
       "date": "2026-11-06",
