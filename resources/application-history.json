@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.3",
+  "current_version": "1.24.4",
   "entries": [
+    {
+      "version": "1.24.4",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Fermeture après enregistrement d’un rapport",
+      "summary": "La fenêtre se ferme dès que le rapport est enregistré.",
+      "changes": [
+        "La confirmation d’abandon reste réservée aux modifications non enregistrées. En cas d’échec, le formulaire conserve la saisie."
+      ]
+    },
     {
       "version": "1.24.3",
       "date": "2026-11-06",

@@ -5,6 +5,8 @@
   const columns=form.querySelector('[data-report-columns]'),order=form.querySelector('[data-report-order]'),status=form.querySelector('[data-report-status]');
   const open=form.querySelector('[data-report-open]'),copy=form.querySelector('[data-report-copy]'),remove=form.querySelector('[data-report-delete]');
   let busy=false;
+  let savedInDialog=false;
+  let lockedControls=[];
   const rows=()=>[...columns.querySelectorAll('[data-report-column]')];
   function recordOrder(){order.value=JSON.stringify(rows().map(node=>node.dataset.reportColumn));}
   function arrange(keys){keys.forEach(key=>{const node=rows().find(row=>row.dataset.reportColumn===key);if(node) columns.append(node);});}
@@ -19,25 +21,38 @@
     if(event.target.closest('[data-open]')?.dataset.open!==dialog.id || dialog.open) return;
     if(form.hasAttribute('data-report-create')) {form.reset();form.elements.view_id.value='0';form.elements.revision.value='';form.elements.name.value='';arrange(JSON.parse(order.value));open.hidden=copy.hidden=remove.hidden=true;open.removeAttribute('href');status.textContent='';}
     const headers=[...document.querySelectorAll('.ticket-table th[data-column]')];
-    if(headers.length) {
+    if(headers.length && (!savedInDialog || form.hasAttribute('data-report-create'))) {
       arrange(headers.map(node=>node.dataset.column));
       for(const row of rows()) {const header=headers.find(node=>node.dataset.column===row.dataset.reportColumn);row.querySelector('input').checked=row.dataset.reportColumn==='title'||!header?.hidden;}
       recordOrder();
     }
   },true);
-  function lock(value){busy=value;form.setAttribute('aria-busy',String(value));form.querySelectorAll('button,input,select,textarea').forEach(node=>node.disabled=value);}
+  function lock(value) {
+    busy = value;
+    form.setAttribute('aria-busy', String(value));
+    if (value) lockedControls = [...form.querySelectorAll('button:enabled,input:enabled,select:enabled,textarea:enabled')];
+    for (const control of lockedControls) control.disabled = value;
+    if (!value) lockedControls = [];
+  }
   async function request(url,body){const response=await fetch(url,{method:'POST',body,headers:{Accept:'application/json'}});if(response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a expiré. Rechargez la page.');const data=await response.json();if(!response.ok) throw new Error(data.error||'Enregistrement impossible.');return data;}
   async function saveReport(mode) {
     if(busy) return;recordOrder();const body=new FormData(form);body.set('mode',mode);lock(true);status.textContent='Enregistrement…';
+    let saved=false;
     try {
       const result=await request('/views',body);form.elements.view_id.value=result.id;form.elements.revision.value=result.revision;form.elements.name.value=result.name;
       open.hidden=copy.hidden=remove.hidden=false;open.href=result.url;
       const links=document.querySelector('[data-personal-reports]');let link=links?.querySelector('[data-personal-report-link="'+result.id+'"]');
       if(links && !link){link=document.createElement('a');link.className='saved-view';link.dataset.personalReportLink=result.id;links.insertBefore(link,links.querySelector('[data-report-add]'));}
       if(link){link.href=result.url;link.textContent=result.name;}
-      status.textContent='Rapport enregistré dans votre compte. « Afficher ce rapport » applique ses filtres et sa présentation.';window.SillageDialogs.commit(dialog);
+      status.textContent='';
+      saved=true;
     }catch(error){status.textContent=error.message;}
     finally{lock(false);}
+    if (!saved) return;
+    savedInDialog=true;
+    toast('Rapport enregistré.');
+    if (mode === 'save') window.SillageDialogs.complete(dialog);
+    else window.SillageDialogs.commit(dialog);
   }
   form.addEventListener('submit',event=>{event.preventDefault();saveReport('save');});
   copy.addEventListener('click',()=>{if(form.reportValidity()) saveReport('copy');});
