@@ -45,6 +45,13 @@ check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['github']],'
 $tbBBConnection=DB::insert('INSERT INTO connections(project_id,provider,repository,secret_cipher,webhook_cipher) VALUES(?,?,?,?,?)',[$tbProject,'bitbucket','sample/bb',Security::encrypt('test-token'),Security::encrypt('test-hook')]);RepositoryConnection::attach($tbProject,$tbBBConnection);$tbBBC=DB::one('SELECT * FROM connections WHERE id=?',[$tbBBConnection]);$tbBBEvent=DevelopmentPayload::object('bitbucket','branch',['name'=>'feature/bb'],$tbBBC['repository']);$tbBBLink=TicketBranch::link($tbTicket,$tbBBC,$tbBBEvent,$uid);
 check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['bitbucket','github']],'deux fournisseurs dédupliqués quand plusieurs branches sont liées');
 RepositoryConnection::detach($tbProject,$tbBBConnection);check(TicketBranch::providersForTickets([$tbTicket])===[$tbTicket=>['github']],'dépôt détaché ne produit plus de pictogramme');
+// The Git column counts linked pull requests in any state, but no longer counts an unlinked branch.
+$tbPrOnly=Ticket::create($tbProject,['title'=>'PR seule'],$uid);
+$tbPrOnlyBranchLink=TicketBranch::link($tbPrOnly,$tbC,DevelopmentPayload::object('github','branch',['name'=>'feature/pr-seule-sans-cle'],$tbC['repository']),$uid);
+TicketBranch::unlink($tbPrOnly,$tbPrOnlyBranchLink);
+check(TicketBranch::providersForTickets([$tbPrOnly])===[],'branche retirée sans autre lien ne laisse plus de pictogramme');
+DevelopmentEvent::save($tbC,DevelopmentPayload::object('github','pull_request',['number'=>77,'title'=>Ticket::find($tbPrOnly)['key'].' correction','head'=>['ref'=>'feature/autre-nom','sha'=>str_repeat('7',40),'repo'=>['full_name'=>$tbC['repository']]],'state'=>'closed'],$tbC['repository']));
+check(TicketBranch::providersForTickets([$tbPrOnly])===[$tbPrOnly=>['github']],'pull request fermée liée par sa clé affiche le fournisseur sans branche liée');
 $tbUnrelated=Ticket::create(Project::save(['name'=>'Sans dépôt','key'=>'BU'.strtoupper(bin2hex(random_bytes(3)))]),['title'=>'Hors projet Git'],$uid);
 rejects(fn()=>TicketBranch::link($tbUnrelated,$tbC,$tbEvent,$uid),'dépôt étranger au projet du ticket refusé');
 foreach(['../main','feature/../main','https://example.com/branch','refs/heads/main','main?token=x','bad branch','main.lock','feature/.hidden','feature//branch'] as $invalidBranch) rejects(fn()=>DevelopmentPayload::branchName($invalidBranch),'nom de branche mal formé refusé');

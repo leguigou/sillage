@@ -31,6 +31,8 @@ with admin.open(urllib.request.Request(BASE+'/connections/'+str(bb)+'/webhook',d
     setup_reply.read();check('no-store' in setup_reply.headers.get('Cache-Control',''),'revealed webhook setup cannot be cached')
 _,setup_logs,_=call('/administration/logs?channel=api',json_accept=True)
 check(webhook_setup['secret'] not in setup_logs,'webhook reveal body is excluded from technical logs')
+_,branch_list,_=call('/list?project='+pid)
+check('ticket-git-link' not in branch_list,'connected repository alone does not mark every ticket')
 # A description edit can attach an existing PR with no key in its title or branch.
 description_key='BG'+suffix.upper()+'-1'
 for provider,event_header,events,object_key,body_key,id_key,author_date in [
@@ -58,7 +60,7 @@ for provider,event_header,events,object_key,body_key,id_key,author_date in [
 check(call('/projects/'+pid+'/update',{'_csrf':csrf,'repository_connection_id':bb},True)[0]==200,'project chooses Bitbucket repository as default')
 status,panel,_=call('/tickets/'+tid+'/development')
 _,branch_list,_=call('/list?project='+pid)
-check('ticket-git-link' not in branch_list,'connected repository alone does not mark every ticket')
+check(branch_list.count('ticket-git-link ticket-git-bitbucket')==1 and branch_list.count('ticket-git-link ticket-git-github')==1,'PR linked through its description marks its ticket once per provider')
 check(status==200 and 'Bitbucket · '+repositories['bitbucket'] in panel and 'GitHub · '+repositories['github'] in panel,'ticket lists only its configured providers')
 check('value="'+str(bb)+'" selected' in panel,'project primary repository selected in branch dialog')
 check('webhook signé' in panel and 'Issues' in panel,'ticket explains key matching webhooks and scope of Git integration')
@@ -99,7 +101,8 @@ link=json.loads(body)['id'];check(status==200,'Bitbucket branch without ticket k
 _,branch_list,_=call('/list?project='+pid)
 git_cells=re.findall(r'<td data-column="git"[^>]*>(.*?)</td>',branch_list,re.S)
 check(sum('ticket-git-link ticket-git-bitbucket' in cell for cell in git_cells)==1
-      and 'ticket-git-link ticket-git-github' not in branch_list,'Git column identifies Bitbucket branch on its ticket only')
+      and branch_list.count('ticket-git-link ticket-git-bitbucket')==1
+      and branch_list.count('ticket-git-link ticket-git-github')==1,'Git column shows each provider once on its ticket, branch and PR merged')
 check('ticket-git-link' not in ''.join(re.findall(r'<td class="title-cell"[^>]*>(.*?)</td>',branch_list,re.S)),
       'summary no longer contains Git icons')
 branch_href=re.search(r'class="ticket-git-link ticket-git-bitbucket" href="([^"]+)"',branch_list).group(1)
@@ -128,7 +131,8 @@ _,panel,_=call(path)
 check('Correction sans clé' in panel and 'Liens manuels de branches' in panel,'incoming commit follows manual branch and branch association survives update')
 check(call(path+'/links/'+str(link)+'/delete',{},True)[0]==403,'unlink requires CSRF')
 check(call(path+'/links/'+str(link)+'/delete',{'_csrf':csrf},True)[0]==200,'manual branch can be unlinked')
-_,branch_list,_=call('/list?project='+pid);check('ticket-git-link' not in branch_list,'unlinked branches no longer marked despite retained commit history')
+_,branch_list,_=call('/list?project='+pid)
+check(branch_list.count('ticket-git-link ticket-git-bitbucket')==1 and branch_list.count('ticket-git-link ticket-git-github')==1,'unlinked branch leaves only the linked PR indicators, without duplicates')
 _,panel,_=call(path)
 check('Liens manuels de branches' not in panel and 'Correction sans clé' in panel,'unlink retains already received commit observations')
 _,_,foreign_url=call('/projects',{'_csrf':csrf,'name':'Sans connexion '+suffix,'key':'BX'+suffix.upper()})

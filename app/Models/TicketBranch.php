@@ -14,11 +14,31 @@ use App\Services\DevelopmentPayload;
  */
 final class TicketBranch
 {
-    /** Returns [ticket_id => providers] for tickets with a manual or observed active branch (github/bitbucket only). */
+    /**
+     * Returns [ticket_id => providers] (github/bitbucket only) for the list's Git column: tickets with
+     * a manual branch link, an observed active branch, or a linked pull request in any state. A PR
+     * counts on its own because its ticket key is often only in the PR title, and branch pushes may
+     * never reach Sillage (push trigger not enabled on the webhook, branch pushed before the webhook).
+     */
     public static function providersForTickets(array $ids): array
     {
         if(!$ids) return [];$slots=implode(',',array_fill(0,count($ids),'?'));
-        $rows=DB::all("SELECT DISTINCT b.ticket_id,c.provider FROM ticket_branch_links b JOIN tickets t ON t.id=b.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id JOIN connections c ON c.id=b.connection_id WHERE b.ticket_id IN ($slots) UNION SELECT DISTINCT l.ticket_id,c.provider FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id JOIN connections c ON c.id=e.connection_id WHERE l.ticket_id IN ($slots) AND e.kind='branch' AND e.state='active' ORDER BY provider",[...$ids,...$ids]);
+        $rows=DB::all("SELECT DISTINCT b.ticket_id,c.provider
+                FROM ticket_branch_links b
+                JOIN tickets t ON t.id=b.ticket_id
+                JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id
+                JOIN connections c ON c.id=b.connection_id
+                WHERE b.ticket_id IN ($slots)
+            UNION
+            SELECT DISTINCT l.ticket_id,c.provider
+                FROM development_event_tickets l
+                JOIN development_events e ON e.id=l.event_id
+                JOIN tickets t ON t.id=l.ticket_id
+                JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id
+                JOIN connections c ON c.id=e.connection_id
+                WHERE l.ticket_id IN ($slots)
+                    AND (e.kind='pull_request' OR (e.kind='branch' AND e.state='active'))
+            ORDER BY provider",[...$ids,...$ids]);
         $result=[];foreach($rows as $row) if(in_array($row['provider'],['github','bitbucket'],true)) $result[$row['ticket_id']][]=$row['provider'];return $result;
     }
     /** Returns the connection row, or fails if it is not attached to the ticket's project. */
