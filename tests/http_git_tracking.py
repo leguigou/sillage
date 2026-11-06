@@ -21,10 +21,10 @@ git_sha=hashlib.sha1(git_marker.encode()).hexdigest()
 git_branch='feature/'+git_ticket_key+'-'+git_other_key
 git_push={'repository':{'full_name':'qa/repo'},'ref':'refs/heads/'+git_branch,'created':True,'after':git_sha,'head_commit':{'timestamp':'2026-10-28T10:00:00Z'},'commits':[{'id':git_sha,'message':git_ticket_key+' '+git_other_key+' Correction','url':'https://github.com/qa/repo/commit/'+git_sha,'timestamp':'2026-10-28T10:00:00Z'}]}
 check(signed_webhook(hook,git_push)[0]==200,'signed push records branch and commit')
-git_pr={'repository':{'full_name':'qa/repo'},'action':'opened','pull_request':{'number':int(uuid.uuid4().hex[:6],16)+100,'title':git_ticket_key+' Correction','state':'open','head':{'ref':git_branch,'sha':git_sha},'html_url':'https://github.com/qa/repo/pull/1','updated_at':'2026-10-28T10:05:00Z'}}
+git_pr={'repository':{'full_name':'qa/repo'},'action':'opened','pull_request':{'number':int(uuid.uuid4().hex[:6],16)+100,'title':git_ticket_key+' Correction','state':'open','head':{'ref':git_branch,'sha':git_sha},'base':{'ref':'staging'},'html_url':'https://github.com/qa/repo/pull/1','updated_at':'2026-10-28T10:05:00Z'}}
 check(signed_webhook(hook,git_pr)[0]==200,'signed pull request attaches to ticket')
 _,git_body,_=call('/tickets/'+git_ticket_id)
-check('ticket-development-branch' in git_body and git_branch in git_body and git_sha[:12] in git_body and 'Ouverte' in git_body,'ticket development panel renders branch commit and pull request')
+check('data-git-event-kind="branch"' in git_body and git_branch in git_body and git_sha[:12] in git_body and 'Ouverte' in git_body,'ticket development panel renders branch commit and pull request')
 git_pr['action']='closed';git_pr['pull_request'].update({'state':'closed','merged':True,'updated_at':'2026-10-28T11:00:00Z'})
 check(signed_webhook(hook,git_pr)[0]==200,'signed merge notification accepted')
 _,git_body,_=call('/tickets/'+git_ticket_id)
@@ -33,6 +33,36 @@ check('Fusionnée' in git_body and '<option value="review" selected' in git_body
 signed_webhook(hook,git_pr)
 _,git_body,_=call('/tickets/'+git_ticket_id)
 check(re.search(r'name="version" value="(\d+)"',git_body).group(1)==git_version,'duplicate webhook does not apply automation twice')
+git_followup=git_body.split('id="activity"',1)[1].split('</section>',1)[0]
+check(git_followup.count('Automatique')==2 and 'https://github.com/qa/repo/pull/1' in git_followup,'PR opened and staging merge announced once in the conversation')
+git_event=re.search(r'data-test-procedure="(\d+)"',git_followup).group(1)
+git_test_path='/tickets/'+git_ticket_id+'/development/pull-requests/'+git_event+'/test-procedure'
+status,context,_=call(git_test_path,json_accept=True)
+check(status==200,'staging PR exposes procedure context')
+git_procedure={'_csrf':csrf,'submission_key':json.loads(context)['submission_key'],'url':'https://recette.example.com','steps':'Ouvrir le sitemap','expected':'Le flux XML est visible'}
+status,published,_=call(git_test_path,git_procedure,True)
+check(status==200 and 'Le flux XML est visible' in json.loads(published)['html'],'procedure returned as a regular conversation comment')
+check(json.loads(call(git_test_path,git_procedure,True)[1])['id']==json.loads(published)['id'],'replayed procedure POST keeps a single comment')
+check(call('/tickets/'+git_other_id+'/development/pull-requests/'+git_event+'/test-procedure',json_accept=True)[0]==200,'procedure available on another ticket legitimately linked by the shared branch')
+
+git_free_branch='feature/unassigned-'+git_marker
+git_free_push=dict(git_push,ref='refs/heads/'+git_free_branch,commits=[])
+check(signed_webhook(hook,git_free_push)[0]==200,'unassigned branch received')
+_,_,git_free_url=call('/tickets',{'_csrf':csrf,'project_id':git_project_id,'title':git_marker+' candidat'})
+git_free_id=git_free_url.rsplit('/',1)[-1]
+_,_,git_closed_url=call('/tickets',{'_csrf':csrf,'project_id':git_project_id,'title':git_marker+' clos','status':'done'})
+git_closed_id=git_closed_url.rsplit('/',1)[-1]
+_,git_dev,_=call('/development?project='+git_project_id)
+git_picker=re.search(r'data-branch-ticket-picker="([^"]+)" data-branch-title="'+re.escape(git_free_branch)+'"',git_dev).group(1)
+status,candidates,_=call(git_picker+'?q='+git_marker,json_accept=True)
+check(status==200 and [str(t['id']) for t in json.loads(candidates)['tickets']]==[git_free_id],'branch picker only lists eligible open tickets from the current project')
+for git_invalid in [git_ticket_id,git_other_id,git_closed_id]:
+    check(call(git_picker,{'_csrf':csrf,'ticket_id':git_invalid},True)[0]==422,'ineligible branch target rejected server-side')
+status,git_link,_=call(git_picker,{'_csrf':csrf,'ticket_id':git_free_id},True)
+check(status==200 and json.loads(git_link)['ticket']['id']==int(git_free_id),'branch is linked from the development view')
+check(call(git_picker,{'_csrf':csrf,'ticket_id':git_free_id},True)[0]==422,'branch already linked is rejected')
+_,git_linked,_=call('/tickets/'+git_free_id)
+check('Liens manuels de branches' in git_linked and git_free_branch in git_linked,'new link is visible on the ticket')
 check(signed_webhook(hook,{'repository':{'full_name':'qa/repo'},'pull_request':'malformed'})[0]==400,'malformed signed provider object returns bounded client error')
 _,git_original,_=call('/tickets/'+git_other_id)
 check(git_sha[:12] in git_original,'same signed event visible in second linked project')

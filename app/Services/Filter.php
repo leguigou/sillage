@@ -45,7 +45,11 @@ final class Filter
                 "(t.title LIKE ? OR t.description LIKE ? OR CONCAT(p.project_key,'-',t.number) LIKE ?)";
             array_push($params, ...array_fill(0, 3, '%' . $q . '%'));
         }
+        $statuses = self::selectedStatuses($input);
+        if ($statuses === []) $sql[] = '1=0';
+        elseif ($statuses !== null) $input['status'] = $statuses;
         foreach (['status', 'type', 'priority'] as $field) {
+            if ($field === 'status' && !$statuses) continue;
             if (!empty($input[$field])) {
                 $values = is_array($input[$field])
                     ? $input[$field]
@@ -129,9 +133,7 @@ final class Filter
         $mode=$input['pause']??'';
         if (!is_string($mode) || !in_array($mode,['','active','only','all'],true)) throw new \InvalidArgumentException('Filtre de pause invalide.');
         if ($mode!=='') return $mode;
-        $status=$input['status']??[];
-        if (!is_array($status)) $status=explode(',',(string)$status);
-        return in_array('paused',$status,true)||$jqlPaused?'all':'active';
+        return in_array('paused',self::selectedStatuses($input)??[],true)||$jqlPaused?'all':'active';
     }
     public static function pauseMode(array $input,int $project=0): string
     {
@@ -139,12 +141,26 @@ final class Filter
         if (!empty($input['jql'])) $parser->parse((string)$input['jql']);
         return self::resolvePauseMode($input,$parser->mentionsPaused);
     }
+    /** Null means no explicit selection. An empty list means every state was unchecked. */
+    public static function selectedStatuses(array $input): ?array
+    {
+        $value = $input['status'] ?? '';
+        if ($value === '' || $value === []) return null;
+        $values = is_string($value) ? explode(',', $value) : $value;
+        if (!is_array($values) || !array_is_list($values) || array_filter($values, static fn($item) => !is_string($item))) {
+            throw new \InvalidArgumentException('Liste de filtre invalide : status');
+        }
+        // The empty form value survives a GET with no checked boxes.
+        return array_values(array_unique(array_filter($values, static fn($item) => $item !== '')));
+    }
     public static function visibleStatuses(array $input,int $project=0): array
     {
         $statuses=\App\Models\Workflow::labels('status',$project,true);$mode=self::pauseMode($input,$project);
         if ($mode==='active') unset($statuses['paused']);
         elseif ($mode==='only') $statuses=['paused'=>$statuses['paused']];
-        return $statuses;
+        if (!empty($input['hide_done'])) $statuses=array_diff_key($statuses,\App\Models\Workflow::categoryLabels('status',$project,'done'));
+        $selected=self::selectedStatuses($input);
+        return $selected===null?$statuses:array_intersect_key($statuses,array_flip($selected));
     }
     public function parse(string $query): array
     {

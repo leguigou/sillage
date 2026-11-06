@@ -71,6 +71,33 @@
     catch(error){historyMessage(error.message+' Les derniers détails reçus sont conservés.');}
     finally{historyLock(false);}
   });
+  const procedureDialog=document.getElementById('test-procedure-dialog');
+  if(procedureDialog) {
+    const form=procedureDialog.querySelector('form'),status=procedureDialog.querySelector('[data-procedure-status]'),publish=form.querySelector('[data-procedure-publish]');
+    let target=null,loading=null;
+    document.addEventListener('click',async event=>{
+      const button=event.target.closest('[data-test-procedure]');if(!button) return;
+      loading?.abort();const request=new AbortController();loading=request;target=endpoint+'/pull-requests/'+button.dataset.testProcedure+'/test-procedure';
+      form.reset();form.querySelectorAll('input,textarea').forEach(field=>field.disabled=true);publish.disabled=true;status.textContent='Chargement…';procedureDialog.querySelector('[data-procedure-context]').textContent='';window.SillageDialogs.show(procedureDialog);
+      try {
+        const response=await fetch(target,{headers:{Accept:'application/json'},cache:'no-store',signal:request.signal});
+        if(response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a expiré. Rechargez le ticket.');
+        const data=await response.json();if(!response.ok) throw new Error(data.error||'Procédure indisponible.');if(loading!==request) return;
+        form.elements.submission_key.value=data.submission_key;procedureDialog.querySelector('[data-procedure-context]').textContent=data.title;status.textContent='';form.querySelectorAll('input,textarea').forEach(field=>field.disabled=false);publish.disabled=false;window.SillageDialogs.commit(procedureDialog);
+      }catch(error){if(error.name!=='AbortError' && loading===request) status.textContent=error.message;}
+    });
+    procedureDialog.addEventListener('close',()=>{loading?.abort();loading=null;});
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();if(publish.disabled) return;const body=new FormData(form);publish.disabled=true;form.querySelectorAll('input,textarea').forEach(field=>field.readOnly=true);form.setAttribute('aria-busy','true');status.textContent='Publication…';
+      try {
+        const data=await post(target,body),thread=document.getElementById('activity');
+        if(!document.getElementById('comment-'+data.id)) thread.insertAdjacentHTML('beforeend',data.html);
+        thread.querySelector('[data-no-comments]')?.remove();document.querySelectorAll('.ticket-comment-count').forEach(node=>node.textContent='('+data.count+')');
+        window.SillageDialogs.complete(procedureDialog);toast('Procédure publiée dans le suivi du ticket.');
+      }catch(error){status.textContent=error.message;}
+      finally{form.removeAttribute('aria-busy');form.querySelectorAll('input,textarea').forEach(field=>field.readOnly=false);publish.disabled=false;}
+    });
+  }
   const filesDialog=document.getElementById('git-files-dialog');
   if(filesDialog) {
     const title=filesDialog.querySelector('[data-git-files-title]'),message=filesDialog.querySelector('[data-git-files-status]'),list=filesDialog.querySelector('[data-git-files-list]');

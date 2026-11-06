@@ -1,0 +1,37 @@
+<?php
+use App\Models\{GitConversation,DevelopmentEvent,Ticket};
+use App\Services\DevelopmentPayload;
+use App\Core\DB;
+\App\Models\Project::save(['repository_connection_id'=>$gitC['id']],$gitProject);
+$gcTicket=Ticket::create($gitProject,['title'=>'Procédure Git'],$uid);$gcKey=Ticket::find($gcTicket)['key'];
+$gcPr=['number'=>9851,'title'=>$gcKey.' Correction','state'=>'open','head'=>['ref'=>'feature/'.$gcKey,'repo'=>['full_name'=>$gitC['repository']]],'base'=>['ref'=>'staging'],'updated_at'=>'2026-11-05T12:00:00Z'];
+$gcEvent=DevelopmentPayload::object('github','pull_request',$gcPr,$gitC['repository'],true,null,'opened');
+$gcId=DevelopmentEvent::save($gitC,$gcEvent,false);
+check(GitConversation::comments($gcTicket)===[],'import historique sans annonces rétrospectives');
+DevelopmentEvent::save($gitC,$gcEvent,true);$gcComments=GitConversation::comments($gcTicket);
+check(count($gcComments)===1 && $gcComments[0]['user_id']===null && $gcComments[0]['name']==='Sillage' && str_contains($gcComments[0]['body'],'/pull/9851'),'PR ouverte annoncée avec lien et auteur système');
+DevelopmentEvent::save($gitC,$gcEvent,true);
+check(count(GitConversation::comments($gcTicket))===1,'nouvelle livraison webhook sans doublon de message');
+$gcPr['merged']=true;$gcPr['state']='closed';$gcPr['updated_at']='2026-11-05T13:00:00Z';
+$gcMerged=DevelopmentPayload::object('github','pull_request',$gcPr,$gitC['repository'],true,null,'closed');
+DevelopmentEvent::save($gitC,$gcMerged,true);DevelopmentEvent::save($gitC,$gcMerged,true);
+$gcComments=GitConversation::comments($gcTicket);
+check(count($gcComments)===2 && $gcComments[1]['message_kind']==='staging_merged' && str_contains($gcComments[1]['body'],'Vérifiez que la version est disponible'),'fusion staging annoncée une fois sans déploiement inventé');
+$gcInput=['submission_key'=>bin2hex(random_bytes(16)),'url'=>'https://recette.example.fr','preconditions'=>'Compte recette','steps'=>"1. Ouvrir
+2. <script>alert(1)</script>",'expected'=>'Le résultat est visible'];
+$gcComment=GitConversation::publish($gcTicket,$gcId,$gcInput,$uid);
+check(GitConversation::publish($gcTicket,$gcId,$gcInput,$uid)===$gcComment && count(GitConversation::comments($gcTicket))===3,'publication rejouée retourne le même commentaire');
+$gcRow=DB::one('SELECT * FROM comments WHERE id=?',[$gcComment]);
+check((int)$gcRow['user_id']===$uid && str_contains($gcRow['body'],'&lt;script&gt;') && str_contains($gcRow['body'],'Résultat attendu'),'procédure attribuée au collaborateur et contenu échappé');
+rejects(fn()=>GitConversation::publish($gcTicket,$gcId,array_replace($gcInput,['steps'=>'autre']),$uid),'même clé de publication avec autre contenu refusée');
+foreach(['javascript:alert(1)','https://user:password@example.fr'] as $gcBad) rejects(fn()=>GitConversation::publish($gcTicket,$gcId,array_replace($gcInput,['submission_key'=>bin2hex(random_bytes(16)),'url'=>$gcBad]),$uid),'URL de serveur invalide refusée');
+rejects(fn()=>GitConversation::publish($gitB,$gcId,$gcInput,$uid),'procédure sur PR étrangère refusée');
+rejects(fn()=>GitConversation::publish($gcTicket,$gcId,array_replace($gcInput,['steps'=>'']),$uid),'procédure sans étapes refusée');
+rejects(fn()=>GitConversation::publish($gcTicket,$gcId,array_replace($gcInput,['expected'=>str_repeat('x',2001)]),$uid),'procédure trop longue refusée');
+$gcPr['number']=9852;$gcPr['base']['ref']='production';$gcOther=DevelopmentEvent::save($gitC,DevelopmentPayload::object('github','pull_request',$gcPr,$gitC['repository'],true,null,'closed'),true);
+check(count(GitConversation::comments($gcTicket))===3,'fusion production sans annonce staging');
+rejects(fn()=>GitConversation::context($gcTicket,$gcOther),'procédure staging refusée sur autre cible');
+DB::run('UPDATE tickets SET archived=1 WHERE id=?',[$gcTicket]);
+rejects(fn()=>GitConversation::publish($gcTicket,$gcId,$gcInput,$uid),'publication sur ticket archivé refusée');
+$gcPr['number']=9853;$gcPr['base']['ref']='staging';DevelopmentEvent::save($gitC,DevelopmentPayload::object('github','pull_request',$gcPr,$gitC['repository'],true,null,'closed'),true);
+check(count(GitConversation::comments($gcTicket))===3,'ticket archivé sans nouvelle annonce Git');

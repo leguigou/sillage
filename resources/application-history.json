@@ -1,7 +1,22 @@
 {
   "schema": 1,
-  "current_version": "1.18.0",
+  "current_version": "1.19.0",
   "entries": [
+    {
+      "version": "1.19.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Suivi des PR, liaison de branches et filtres d’état",
+      "summary": "Suivez les PR dans les tickets, reliez les branches depuis Développement et choisissez les états visibles dans les rapports.",
+      "changes": [
+        "Les webhooks annoncent l’ouverture d’une PR avec son lien et la fusion vers staging sous le nom Sillage, sans doublons lors des nouvelles tentatives.",
+        "Après une fusion sur staging, un bouton permet de publier une procédure : serveur à tester, préconditions, étapes et résultat attendu.",
+        "Publication sans rechargement, auteur du commentaire conservé et confirmation avant abandon d’un brouillon.",
+        "Les imports historiques restent silencieux ; une fusion ne confirme pas un déploiement et ne valide pas les tests.",
+        "Liez une branche active depuis Développement à un ticket ouvert du projet sans branche, avec recherche par clé ou résumé.",
+        "Cochez les états à afficher dans les filtres et dans les rapports personnels. Les états décochés disparaissent des vues filtrées."
+      ]
+    },
     {
       "version": "1.18.0",
       "date": "2026-11-05",

@@ -247,6 +247,10 @@ final class WorkspaceController
         if (!is_array($settings)) {
             throw new \InvalidArgumentException('Vue invalide.');
         }
+        if (array_key_exists('status', $_POST)) {
+            $settings['status'] = $_POST['status'];
+            unset($settings['pause']);
+        }
         if(isset($_POST['report_options'])) {
             foreach(['sort','direction','group','sort2','sort3'] as $key) $settings[$key]=$_POST[$key]??'';
             foreach(['direction2','direction3'] as $key) $settings[$key]=$_POST[$key]??'asc';

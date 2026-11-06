@@ -21,10 +21,7 @@ final class TicketController
             'SELECT id,number,title,type FROM tickets WHERE project_id=? AND id<>? AND archived=0 ORDER BY number DESC LIMIT 500',
             [$project['id'], $ticket['id']],
         );
-        $comments = DB::all(
-            'SELECT c.*,u.name FROM comments c JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id',
-            [$id],
-        );
+        $comments = \App\Models\GitConversation::comments((int)$id);
         $attachments = DB::all(
             'SELECT id,original_name,size_bytes,mime FROM attachments WHERE ticket_id=? ORDER BY id',
             [$id],

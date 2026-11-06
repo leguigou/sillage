@@ -24,3 +24,5 @@
   </div>
 </div>
 <?php if($canEdit): require ROOT.'/app/Views/partials/ticket-edit.php'; require ROOT.'/app/Views/partials/ticket-comment.php'; endif; ?>
+
+<?php if($canEdit && !$ticket['archived']) require ROOT.'/app/Views/partials/ticket-test-procedure.php'; ?>

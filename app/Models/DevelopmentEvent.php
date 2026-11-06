@@ -64,6 +64,9 @@ final class DevelopmentEvent
             if(in_array($event['kind'],['branch','commit','pull_request'],true)) foreach(array_unique(array_filter([$event['commit_sha'],$event['metadata']['merge_sha']??null])) as $sha) {
                 DB::run("INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT r.id,l.ticket_id FROM development_events r JOIN development_event_tickets l ON l.event_id=? JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=r.connection_id WHERE r.connection_id=? AND r.kind IN ('build','deployment') AND r.commit_sha=?",[$id,$connection['id'],$sha]);
             }
+            if ($live && $tickets && $event['kind']==='pull_request') {
+                GitConversation::observe($connection, array_replace($event, ['id'=>$id,'external_url'=>$safe?$event['external_url']:'']), $tickets);
+            }
             // History imports only establish observations. Live transitions may run opt-in rules once.
             if ($live && $event['trigger'] && (!$old || $old['state']!==$event['state'])) {
                 foreach($tickets as $ticket) Automation::run($event['trigger'],(int)$ticket,null,false,['development_repository'=>$connection['repository']]);

@@ -29,6 +29,8 @@ $r->add('GET','/tickets/{id}/development',[$ticketDevelopment,'panel'])
     ->add('POST','/tickets/{id}/development/links/{link}/delete',[$ticketDevelopment,'unlink'])
     ->add('POST','/tickets/{id}/development/links/{link}/sync',[$ticketDevelopment,'syncBranch'])
     ->add('POST','/tickets/{id}/development/pull-requests/{event}/sync',[$ticketDevelopment,'syncPullRequest'])
+    ->add('GET','/tickets/{id}/development/pull-requests/{event}/test-procedure',[$ticketDevelopment,'testProcedure'])
+    ->add('POST','/tickets/{id}/development/pull-requests/{event}/test-procedure',[$ticketDevelopment,'publishTestProcedure'])
     ->add('GET','/tickets/{id}/development/pull-requests/{event}/files',[$ticketDevelopment,'pullRequestFiles']);
 $r->add('GET','/administration/logs',[new \App\Controllers\TechnicalLogController(),'index']);
 $tracking=new \App\Controllers\TrackingController();
@@ -134,6 +136,8 @@ $r->add('POST', '/forms', [$forms, 'save'])
     ->add('POST', '/forms/{id}/toggle', [$forms, 'toggle'])
     ->add('POST', '/forms/{id}/rotate', [$forms, 'rotate']);
 $r->add('GET', '/f/{token}', [$forms, 'show'])->add('POST', '/f/{token}', [$forms, 'submit']);
+$r->add('GET', '/development/{project}/branches/{event}/tickets', [$dev, 'branchCandidates']);
+$r->add('POST', '/development/{project}/branches/{event}/tickets', [$dev, 'linkBranch']);
 $r->add('POST', '/connections/repositories', [$dev, 'repositories']);
 $r->add('POST', '/connections/{id}/update', [$dev, 'update']);
 $r->add('POST','/connections/{id}/webhook',[$dev,'webhookSetup']);

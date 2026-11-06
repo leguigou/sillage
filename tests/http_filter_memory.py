@@ -41,3 +41,21 @@ check('Date de début' in date_html and 'data-column="start"' in date_html and '
 date_positions=[date_html.index('data-ticket-id="'+progress_tickets[v]+'"') for v in [50,100,0]]
 check(date_positions==sorted(date_positions),'start date descending sort uses date values with missing dates last')
 check('datetime="2026-11-01"' in date_html and '<span class="muted">—</span>' in date_html,'date-only timestamps preserved and missing dates shown as dash')
+
+status,_,review_url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Ticket en revue','status':'review'})
+review_id=urllib.parse.urlsplit(review_url).path.rsplit('/',1)[-1]
+status,_,done_url=call('/tickets',{'_csrf':csrf,'project_id':pid,'title':'Ticket terminé','status':'done'})
+done_id=urllib.parse.urlsplit(done_url).path.rsplit('/',1)[-1]
+status_query=urllib.parse.urlencode({'project':pid,'status[]':['','todo','review']},doseq=True)
+_,status_html,_=call('/list?'+status_query)
+check('data-ticket-id="'+review_id+'"' in status_html and 'data-ticket-id="'+progress_tickets[0]+'"' in status_html and 'data-ticket-id="'+done_id+'"' not in status_html,'multiple checked states restrict ticket list')
+_,board_html,_=call('/board?project='+pid)
+check('data-drop-status="todo"' in board_html and 'data-drop-status="review"' in board_html and 'data-drop-status="done"' not in board_html,'board remembers state selection and hides unselected columns')
+_,empty_html,_=call('/list?project='+pid+'&status[]=')
+check('data-ticket-id="'+review_id+'"' not in empty_html and '0 ticket' in empty_html,'all states unchecked yields an empty view')
+saved_row=json.loads(saved)
+report_data.update({'sort3':'title','name':'Rapport en revue','view_id':saved_row['id'],'revision':saved_row['revision'],'status[]':['','review']})
+status,updated,_=call('/views',report_data,True)
+check(status==200,'edit report persists state checkboxes')
+_,filtered_report,_=call(json.loads(updated)['url'])
+check('data-ticket-id="'+review_id+'"' in filtered_report and 'data-ticket-id="'+progress_tickets[0]+'"' not in filtered_report and 'name="status[]" value="review" checked' in filtered_report,'reopened report restores checked states and matching tickets')

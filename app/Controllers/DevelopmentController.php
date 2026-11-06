@@ -6,6 +6,28 @@ use App\Models\Project;
 use App\Services\Development;
 final class DevelopmentController
 {
+    public function branchCandidates(string $project, string $event): void
+    {
+        $user = Auth::editor();
+        \App\Core\Security::limit('branch-candidates:'.$user['id'], 120, 60);
+        $query = $_GET['q'] ?? '';
+        if (!is_string($query) || mb_strlen($query) > 120) {
+            throw new \InvalidArgumentException('Recherche de tickets invalide.');
+        }
+        header('Cache-Control: no-store');
+        json_response(['tickets'=>\App\Models\TicketBranch::candidates((int)$project, (int)$event, trim($query))]);
+    }
+
+    public function linkBranch(string $project, string $event): void
+    {
+        $user = Auth::editor();
+        \App\Core\Security::limit('link-branch:'.$user['id'], 30, 60);
+        $ticket = filter_var($_POST['ticket_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if (!$ticket) throw new \InvalidArgumentException('Sélectionnez un ticket.');
+        $linked = \App\Models\TicketBranch::linkObserved((int)$project, (int)$event, $ticket, (int)$user['id']);
+        json_response(['ticket'=>$linked + ['url'=>ticket_url($ticket).'#development']]);
+    }
+
     public function testAccess(string $id): void
     {
         $user=Auth::admin();Security::limit('git-access-test:'.$user['id'],10,60);

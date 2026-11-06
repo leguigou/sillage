@@ -137,3 +137,13 @@ Les cinq compteurs deviennent des filtres, avec Tout afficher et une recherche t
 Le panneau utilise toute la largeur de la fiche dans cet onglet. La colonne des informations métier réapparaît dans les autres onglets. Synchronisation/connexions et liens manuels sont repliables ; leurs états d’ouverture sont conservés pendant le rafraîchissement. Le guide de liaison automatique est après la chronologie.
 
 La couverture reste celle de la collecte existante : jusqu’à vingt observations récentes par catégorie, avec compteurs globaux et limite annoncée. Une ligne représente l’état connu d’un élément Git ; les transitions précédentes d’une même PR ne deviennent pas un journal immuable et ne sont pas reconstituées. Les dates des PR restent les dates de mise à jour fournies par le modèle de lecture, pas une date de fusion inventée. Le fil est chronologique, sans prétendre dessiner le graphe complet des parents Git. Aucune migration, nouvelle récupération fournisseur ou mutation de ticket n’est ajoutée par cet affichage.
+
+
+## Messages Git et procédures de recette (1.19)
+
+Exécuter les migrations, dont `027_git_conversation.sql`, avant de servir cette version.
+Les webhooks vérifiés publient une annonce dans chaque ticket rapproché lors de l’ouverture d’une PR et de sa fusion vers la branche `staging` (nom exact, casse ignorée). Le lien de la PR est inclus. Ces commentaires sont attribués à Sillage avec la mention Automatique ; aucun collaborateur n’est usurpé. Les nouvelles tentatives du même événement ne multiplient pas les messages. Les notifications de commentaire suivent les réglages existants du projet et de leurs destinataires.
+
+Les collectes et imports historiques restent silencieux. Un historique déjà importé peut néanmoins proposer le formulaire depuis sa PR fusionnée vers staging dans l’onglet Développement. La procédure précise l’URL du serveur (facultative), les préconditions, les étapes et le résultat attendu ; elle est publiée comme commentaire de son auteur, en AJAX. Une reprise de la même publication retourne le commentaire existant. Les comptes en lecture seule et les tickets archivés ne peuvent pas publier de procédure. Le dépôt doit toujours appartenir au projet.
+
+Une fusion n’est pas une preuve de déploiement. Ces messages ne modifient ni le statut, ni l’avancement, ni l’affectation et ne valident pas une recette. Les automatisations opt-in restent indépendantes. Le formulaire contient des instructions de test, jamais du code fournisseur ou des identifiants d’accès au serveur.

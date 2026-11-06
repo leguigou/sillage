@@ -330,7 +330,7 @@ final class Tools
                         $a['id'],
                     ])['n'],
                     'comments' => DB::all(
-                        'SELECT c.id,c.body,c.body_format,c.created_at,u.name FROM comments c JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id LIMIT ' .
+                        'SELECT c.id,c.body,c.body_format,c.created_at,COALESCE(u.name,\'Sillage\') name FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,

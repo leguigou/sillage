@@ -72,4 +72,22 @@ final class TicketDevelopmentController
         $files=$details['files'];unset($details['files'],$details['commit_shas']);
         json_response(['title'=>$row['title'],'details'=>$details,'stale'=>$details['revision']!==\App\Services\GitPullRequest::revision($row),'files'=>array_slice($files,($page-1)*40,40),'page'=>$page,'has_more'=>$page*40<count($files)]);
     }
+    public function testProcedure(string $ticket,string $event): void
+    {
+        Auth::editor();
+        $pr=\App\Models\GitConversation::context((int)$ticket,(int)$event);
+        header('Cache-Control: no-store');
+        json_response(['title'=>$pr['title'],'submission_key'=>bin2hex(random_bytes(16))]);
+    }
+    public function publishTestProcedure(string $id,string $event): void
+    {
+        $user=Auth::editor();Security::limit('ticket-procedure:'.$user['id'],30,60);
+        $comment=\App\Models\GitConversation::publish((int)$id,(int)$event,$_POST,(int)$user['id']);
+        $ticket=Ticket::find((int)$id);$canEdit=true;
+        [$c]=\App\Models\GitConversation::comments((int)$id,$comment);
+        $count=(int)\App\Core\DB::one('SELECT COUNT(*) n FROM comments WHERE ticket_id=?',[(int)$id])['n'];
+        require_once ROOT.'/app/Views/icons.php';ob_start();require ROOT.'/app/Views/partials/ticket-conversation-comment.php';$html=ob_get_clean();
+        json_response(['ok'=>true,'id'=>$comment,'count'=>$count,'html'=>$html]);
+    }
+
 }

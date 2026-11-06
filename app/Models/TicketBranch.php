@@ -37,6 +37,69 @@ final class TicketBranch
             return $id;
         });
     }
+    private static function unassignedBranch(int $project, int $event): array
+    {
+        $branch = DB::one(
+            "SELECT e.* FROM development_events e
+            JOIN project_connections pc ON pc.connection_id=e.connection_id
+            WHERE pc.project_id=? AND e.id=? AND e.kind='branch' AND e.state='active'",
+            [$project, $event],
+        );
+        if (!$branch || DB::one(
+            'SELECT 1 FROM development_event_tickets l JOIN tickets t ON t.id=l.ticket_id
+             WHERE l.event_id=? AND t.project_id=? LIMIT 1',
+            [$event, $project],
+        )) {
+            throw new \InvalidArgumentException('Cette branche n’est plus disponible pour une liaison dans ce projet.');
+        }
+        return DevelopmentEvent::hydrate($branch);
+    }
+
+    private static function eligibleTicketsSql(): string
+    {
+        return "t.project_id=? AND t.archived=0 AND ".Workflow::categorySql()."<>'done'
+            AND NOT EXISTS (
+                SELECT 1 FROM ticket_branch_links b JOIN project_connections pc
+                ON pc.connection_id=b.connection_id AND pc.project_id=t.project_id
+                WHERE b.ticket_id=t.id
+            ) AND NOT EXISTS (
+                SELECT 1 FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id
+                JOIN project_connections pc ON pc.connection_id=e.connection_id AND pc.project_id=t.project_id
+                WHERE l.ticket_id=t.id AND e.kind='branch' AND e.state='active'
+            )";
+    }
+
+    public static function candidates(int $project, int $event, string $query): array
+    {
+        self::unassignedBranch($project, $event);
+        $sql = "SELECT t.id, CONCAT(p.project_key,'-',t.number) AS `key`, t.title
+                FROM tickets t JOIN projects p ON p.id=t.project_id WHERE ".self::eligibleTicketsSql();
+        $params = [$project];
+        if ($query !== '') {
+            $pattern = '%'.strtr($query, ['!'=>'!!', '%'=>'!%', '_'=>'!_']).'%';
+            $sql .= " AND (t.title LIKE ? ESCAPE '!' OR CONCAT(p.project_key,'-',t.number) LIKE ? ESCAPE '!')";
+            array_push($params, $pattern, $pattern);
+        }
+        return DB::all($sql.' ORDER BY t.updated_at DESC,t.id DESC LIMIT 25', $params);
+    }
+
+    public static function linkObserved(int $project, int $event, int $ticket, int $actor): array
+    {
+        $branch = self::unassignedBranch($project, $event);
+        return DB::transaction(function () use ($project, $event, $ticket, $actor, $branch) {
+            DevelopmentEvent::lockProjects((int)$branch['connection_id']);
+            $branch = self::unassignedBranch($project, $event);
+            $row = DB::one('SELECT t.id,t.number FROM tickets t WHERE t.id=? AND '.self::eligibleTicketsSql().' FOR UPDATE', [$ticket, $project]);
+            if (!$row) throw new \InvalidArgumentException('Choisissez un ticket ouvert du projet, sans branche associée.');
+            $connection = self::connection($ticket, (int)$branch['connection_id']);
+            $branch['references'] = DevelopmentPayload::references($branch);
+            $branch['trigger'] = null;
+            self::link($ticket, $connection, $branch, $actor);
+            \App\Services\GitSync::request((int)$connection['id']);
+            return ['id'=>$ticket, 'key'=>Project::find($project)['project_key'].'-'.$row['number']];
+        });
+    }
+
     public static function unlink(int $ticket,int $link): void
     {
         $row=DB::one('SELECT * FROM ticket_branch_links WHERE id=? AND ticket_id=?',[$link,$ticket]);
