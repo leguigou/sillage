@@ -253,7 +253,7 @@ final class WikiStorage
         if (!file_exists($source)) throw new \InvalidArgumentException('L’élément à déplacer est introuvable sur le disque.');
         if (!is_dir(dirname($target))) throw new \InvalidArgumentException('Le dossier de destination n’existe pas.');
         $sameEntry = self::key($from) === self::key($to);
-        if (file_exists($target) && !$sameEntry) throw new \InvalidArgumentException('Un élément porte déjà ce nom à cet emplacement.');
+        if (!$sameEntry && (file_exists($target) || self::nameTaken(self::parent($to), self::name($to)))) throw new \InvalidArgumentException('Un élément porte déjà ce nom à cet emplacement.');
         if ($sameEntry && $from !== $to) {
             // Case-only rename: go through a temporary name for case-insensitive filesystems.
             $step = dirname($source) . '/.wiki-' . bin2hex(random_bytes(8)) . '.move';
@@ -281,7 +281,8 @@ final class WikiStorage
     public static function makeFolder(string $relative): void
     {
         $path = self::absolute($relative);
-        if (file_exists($path)) throw new \InvalidArgumentException('Un élément porte déjà ce nom.');
+        // Linux file systems are case-sensitive: check the name ignoring case, as Windows would.
+        if (file_exists($path) || self::nameTaken(self::parent($relative), self::name($relative))) throw new \InvalidArgumentException('Un élément porte déjà ce nom.');
         if (!is_dir(dirname($path))) throw new \InvalidArgumentException('Le dossier parent n’existe pas.');
         if (!mkdir($path, 0700)) throw new \RuntimeException('Création du dossier impossible.');
     }
