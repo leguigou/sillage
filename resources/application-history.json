@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.24.14",
+  "current_version": "1.25.0",
   "entries": [
+    {
+      "version": "1.25.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Transfert complet d’un site",
+      "summary": "Un site entier peut être exporté dans un seul fichier zip puis importé sur une nouvelle installation.",
+      "changes": [
+        "La commande site:export regroupe comptes, configuration, projets, tickets, commentaires, historique et pièces jointes dans un fichier zip.",
+        "La commande site:import charge ce fichier sur un site neuf de même version et de même clé, après vérification complète de l’archive.",
+        "En cas d’erreur pendant l’import, aucune donnée n’est enregistrée.",
+        "Les connexions mémorisées, liens de validation en cours, limites de tentatives et journaux techniques ne sont pas transférés."
+      ]
+    },
     {
       "version": "1.24.14",
       "date": "2026-11-06",
