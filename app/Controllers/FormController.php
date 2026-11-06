@@ -3,6 +3,18 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth, DB, Security, View};
 use App\Models\{Project, Ticket};
+/**
+ * Public request forms: anyone with the secret link can submit a ticket into a
+ * project without an account.
+ *
+ * Admin management (forms screen, /forms):
+ * - POST /forms (create/update), /forms/{id}/toggle (enable/disable),
+ *   /forms/{id}/rotate (new secret link, the old one stops working).
+ * Public, no login (/f/{token}, token = 64 hex chars, stored only as a SHA-256 hash):
+ * - GET shows the form, POST creates the ticket (rate-limited per IP), with an
+ *   optional attachment stored through AttachmentController::store().
+ * Form definitions live in App\Models\PublicForm.
+ */
 final class FormController
 {
     public function save(): void
@@ -12,6 +24,8 @@ final class FormController
         $input['fields'] = (array) ($_POST['fields'] ?? []);
         $input['required'] = (array) ($_POST['required'] ?? []);
         $form = \App\Models\PublicForm::save($input, (int) $u['id']);
+        // A public URL is only returned when a new token was generated; it is
+        // shown once on the next page via the session (only its hash is stored).
         if (isset($form['public_url'])) {
             $_SESSION['new_form_link'] = ['id' => $form['id'], 'url' => $form['public_url']];
         }
@@ -34,6 +48,7 @@ final class FormController
         flash('Nouveau lien créé. Le précédent ne fonctionne plus.');
         redirect('/forms');
     }
+    /** Loads an enabled form from its public token, or ends the request with a 404. */
     private function find(string $token): array
     {
         if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
@@ -64,10 +79,16 @@ final class FormController
         ]);
         unset($_SESSION['submitted'][$form['id']]);
     }
+    /**
+     * Creates a ticket from a public form submission. The ticket is reported by
+     * the form's configured reporter and records the submitter's e-mail.
+     */
     public function submit(string $token): void
     {
+        // 10 submissions per IP per hour.
         Security::limit('public-form', 10, 3600);
         $form = $this->find($token);
+        // Honeypot: "website" is hidden from humans, so a filled value means a bot.
         if (!empty($_POST['website'])) {
             http_response_code(422);
             exit('Demande refusée.');
@@ -83,6 +104,8 @@ final class FormController
             'description' => '',
             'priority' => 'medium',
         ];
+        // Only fields defined in the stored form are read from $_POST; a field with
+        // a display condition is skipped when the condition is not met.
         foreach ($form['fields'] as $field) {
             $visible =
                 !$field['condition'] ||
@@ -115,6 +138,7 @@ final class FormController
             ($_FILES['attachment']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE &&
             array_filter($form['fields'], fn($f) => $f['key'] === 'attachment')
         ) {
+            // The ticket already exists: an attachment failure only produces a warning.
             try {
                 AttachmentController::store($id, $_FILES['attachment']);
             } catch (\Throwable $e) {

@@ -3,8 +3,24 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth, DB};
 use App\Models\Ticket;
+/**
+ * Ticket file attachments: upload, delete, download and image preview.
+ *
+ * - POST /tickets/{id}/attachments (editors): one "file" or up to 20 "files[]".
+ * - POST /attachments/{id}/delete (editors): removes the file and its row, logs activity.
+ * - GET /attachments/{id} and /attachments/{id}/preview (any signed-in user).
+ * Files live on disk in storage/uploads under a random 64-hex name; the
+ * original file name and MIME type are kept in the "attachments" table.
+ * Write actions answer JSON when the client sends Accept: application/json,
+ * otherwise they flash a message and redirect to the ticket.
+ */
 final class AttachmentController
 {
+    /**
+     * Validates one uploaded file (size limit UPLOAD_MAX_MB, MIME type sniffed
+     * from content, not trusted from the client) and stores it for ticket $ticket.
+     * Also called by FormController for files sent through public forms.
+     */
     public static function store(int $ticket, array $file): array
     {
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -67,6 +83,7 @@ final class AttachmentController
     public function upload(string $id): void
     {
         Auth::editor();
+        // Throws (turned into an error response) if the ticket does not exist.
         Ticket::find((int) $id);
         $files = [];
         if (isset($_FILES['files']['name']) && is_array($_FILES['files']['name'])) {
@@ -85,6 +102,8 @@ final class AttachmentController
         }
         $stored = [];
         $errors = [];
+        // Each file is handled independently: invalid ones are reported per index,
+        // valid ones are still stored (JSON status is 422 only if none succeeded).
         foreach ($files as $index => $file) {
             try {
                 $saved = self::store((int) $id, $file);
@@ -123,6 +142,7 @@ final class AttachmentController
         flash('Pièce jointe supprimée.');
         redirect(ticket_url((int)$ticket,'#attachments'));
     }
+    /** Builds the on-disk path; the strict name check prevents path traversal via a tampered DB value. */
     private static function path(array $file): string
     {
         if (!preg_match('/^[a-f0-9]{64}$/D', $file['stored_name'])) {
@@ -130,10 +150,18 @@ final class AttachmentController
         }
         return ROOT . '/storage/uploads/' . $file['stored_name'];
     }
+    /** Shows an image attachment inline (415 for non-image files). */
     public function preview(string $id): void
     {
         $this->download($id, true);
     }
+    /**
+     * Sends the attachment. Normal downloads are forced to
+     * application/octet-stream + "attachment" so uploaded content is never
+     * rendered by the browser; only whitelisted images are served inline in
+     * preview mode. Any signed-in user may read any attachment (the app has no
+     * per-project read restriction).
+     */
     public function download(string $id, bool $preview = false): void
     {
         Auth::requireUser();

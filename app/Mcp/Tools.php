@@ -5,8 +5,23 @@ use App\Core\{Company, DB};
 use App\Models\{Ticket, Project, PublicForm, FormattingRule, Automation, Team, User};
 use App\Services\Query;
 
+/**
+ * Catalog of the MCP tools exposed by Server: for each tool, its public definition (name, French
+ * description, input schema, OAuth scope, behaviour hints) and the PHP handler that runs it.
+ * Tools are thin adapters: business rules, permission details and optimistic locking (the "version"
+ * arguments) live in the App\Models classes they call.
+ * Access rule: a tool is listed and callable only when the token holds its scope ("read", "write"
+ * or "admin"; the token's scopes are already capped by the user's role in McpToken::authenticate).
+ * Handlers receive arguments already validated by Schema; descriptions are shown to AI clients,
+ * so they are part of the public contract and stay in French like the rest of the interface.
+ */
 final class Tools
 {
+    /**
+     * Paginated "SELECT $fields FROM $from" returning total, limit, offset and the rows under $key.
+     * $fields, $from and $order are trusted SQL fragments from this class; limit/offset are safe to
+     * concatenate only because Schema has already validated them as bounded integers.
+     */
     private static function page(
         string $key,
         string $fields,
@@ -36,6 +51,7 @@ final class Tools
             ),
         ];
     }
+    /** Tools available to this authenticated MCP user, keyed by tool name ('definition', 'handler', 'scope'). */
     public static function catalog(array $user): array
     {
         $tools = [];
@@ -50,6 +66,7 @@ final class Tools
             if (!in_array($scope, $user['scopes'], true)) {
                 return;
             }
+            // users_list needs the admin scope but does not modify anything.
             $readOnly = $scope === 'read' || $name === 'users_list';
             $tools[$name] = [
                 'definition' => [
@@ -69,6 +86,7 @@ final class Tools
                 'scope' => $scope,
             ];
         };
+        // Reusable schema fragments for the definitions below.
         $str = fn(int $max = 120) => ['type' => 'string', 'maxLength' => $max];
         $enum = fn(array $values) => ['type' => 'string', 'enum' => array_values($values)];
         $id = ['type' => 'integer', 'minimum' => 1, 'maximum' => PHP_INT_MAX];
@@ -131,6 +149,7 @@ final class Tools
         $add('project_workflow_get','Lire les statuts, types, catégories et transitions d’un projet.','read',$obj(['project_id'=>$id],['project_id']),function($a){Project::find($a['project_id']);return \App\Models\Workflow::get($a['project_id']);});
         $add('project_workflow_save','Configurer le circuit d’un projet avec sa version courante. add_item crée une clé immuable ; save_item modifie un élément. Pour les transitions, fournir toutes les arêtes autorisées.','admin',
             $obj(['project_id'=>$id,'version'=>['type'=>'integer','minimum'=>0],'action'=>$enum(['add_item','save_item','transitions']),'kind'=>$enum(['status','type']),'code'=>$str(20),'label'=>$str(80),'category'=>$str(20),'icon'=>$str(32),'color'=>$str(7),'position'=>['type'=>'integer','minimum'=>0,'maximum'=>999],'enabled'=>$bool,'restricted'=>$bool,'edges'=>['type'=>'array','maxItems'=>900,'items'=>$obj(['from'=>$str(20),'to'=>$str(20)],['from','to'])]],['project_id','version','action']),
+            // MCP sends transitions as a flat list of {from, to} edges; Workflow::save expects a from => [to, ...] map.
             function($a){if(isset($a['edges'])){$a['transitions']=[];foreach($a['edges'] as $edge)$a['transitions'][$edge['from']][]=$edge['to'];}return \App\Models\Workflow::save($a['project_id'],$a);});
         $add('tickets_follow','Suivre ou ne plus suivre un ticket avec le compte connecté.','write',$obj(['id'=>$id,'follow'=>$bool],['id','follow']),fn($a)=>\App\Models\TicketFollow::set($a['id'],(int)$user['id'],$a['follow']));
         $add('notifications_list','Mes notifications personnelles et leur état de lecture, tous projets.','read',$obj(['unread_only'=>$bool,'page'=>['type'=>'integer','minimum'=>1]],[]),fn($a)=>\App\Models\TicketNotification::page((int)$user['id'],$a['unread_only']??false,$a['page']??1));
@@ -233,6 +252,7 @@ final class Tools
                 $limit = $a['limit'] ?? 50;
                 $offset = $a['offset'] ?? 0;
                 $rows = Query::tickets($pid, $filters, $limit, $offset);
+                // Keep list responses small: descriptions and labels are only returned by tickets_get.
                 foreach ($rows as &$r) {
                     unset($r['description'], $r['labels']);
                 }
@@ -323,6 +343,7 @@ final class Tools
             $obj(['id' => $id] + $page, ['id']),
             function ($a) {
                 Ticket::find($a['id']);
+                // limit/offset are schema-validated integers, which is what makes the LIMIT concatenation below safe.
                 $limit = $a['limit'] ?? 20;
                 $offset = $a['offset'] ?? 0;
                 return [
@@ -410,6 +431,7 @@ final class Tools
                 ['tickets', 'fields'],
             ),
             function ($a) use ($user) {
+                // All patches share the tools/call transaction: one version conflict cancels the whole batch.
                 foreach ($a['tickets'] as $t) {
                     Ticket::patch($t['id'], $a['fields'], (int) $user['id'], $t['version']);
                 }
@@ -440,6 +462,7 @@ final class Tools
             $obj(['id' => $id], ['id']),
             fn($a) => PublicForm::find($a['id']),
         );
+        // Per-field label and display-condition schemas, generated from the form field list.
         $formFields = array_keys(PublicForm::FIELDS);
         $formLabels = [];
         $conditionFields = [];
@@ -539,6 +562,7 @@ final class Tools
             },
             true,
         );
+        // Automation conditions and actions reuse the ticket field schemas, restricted to the fields Automation allows.
         $conditions = $obj(array_intersect_key($ticketFields, array_flip(Automation::CONDITIONS)) + ['development_repository'=>$str(200)]);
         $actions = $obj(
             array_intersect_key($ticketFields, array_flip(Automation::ACTIONS)) + [

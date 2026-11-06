@@ -4,9 +4,16 @@ namespace App\Services;
 use App\Core\DB;
 use App\Models\{DevelopmentEvent,RepositoryConnection,TicketBranch};
 
-/** Read model shared by the ticket page and its in-place development refresh. */
+/**
+ * Read model shared by the ticket page and its in-place development refresh.
+ * Builds what the ticket page shows in its Git/development section (repositories, linked branches,
+ * recent events per kind, counts) and the Git badge shown per ticket in lists. Database reads only:
+ * no provider call. Queries join project_connections so only events from repositories still attached
+ * to the ticket's project are shown.
+ */
 final class TicketDevelopment
 {
+    /** Groups events by UTC day (newest first); events without a known date go under the 'unknown' key. */
     public static function timeline(array $events): array
     {
         usort($events,static fn($a,$b)=>strcmp($b['occurred_at'],$a['occurred_at']) ?: ((int)$b['id']<=>(int)$a['id']));
@@ -18,6 +25,7 @@ final class TicketDevelopment
         if($unknown) $days['unknown']=$unknown;
         return $days;
     }
+    /** Icon name, colour tone and French label for displaying one event. */
     public static function presentation(array $event): array
     {
         $kind=$event['kind'];$state=$event['state'];
@@ -30,6 +38,7 @@ final class TicketDevelopment
     {
         if(!$tickets) return [];
         $ids=array_column($tickets,'id');$events=[];$result=[];
+        // ROW_NUMBER keeps the latest pull request and the latest deployment of each ticket, in one query.
         $rows=DB::all('SELECT '.DevelopmentEvent::summaryColumns('e').',r.linked_ticket,c.repository,c.provider
             FROM (SELECT e.id,l.ticket_id linked_ticket,ROW_NUMBER() OVER(PARTITION BY l.ticket_id,e.kind ORDER BY e.occurred_at DESC,e.id DESC) position_in_kind FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE l.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND e.kind IN (\'pull_request\',\'deployment\')) r JOIN development_events e ON e.id=r.id JOIN connections c ON c.id=e.connection_id WHERE r.position_in_kind=1 ORDER BY e.occurred_at DESC,e.id DESC',$ids);
         foreach($rows as $row) $events[$row['linked_ticket']][]=DevelopmentEvent::hydrate($row);
@@ -42,6 +51,11 @@ final class TicketDevelopment
         }
         return $result;
     }
+    /**
+     * Badge for a PR or deployment event. A successful deployment is labelled from its environment name
+     * only ("prod"/"production" = in production, common staging names = to test); this is a display
+     * heuristic, not proof of delivery.
+     */
     private static function eventBadge(array $event): array
     {
         $meta=$event['metadata'];$state=$event['state'];$environment=$meta['environment']??null;
@@ -70,6 +84,7 @@ final class TicketDevelopment
         $badge['title']=$event['repository'].' · '.$badge['label'].($badge['detail']!==''?' · '.$badge['detail']:'').(($meta['date_known']??true)?' · '.$event['occurred_at'].' UTC':'');
         return $badge;
     }
+    /** View data for the ticket's development section: repositories, branches, the 20 latest events per kind and per-kind totals. */
     public static function data(array $ticket,array $project): array
     {
         $ticketRepositories=RepositoryConnection::forProject((int)$project['id']);$primaryRepository=null;

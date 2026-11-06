@@ -3,15 +3,29 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth,View};
 use App\Models\{Project,TicketFollow,TicketNotification};
+/**
+ * The signed-in user's notification inbox and ticket following.
+ *
+ * - GET /notifications: paginated inbox page (optional ?unread=1 filter).
+ * - GET /notifications/count: unread count as JSON (e.g. for a badge).
+ * - POST /notifications/{id}/state: mark read/unread, or "open" (mark read
+ *   then redirect to the ticket/comment).
+ * - POST /notifications/read-all, POST /tickets/{id}/follow (follow/unfollow).
+ * Any signed-in user, including read-only accounts; every query is scoped to
+ * the current user's own notifications (App\Models\TicketNotification).
+ */
 final class InboxController
 {
     public function index(): void
     {
         $user=Auth::requireUser();$projects=Project::all();
+        // Project context for the page layout: ?project, else last used, else first;
+        // a placeholder named after the company when no project exists yet.
         $project=$projects?Project::find((int)($_GET['project']??$_SESSION['project_id']??$projects[0]['id'])):['id'=>0,'name'=>\App\Core\Company::name(),'project_key'=>''];
         $onlyUnread=($_GET['unread']??'')==='1';$inbox=TicketNotification::page((int)$user['id'],$onlyUnread,max(1,(int)($_GET['page']??1)));
         View::render('inbox',compact('user','projects','project','onlyUnread','inbox')+['title'=>'Notifications','section'=>'notifications','members'=>Project::members()]);
     }
+    /** Changes the read state of one notification (action: read, unread or open). */
     public function read(string $id): void
     {
         $user=Auth::requireUser();$action=$_POST['action']??'';

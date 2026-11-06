@@ -1,4 +1,16 @@
-<?php use App\Models\Ticket; $hasActiveFilters=App\Services\Filter::active($filters); ?>
+<?php
+/**
+ * Toolbar shown above ticket views, plus the dialogs it opens. Included by workspace.php
+ * for the dashboard, list, all, board, timeline and charts sections.
+ * Toolbar: search, assignee avatar shortcuts, "Filtrer", "En pause", "Regrouper", result
+ * count, more-options menu (export/import, bulk edit, saved views) and "Mes rapports" links.
+ * Dialogs: #filters-dialog (Simple / Avancé / Requête, a JQL-like syntax), the personal
+ * report dialogs (personal-report.php), #rules-dialog (formatting rules; create/delete for
+ * admins only) and #view-options-dialog (browser-side preferences + list-column-options.php).
+ * Expects $filters, $baseQuery, $section, $project, $members, $teams, $projectTeams,
+ * $views, $activeView, $rules, $count and $user.
+ */
+use App\Models\Ticket; $hasActiveFilters=App\Services\Filter::active($filters); ?>
 <div class="view-toolbar"><form method="get" class="search-form"><input type="hidden" name="project" value="<?= (int)$project['id'] ?>"><?php foreach(array_diff_key($filters,['q'=>1,'project'=>1,'page'=>1]) as $k=>$v): if(is_scalar($v)): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e($v) ?>"><?php elseif(in_array($k,['columns','status','type','priority'],true) && is_array($v)): foreach($v as $column): ?><input type="hidden" name="<?= e($k) ?>[]" value="<?= e($column) ?>"><?php endforeach; endif; endforeach; ?><div class="toolbar-search"><?= icon('search') ?><input type="search" name="q" value="<?= e($filters['q']??'') ?>" placeholder="Rechercher un ticket…" aria-label="Rechercher un ticket"></div></form><span class="toolbar-divider"></span><div class="avatar-filter"><a class="avatar small <?= ($filters['assignee']??'')==='none'?'avatar-active':'' ?>" href="<?= e(query_url('/'.($section==='dashboard'?'':$section),$baseQuery,['assignee'=>'none'])) ?>" title="Tickets non assignés">–</a><?php foreach(array_slice($members,0,4) as $m): ?><a class="avatar small <?= (string)($filters['assignee']??'')===(string)$m['id']?'avatar-active':'' ?>" href="<?= e(query_url('/'.($section==='dashboard'?'':$section),$baseQuery,['assignee'=>$m['id']])) ?>" title="<?= e($m['name']) ?>"><?php $photo=App\Models\UserAvatar::url((int)$m['id']); if($photo): ?><img class="avatar-image" src="<?= e($photo) ?>" alt="<?= e($m['name']) ?>"><?php else: ?><?= e(mb_substr($m['name'],0,1)) ?><?php endif; ?></a><?php endforeach; ?></div><button class="button subtle" data-open="filters-dialog"><?= icon('filter') ?>Filtrer<?php if($hasActiveFilters): ?><span class="filter-active-dot"></span><?php endif; ?></button>
 <a class="button subtle <?= App\Services\Filter::pauseMode($filters,(int)$project['id'])==='only'?'selected':'' ?>" href="<?= e(query_url('/'.($section==='dashboard'?'':$section),$baseQuery,['pause'=>'only','status'=>null,'page'=>1])) ?>" title="Voir les tickets mis de côté pour plus tard">En pause</a>
 <?php if(in_array($section,['board','list','all'],true)): ?><details class="dropdown"><summary class="button subtle"><?= icon('grid') ?>Regrouper<?= icon('down') ?></summary><div class="dropdown-menu"><?php foreach([''=>'Aucun','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','type'=>'Type de ticket','parent'=>'Parent / Epic','labels'=>'Étiquettes'] as $value=>$label): ?><a href="<?= e(query_url('/'.$section,$baseQuery,['group'=>$value])) ?>"><?= e($label) ?></a><?php endforeach; ?></div></details><?php endif; ?><div class="toolbar-spacer"></div>

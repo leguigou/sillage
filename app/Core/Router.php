@@ -1,9 +1,18 @@
 <?php
 declare(strict_types=1);
 namespace App\Core;
+/**
+ * Minimal HTTP router used by routes/web.php. Routes are tried in registration order and the first
+ * one matching both method and full path wins; {name} placeholders match a single path segment and
+ * are passed to the handler positionally. POST routes are CSRF-checked before the handler runs
+ * unless registered with $csrf = false. An InvalidArgumentException thrown by a handler is treated
+ * as a user-facing validation error: JSON 422, a 422 error page for GET, or a flash message and
+ * redirect back for POST. Any other exception reaches the global handler in bootstrap.php.
+ */
 final class Router
 {
     private array $routes = [];
+    /** Register a route; $csrf = false is reserved for callers that authenticate otherwise (e.g. signed webhooks). */
     public function add(string $method, string $path, callable $handler, bool $csrf = true): self
     {
         $this->routes[] = [$method, $path, $handler, $csrf];
@@ -40,6 +49,8 @@ final class Router
                 }
                 flash($error->getMessage(), 'error');
                 $return = (string) ($_POST['_return'] ?? $path);
+                // Only accept a local absolute path (no "//host", no header-splitting newlines):
+                // _return is client-supplied and must not become an open redirect.
                 if (
                     !str_starts_with($return, '/') ||
                     str_starts_with($return, '//') ||

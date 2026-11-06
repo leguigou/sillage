@@ -3,6 +3,12 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\Security;
 
+/**
+ * Date grid for the timeline (Gantt-like) view (app/Views/sections/timeline.php). Pure computation in
+ * UTC, no database access. build() produces a window starting on a Monday (6 weeks for the "weeks"
+ * scale, 16 for "months", 52 for "quarters") with week, day and month/quarter header bands, each
+ * positioned as left/width percentages; bar() positions one ticket bar in that window.
+ */
 final class TimelineCalendar
 {
     private const MONTHS = [
@@ -19,6 +25,7 @@ final class TimelineCalendar
         'novembre',
         'décembre',
     ];
+    /** $from is the first date to show (default: two weeks before today), moved back to its Monday; $today defaults to the current UTC date. */
     public static function build(string $scale, ?string $from = null, ?string $today = null): array
     {
         $scale = in_array($scale, ['weeks', 'months', 'quarters'], true) ? $scale : 'weeks';
@@ -111,6 +118,10 @@ final class TimelineCalendar
             'todayOrigin' => $today->modify('-14 days')->format('Y-m-d'),
         ];
     }
+    /**
+     * Position of a bar from $start to $due inclusive (a missing due date gives a one-day bar), clipped
+     * to the window and flagged when clipped; null when it lies entirely outside.
+     */
     public static function bar(array $calendar, string $start, ?string $due): ?array
     {
         $start = new \DateTimeImmutable($start, new \DateTimeZone('UTC'));

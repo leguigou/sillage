@@ -1,4 +1,14 @@
-<?php use App\Models\Ticket; ?>
+<?php
+/**
+ * "Développement" section (/development), required by workspace.php: Git integration for the project.
+ * Tabs: provider connection cards (GitHub, Bitbucket), one tab per event kind (DevelopmentPayload::KINDS) listing
+ * the latest 100 $events, and a "Dépôts" tab with manual sync / detach forms (admin only) per $connections entry.
+ * Newly created webhook URL/secret pairs are read once from $_SESSION['webhook_setups'|'webhook_setup'] then removed,
+ * so the secret is displayed only on this first visit.
+ * Admin-only dialogs come from partials/connection-dialog.php and partials/provider-settings.php; non-viewers get the
+ * "Lier à un ticket" branch picker (partials/development-branch-ticket.php).
+ */
+use App\Models\Ticket; ?>
 <?php if($user['role']==='admin'): ?><div class="development-toolbar"><a class="button subtle" href="/settings#technical-logs">Journaux des appels et intégrations <?= icon('arrow') ?></a></div><?php endif; ?>
 <?php $setups=$_SESSION['webhook_setups']??[]; if(isset($_SESSION['webhook_setup'])) $setups[]=$_SESSION['webhook_setup']; unset($_SESSION['webhook_setups'],$_SESSION['webhook_setup']); foreach($setups as $setup): ?><div class="notice"><div><strong>Configuration du webhook<?= isset($setup['repository'])?' · '.e($setup['repository']):'' ?> — à conserver maintenant</strong><p>URL : <code><?= e($setup['url']) ?></code></p><p>Secret : <code><?= e($setup['secret']) ?></code></p><small>Activez les événements push et pull request. Le secret sera masqué lors des prochaines visites.</small></div></div><?php endforeach; ?>
 <div class="feature-banner development-banner"><span class="feature-orb"><?= icon('code') ?></span><div><span class="eyebrow">DU TICKET AU CODE</span><h2>Les idées et le code, reliés.</h2><p>Ajoutez la clé d’un ticket dans une branche, un commit ou une pull request.<br>Sillage rassemble le contexte au même endroit.</p></div><?php if($user['role']==='admin'): ?><button class="button primary" data-open="connection-dialog"><?= icon('plus') ?>Connecter un dépôt</button><?php endif; ?></div>

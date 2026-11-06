@@ -3,9 +3,16 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 
-/** Explicit identities: rich-text spans or the plain-text API token @[user:123]. */
+/**
+ * Explicit identities: rich-text spans or the plain-text API token @[user:123].
+ * @-mentions in ticket comments. A mention is a user id, never a name parsed from free text: either a
+ * <span data-mention-id="123"> in HTML comments or the @[user:123] token in plain-text ones.
+ * Used by Conversation (sanitizing) and the Ticket model (checking mentions when a comment is added). Rendered names
+ * are always HTML-escaped. At most 20 distinct people per comment.
+ */
 final class Mentions
 {
+    /** Distinct mentioned user ids found in a body ($format 'html' or anything else for plain text). */
     public static function ids(string $body,string $format): array
     {
         $ids=[];
@@ -35,6 +42,10 @@ final class Mentions
         finally { libxml_clear_errors();libxml_use_internal_errors($previous); }
         return $document;
     }
+    /**
+     * Maps ids to names. With $active=true (when publishing) every id must be an active, verified user or
+     * it throws; with false (when displaying) unknown ids are simply left out.
+     */
     public static function people(array $ids,bool $active=true): array
     {
         if (!$ids) return [];
@@ -46,6 +57,7 @@ final class Mentions
         return $people;
     }
     public static function span(int $id,string $name): string { return '<span class="mention" data-mention-id="'.$id.'">@'.e($name).'</span>'; }
+    /** Escapes a plain-text comment, converts newlines to <br> and replaces known @[user:N] tokens with mention spans. */
     public static function renderText(string $body): string
     {
         $people=self::people(self::ids($body,'text'),false);

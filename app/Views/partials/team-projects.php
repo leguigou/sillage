@@ -1,4 +1,11 @@
-<?php $linkedProjects=$teamProjects[$team['id']]??[]; $linkedIds=array_column($linkedProjects,'id'); ?>
+<?php
+/**
+ * "Projets de l'équipe" block inside one team card: projects linked to the team, a link to
+ * all its tickets and, for admins, forms to add/remove a project (POST /teams/{id}/projects).
+ * Included by teams.php inside its team loop.
+ * Expects $team, $teamProjects (team id => linked projects), $projects and $isAdmin.
+ */
+$linkedProjects=$teamProjects[$team['id']]??[]; $linkedIds=array_column($linkedProjects,'id'); ?>
 <div class="team-projects"><h4>Projets de l’équipe</h4>
 <?php foreach($linkedProjects as $linked): ?><div class="team-project-row"><a href="/list?project=<?= (int)$linked['id'] ?>&team=<?= (int)$team['id'] ?>"><?= e($linked['name']) ?> <small><?= e($linked['project_key']) ?></small></a><?php if($isAdmin): ?><form method="post" action="/teams/<?= (int)$team['id'] ?>/projects"><?= csrf() ?><input type="hidden" name="_return" value="/settings#teams"><input type="hidden" name="project_id" value="<?= (int)$linked['id'] ?>"><input type="hidden" name="action" value="remove"><button class="button settings-danger" aria-label="Retirer le projet <?= e($linked['name']) ?> de <?= e($team['name']) ?>">Retirer</button></form><?php endif; ?></div><?php endforeach; ?>
 <?php if(!$linkedProjects): ?><p class="muted">Aucun projet associé.</p><?php endif; ?>

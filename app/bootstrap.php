@@ -1,5 +1,13 @@
 <?php
 declare(strict_types=1);
+/**
+ * Shared bootstrap, required first by every entry point (public/index.php and the bin/ CLI scripts).
+ * It defines ROOT, registers a PSR-4-style autoloader mapping App\ to app/, loads .env into the
+ * process environment (real environment variables win over the file), forces UTC, declares the
+ * global helper functions used by controllers and views (env, e, url, redirect, csrf, flash, ...),
+ * and installs the last-resort exception handler. It does not start the session: that is
+ * App\Core\Security::start(), called by public/index.php only for browser routes.
+ */
 define('ROOT', dirname(__DIR__));
 spl_autoload_register(function (string $class): void {
     if (str_starts_with($class, 'App\\')) {
@@ -22,15 +30,18 @@ if (is_file(ROOT . '/.env')) {
     }
 }
 date_default_timezone_set('UTC');
+/** Read a configuration value; an unset variable yields $fallback, an empty one stays ''. */
 function env(string $key, string $fallback = ''): string
 {
     $v = getenv($key);
     return $v === false ? $fallback : $v;
 }
+/** HTML-escape any value for output in element content or a quoted attribute. */
 function e(mixed $value): string
 {
     return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
+/** Absolute URL under APP_URL. Always anchored to the configured origin, never to the Host header. */
 function url(string $path = ''): string
 {
     return rtrim(env('APP_URL', 'http://127.0.0.1:8088'), '/') . '/' . ltrim($path, '/');
@@ -49,6 +60,10 @@ function ticket_context(): string
     $source=App\Services\TicketNavigation::current();
     return $source===null?'':'<input type="hidden" name="_ticket_return" value="'.e($source).'">';
 }
+/**
+ * Public URL of a file under public/assets/, with a content-hash query string for cache busting.
+ * The name is restricted to a safe character set and may not contain "..", so it cannot escape assets/.
+ */
 function asset_url(string $name): string
 {
     static $versions = [];
@@ -60,11 +75,13 @@ function asset_url(string $name): string
     $versions[$path] ??= is_file($file) ? substr(hash_file('sha256', $file), 0, 12) : '';
     return $path . ($versions[$path] !== '' ? '?v=' . $versions[$path] : '');
 }
+/** 303 redirect to a path on this application (see url()), then stop the request. */
 function redirect(string $path): never
 {
     header('Location: ' . url($path), true, 303);
     exit();
 }
+/** Hidden form field carrying the session CSRF token checked by Router/Security on POST. */
 function csrf(): string
 {
     return '<input type="hidden" name="_csrf" value="' . e(App\Core\Security::csrf()) . '">';
@@ -85,6 +102,8 @@ function json_response(array $data, int $status = 200): never
     echo json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     exit();
 }
+// Last-resort handler: discard any partial output, log the full error to storage/error.log, and show
+// the details only when APP_ENV=local; other environments get a generic French message.
 set_exception_handler(function (Throwable $error): void {
     while (ob_get_level() > 0) {
         ob_end_clean();

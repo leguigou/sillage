@@ -1,10 +1,18 @@
 <?php
 declare(strict_types=1);
 namespace App\Services;
-/** Only transport-independent run facts are retained; never scripts, variables or log bodies. */
+/**
+ * Only transport-independent run facts are retained; never scripts, variables or log bodies.
+ * Normalises CI and deployment facts (GitHub workflow runs, check runs, commit statuses and deployments;
+ * Bitbucket pipelines, commit statuses and deployments) into development events of kind "build" or
+ * "deployment", via DevelopmentPayload::event(). Also interprets mergeability (conflict()).
+ * Called by DevelopmentPayload (webhooks) and GitMonitor (polling). No I/O happens here.
+ * Per AGENTS.md: a blocked merge policy is not a conflict, and a target branch is not proof of delivery.
+ */
 final class DevelopmentRunPayload
 {
     private static function string(mixed $value,int $max=500): string {if(!is_string($value) && !is_int($value)) return '';if(mb_strlen((string)$value)>$max) throw new \InvalidArgumentException('Information de pipeline trop longue.');return (string)$value;}
+    /** Maps the many provider run/deployment states onto Sillage's small state vocabulary ('unknown' otherwise). */
     public static function state(mixed $state): string
     {
         return match(strtolower(self::string($state,100))) {
@@ -12,11 +20,17 @@ final class DevelopmentRunPayload
             'in_progress','running'=>'running','queued','pending','requested'=>'pending','waiting','undeployed'=>'waiting',
             'cancelled','canceled','stopped'=>'cancelled','skipped','neutral'=>'skipped','inactive'=>'inactive',default=>'unknown'};
     }
+    /**
+     * $type is workflow|check|status|pipeline|deployment. $context carries data the item lacks: the
+     * GitHub deployment_status for a deployment, or ['sha' => ...] when the commit is known from the request.
+     */
     public static function object(string $provider,string $type,array $item,string $repository,?array $context=null): array
     {
         if(!in_array($provider,['github','bitbucket'],true)) throw new \InvalidArgumentException('Fournisseur Git inconnu.');
         if($type==='status' && self::string($item['context']??$item['key']??'')==='') throw new \InvalidArgumentException('Contrôle Git sans identité.');
         $github=$provider==='github';$base='https://'.($github?'github.com':'bitbucket.org').'/'.$repository;
+        // Commit statuses have no provider id: their identity is a hash of (commit, context name),
+        // so a newer status for the same context replaces the older one.
         $id=$type==='status'?hash('sha256',self::string($context['sha']??$item['sha']??$item['commit']['hash']??'',100)."\0".self::string($item['context']??$item['key']??'',500)):self::string($item['id']??$item['uuid']??'',100);if($id==='' || !preg_match('/^[a-zA-Z0-9{}_-]+$/D',$id)) throw new \InvalidArgumentException('Exécution Git sans identité valide.');
         $kind='build';$environment=null;$attempt=1;
         if($type==='deployment') {
@@ -44,6 +58,10 @@ final class DevelopmentRunPayload
         $event['metadata']+=['run_type'=>$type,'environment'=>$environment,'attempt'=>$attempt];
         return $event;
     }
+    /**
+     * true = confirmed merge conflict, false = mergeable, null = unknown (not computed yet or not reported).
+     * GitHub: reads mergeable / mergeable_state of a PR. Bitbucket: reads the mergeability checks response.
+     */
     public static function conflict(string $provider,array $data): ?bool
     {
         if($provider==='github') {

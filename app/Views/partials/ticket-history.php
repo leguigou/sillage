@@ -1,4 +1,12 @@
-<?php $historyActions=['updated'=>'Modification','archived'=>'Archivage','restored'=>'Restauration','validation.approved'=>'Validation','validation.rejected'=>'Reprise demandée','time.created'=>'Temps ajouté','time.updated'=>'Temps modifié','time.deleted'=>'Temps supprimé']; ?>
+<?php
+/**
+ * Ticket page tab #history ("Historique détaillé", hidden until its tab is selected):
+ * paginated field-level change log with author, date and before/after values; long values
+ * and descriptions are folded into <details>. Loads ticket-history.js.
+ * Included by ticket.php. Expects $ticket and $history (entries, total, limit, offset).
+ * $historyActions maps stored action codes to French labels.
+ */
+$historyActions=['updated'=>'Modification','archived'=>'Archivage','restored'=>'Restauration','validation.approved'=>'Validation','validation.rejected'=>'Reprise demandée','time.created'=>'Temps ajouté','time.updated'=>'Temps modifié','time.deleted'=>'Temps supprimé']; ?>
 <section id="history" class="panel tracking-panel" data-ticket-panel data-ticket-live aria-labelledby="ticket-tab-history" hidden><div class="panel-header"><div><h2>Historique détaillé</h2><p>Auteur, date et valeurs avant/après chaque modification depuis l’activation du suivi.</p></div><?= icon('clock') ?></div>
 <div class="history-timeline">
 <?php $previousHistoryDay=''; foreach($history['entries'] as $event): $historyDay=substr($event['created_at'],0,10);$historyActor=$event['actor_name']??'Système / demande externe'; ?>

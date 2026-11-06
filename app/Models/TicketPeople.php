@@ -2,8 +2,15 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * People working on a ticket: the responsible person and team (ticket columns, changed through
+ * Ticket::patch) and additional collaborators (table ticket_collaborators). The assignee is never
+ * also stored as a collaborator. Edits require the ticket version, are refused on archived tickets,
+ * and record a history entry for collaborator changes.
+ */
 final class TicketPeople
 {
+    /** Active, verified collaborators of several tickets, as [ticket_id => list of {id, name}]. */
     public static function forTickets(array $ids): array
     {
         if(!$ids) return [];
@@ -14,6 +21,10 @@ final class TicketPeople
             WHERE c.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND u.active=1 AND u.verified_at IS NOT NULL ORDER BY u.name,u.id',$ids) as $row) $result[$row['ticket_id']][]=$row;
         return $result;
     }
+    /**
+     * Saves assignee, team and the full collaborator list in one step. The ticket version is bumped
+     * once, either by Ticket::patch (assignee/team changed) or directly (collaborators only).
+     */
     public static function save(int $id,array $input,int $actor,int $version): array
     {
         return DB::transaction(function() use($id,$input,$actor,$version) {

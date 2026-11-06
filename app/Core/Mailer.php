@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 namespace App\Core;
+/**
+ * Low-level plain-text e-mail sending, used for account e-mails and by the notification queue
+ * (App\Services\Notifications). Two transports, chosen by MAIL_TRANSPORT: "mail" (PHP mail(), the
+ * default) and "log" (writes the message to storage/mail/*.txt), which is only allowed with
+ * APP_ENV=local. Recipient, subject and MAIL_FROM are validated and must not contain CR/LF,
+ * which prevents e-mail header injection. Failures throw rather than being silently ignored.
+ */
 final class Mailer
 {
     public static function send(string $to, string $subject, string $body): void

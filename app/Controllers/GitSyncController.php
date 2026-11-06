@@ -4,8 +4,22 @@ namespace App\Controllers;
 use App\Core\{Auth,DB};
 use App\Models\GitJob;
 use App\Services\GitSync;
+/**
+ * Background synchronisation of a Git repository connection (JSON endpoints
+ * used by the development screens).
+ *
+ * - GET /connections/{id}/sync-status (any signed-in user): job status.
+ * - POST /connections/{id}/recover (editors): queues a new sync, unless an
+ *   admin disabled automatic sync for this repository.
+ * - POST /connections/{id}/sync-settings (admin): enable/disable automatic
+ *   sync and set its interval (1, 5, 15, 30 or 60 minutes).
+ * Every action requires a project id (POST project_id or GET project) that is
+ * actually linked to the connection. Jobs are queued via App\Services\GitSync
+ * and reported by App\Models\GitJob.
+ */
 final class GitSyncController
 {
+    /** Returns the requested project id, or throws if it is not linked to connection {id}. */
     private function project(string $id): int
     {
         $project=filter_var($_POST['project_id']??$_GET['project']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);

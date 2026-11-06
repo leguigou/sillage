@@ -1,3 +1,10 @@
-<?php $workload=App\Services\Query::teamWorkload($section==='all'?0:(int)$project['id'],$filters); ?>
+<?php
+/**
+ * "Le travail par équipe" table: ticket count, done count, average progress and hours per
+ * team for the current filters, from App\Services\Query::teamWorkload() (all projects when
+ * $section is 'all'). Included by sections/dashboard.php and sections/charts.php.
+ * Expects $section, $project, $filters and $baseQuery (team links to the list view).
+ */
+$workload=App\Services\Query::teamWorkload($section==='all'?0:(int)$project['id'],$filters); ?>
 <section class="panel team-workload"><div class="panel-header"><div><h2>Le travail par équipe</h2><p>Tickets correspondant aux filtres, tous responsables individuels confondus.</p></div><?= icon('chart') ?></div>
 <div class="table-scroll"><table><thead><tr><th>Équipe</th><th>Tickets</th><th>Terminés</th><th>Avancement moyen</th><th>Temps estimé</th><th>Temps passé</th><th>Reste à faire</th></tr></thead><tbody><?php foreach($workload as $row): ?><tr><td><a href="<?= e(query_url('/list',$baseQuery,['team'=>$row['team_id']??'none'])) ?>"><?= e($row['name']) ?></a></td><td><?= (int)$row['total'] ?></td><td><?= (int)$row['done'] ?></td><td><?= (int)round((float)$row['progress']) ?> %</td><td><?= $row['hours']===null?'—':e(App\Core\View::hours($row['hours'])) ?></td><td><?= e(App\Core\View::hours($row['spent_hours'])) ?></td><td><?= $row['remaining_hours']===null?'—':e(App\Core\View::hours($row['remaining_hours'])) ?><?php if($row['unestimated']): ?> <small>(<?= (int)$row['unestimated'] ?> sans estimation)</small><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div><?php if(!$workload): ?><p class="muted">Aucun ticket pour ces critères.</p><?php endif; ?><p class="help-text">Avancement manuel moyen des tickets ; heures renseignées uniquement. Reste à faire calculé sur les estimations et l’avancement. Les tickets sans estimation ne valent pas zéro.</p></section>

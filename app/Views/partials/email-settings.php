@@ -1,4 +1,15 @@
-<?php use App\Models\ProjectEmail; $emailPreference=App\Models\User::emailPreference((int)$user['id']); ?>
+<?php
+/**
+ * E-mail notification settings, included by sections/settings.php for every user.
+ * - #email-preferences (all users): personal opt-in, POST /account/notifications,
+ *   current value from App\Models\User::emailPreference().
+ * - #notifications (admins only): per-project rules (ProjectEmail::EVENTS x RECIPIENTS),
+ *   chosen recipients, delivery queue/log with retry, test e-mail, and the mail transport
+ *   read from env(). The project is chosen with a GET form (?project=).
+ * Expects $user, $project, $projects, $members. The #email-recommended JSON
+ * (ProjectEmail::defaults()) feeds the "Rétablir les choix recommandés" button.
+ */
+use App\Models\ProjectEmail; $emailPreference=App\Models\User::emailPreference((int)$user['id']); ?>
 <section class="panel email-preferences" id="email-preferences"><div class="panel-header"><div><h2>Vos notifications e-mail</h2><p>Choisissez si vous souhaitez recevoir les nouvelles de vos tickets.</p></div><?= icon('bell') ?></div><form method="post" action="/account/notifications" class="stack settings-form"><?= csrf() ?><input type="hidden" name="_return" value="/settings#email-preferences"><label class="check-label"><input type="checkbox" name="ticket_email_enabled" value="1" <?= $emailPreference['ticket_email_enabled']?'checked':'' ?>>Recevoir les notifications des projets qui me concernent</label><p class="help-text">Cette préférence s’applique à tous vos projets. Elle ne désactive pas la validation d’adresse ni la récupération de mot de passe. Les notifications ne sont envoyées que si le projet les active.</p><div class="settings-actions"><button class="button primary">Enregistrer ma préférence</button></div></form></section>
 <?php if($user['role']==='admin'): ?>
 <section class="panel email-settings" id="notifications"><div class="panel-header"><div><h2>Notifications des projets</h2><p>Un réglage indépendant pour chaque projet.</p></div><?= icon('bell') ?></div>

@@ -1,5 +1,13 @@
 <?php
 declare(strict_types=1);
+/**
+ * First-run configuration for the portable local setup, called by scripts/Start-Local.ps1.
+ * If .env already exists it is never modified: the script only checks that it describes a local
+ * installation (portable MySQL on port 3338, or with --external an existing local database and
+ * APP_URL on port 8088) and stops. Otherwise it generates random secrets and writes .env,
+ * .runtime/mysql-admin.json (local MySQL root password) and .runtime/bootstrap.sql, which the
+ * launcher passes once to mysqld as --init-file and then deletes. For local development only.
+ */
 if (PHP_SAPI !== 'cli') {
     exit();
 }

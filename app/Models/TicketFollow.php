@@ -2,8 +2,14 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * Ticket followers (table ticket_followers): users who asked to be kept informed about a ticket.
+ * Followers are among the recipients of in-app notifications (TicketNotification) and of e-mails
+ * when the project's settings include them (ProjectEmail "followers").
+ */
 final class TicketFollow
 {
+    /** Whether $user follows the ticket, and how many active, verified users follow it. */
     public static function get(int $ticket,int $user): array
     {
         return ['following'=>(bool)DB::one('SELECT user_id

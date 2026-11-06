@@ -3,7 +3,15 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
-/** Owns the allowed visual vocabulary and installation-wide ticket appearance. */
+/**
+ * Owns the allowed visual vocabulary and installation-wide ticket appearance.
+ *
+ * ICONS and PALETTE are the only icons/colors the UI may offer; validate() is reused by Project
+ * and Workflow so every stored mark comes from this vocabulary. The per-installation icon/color
+ * of each ticket type and priority lives in appearance_marks, with a single version counter in
+ * appearance_settings (row id=1) used for optimistic concurrency on save(). Rows missing from
+ * appearance_marks fall back to DEFAULTS. Results are cached for the duration of the request.
+ */
 final class Appearance
 {
     public const ICONS = [
@@ -35,6 +43,7 @@ final class Appearance
     ];
     private static ?array $cached = null;
 
+    /** Checks an icon key against ICONS and a #RRGGBB color; returns the normalized (lowercase) pair. */
     public static function validate(mixed $icon, mixed $color): array
     {
         if (!is_string($icon) || !isset(self::ICONS[$icon])) throw new \InvalidArgumentException('Choisissez un pictogramme dans la bibliothèque.');
@@ -61,6 +70,10 @@ final class Appearance
         return $settings['marks'][$kind][$key];
     }
 
+    /**
+     * Replaces every type/priority mark at once. The submitted version must match the stored one
+     * (checked under a row lock), otherwise another administrator saved in between.
+     */
     public static function save(array $input): void
     {
         $submitted=$input['marks']??null;

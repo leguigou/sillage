@@ -3,9 +3,21 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 
-/** The only boundary that turns conversation HTML into trusted markup. */
+/**
+ * The only boundary that turns conversation HTML into trusted markup.
+ * HTML sanitizer for rich-text ticket comments, used when a comment is saved (clean()) and again every
+ * time it is displayed (render()), so stored HTML is never echoed as-is.
+ * Allow-list approach: the HTML is parsed with DOMDocument (network access disabled) and rebuilt from
+ * scratch; only a few formatting tags survive, with no attributes except: http(s) links (opened with
+ * noopener), images pointing to this ticket's own image attachments, and mention spans for known users.
+ * All text is escaped. Size and nesting limits protect against oversized or deeply nested input.
+ */
 final class Conversation
 {
+    /**
+     * Returns sanitized HTML or throws InvalidArgumentException. $publishing=true (on save) requires every
+     * mentioned user to be active and verified; on display, mentions of any existing user are kept.
+     */
     public static function clean(string $html, int $ticket,bool $publishing=true): string
     {
         if (strlen($html) > 100000) {
@@ -14,6 +26,7 @@ final class Conversation
         $document = new \DOMDocument('1.0', 'UTF-8');
         $previous = libxml_use_internal_errors(true);
         try {
+            // The XML encoding prefix makes libxml read the fragment as UTF-8 instead of ISO-8859-1.
             $document->loadHTML('<?xml encoding="UTF-8"><html><body>' . $html . '</body></html>', LIBXML_NONET);
         } finally {
             libxml_clear_errors();
@@ -26,6 +39,8 @@ final class Conversation
         }
         $escape = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $nodes = 0;
+        // Recursive rebuild: returns the safe HTML for one node and its children.
+        // Unknown tags are dropped but their (escaped) content is kept; dangerous containers are dropped entirely.
         $walk = function (\DOMNode $node, int $depth = 0) use (&$walk, &$nodes, $images, $escape,$mentions): string {
             if (++$nodes > 4000 || $depth > 30) {
                 throw new \InvalidArgumentException('La mise en forme du commentaire est trop complexe.');
@@ -75,6 +90,7 @@ final class Conversation
         return $result;
     }
 
+    /** Display-safe HTML for a stored comment (plain-text or HTML format); unrenderable HTML shows a placeholder. */
     public static function render(array $comment): string
     {
         if (($comment['body_format'] ?? 'text') !== 'html') {

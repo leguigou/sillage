@@ -1,8 +1,18 @@
 <?php
 declare(strict_types=1);
 namespace App\Core;
+/**
+ * Cross-cutting security primitives. start() is called by public/index.php for every browser
+ * request: it validates APP_KEY and the company policy, opens the hardened session cookie, applies
+ * an 8-hour idle timeout and sends the security headers (strict CSP, no framing, no-store).
+ * Also provides: the session CSRF token, input normalisers (email, password, date), a MySQL-backed
+ * rate limiter keyed by scope and client IP (with optional TRUSTED_PROXIES support), and
+ * AES-256-GCM encryption of stored secrets with APP_KEY. Changing APP_KEY renames the session
+ * cookie and makes every encrypted secret and remember-me cookie unreadable.
+ */
 final class Security
 {
+    /** APP_KEY decoded to its 32 raw bytes; throws if it is not exactly 64 hex characters. */
     private static function key(): string
     {
         $hex = env('APP_KEY');
@@ -11,6 +21,7 @@ final class Security
         }
         return hex2bin($hex);
     }
+    /** Cookie name derived from APP_URL and APP_KEY, so installations sharing a host do not share sessions. */
     public static function sessionName(): string
     {
         return 'sillage_' .
@@ -38,6 +49,7 @@ final class Security
             'path' => '/',
         ]);
         session_start();
+        // Idle timeout of 8 hours. The remember-me cookie, if still valid, then re-creates the session (Auth::user).
         if (isset($_SESSION['last_seen']) && time() - $_SESSION['last_seen'] > 28800) {
             $_SESSION = [];
             session_regenerate_id(true);
@@ -66,10 +78,12 @@ final class Security
         }
         header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action " . $sources);
     }
+    /** Per-session CSRF token, created on first use. */
     public static function csrf(): string
     {
         return $_SESSION['_csrf'] ??= bin2hex(random_bytes(32));
     }
+    /** Stop with 403 unless the request carries the session token in _csrf (forms) or X-CSRF-Token (fetch). */
     public static function checkCsrf(): void
     {
         if (
@@ -82,6 +96,7 @@ final class Security
             exit('La session du formulaire a expiré. Rechargez la page.');
         }
     }
+    /** Normalise (trim, lowercase) and validate an address; by default also enforces the company domain policy. */
     public static function email(string $email, bool $checkCompany = true): string
     {
         $email = strtolower(trim($email));
@@ -101,6 +116,10 @@ final class Security
         $local = preg_replace('/[._+\-]+/u', ' ', $local);
         return mb_convert_case(trim($local), MB_CASE_TITLE, 'UTF-8');
     }
+    /**
+     * Validate the password policy and return its hash. The 72-byte cap exists because bcrypt
+     * (PASSWORD_DEFAULT) silently ignores anything beyond 72 bytes.
+     */
     public static function password(string $password): string
     {
         if (mb_strlen($password) < 12 || strlen($password) > 72) {
@@ -110,6 +129,10 @@ final class Security
         }
         return password_hash($password, PASSWORD_DEFAULT);
     }
+    /**
+     * Fixed-window rate limit: at most $max hits per $window seconds for this scope and client IP,
+     * otherwise stop with HTTP 429. The bucket key is an HMAC, so raw IPs are not stored.
+     */
     public static function limit(string $scope, int $max = 8, int $window = 900): void
     {
         $key = hash_hmac(
@@ -117,6 +140,8 @@ final class Security
             $scope . '|' . self::clientIp(),
             env('APP_KEY'),
         );
+        // Single upsert: an expired window restarts at 1 hit with a new expiry, otherwise hits grows.
+        // hits is assigned before expires_at, so both IF() tests still see the old expiry.
         DB::run(
             'INSERT INTO rate_limits (bucket, hits, expires_at)
                 VALUES (?, 1, ?)
@@ -216,6 +241,11 @@ final class Security
         }
         return $packed;
     }
+    /**
+     * Authenticated encryption for secrets stored in the database (AES-256-GCM, key APP_KEY).
+     * Output: base64(12-byte random IV . 16-byte tag . ciphertext); decrypt() expects this layout
+     * and fails if the data was modified.
+     */
     public static function encrypt(string $plain): string
     {
         $iv = random_bytes(12);
@@ -245,6 +275,7 @@ final class Security
         }
         return $v;
     }
+    /** Accept null/'' (returns null) or a real calendar date in strict Y-m-d form; anything else throws. */
     public static function date(?string $date): ?string
     {
         if (!$date) {

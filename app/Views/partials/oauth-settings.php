@@ -1,4 +1,13 @@
 <?php
+/**
+ * Settings panel #oauth ("Connexions OAuth"), included by sections/settings.php for every
+ * user; expects $user. Admin-only part: create OAuth clients for ChatGPT
+ * (POST /oauth/clients), the discovery URLs to copy, and the client list with delete.
+ * All users: their own authorised grants with a revoke button.
+ * Data is loaded here through App\Models\OAuth::clients() (admins) and grantsForUser().
+ * A newly created client id/secret is read once from $_SESSION['new_oauth_client'] and
+ * removed from the session, so the secret is displayed only once.
+ */
 require_once ROOT.'/app/Views/copy-field.php';
 $oauthClients=$user['role']==='admin'?App\Models\OAuth::clients():[];
 $oauthGrants=App\Models\OAuth::grantsForUser((int)$user['id']);

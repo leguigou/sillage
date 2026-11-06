@@ -2,7 +2,14 @@
 declare(strict_types=1);
 namespace App\Services;
 
-/** Owns the allowed return destinations and ticket links carrying that context. */
+/**
+ * Owns the allowed return destinations and ticket links carrying that context.
+ * Powers the "Revenir à ..." link on the ticket page: ticket links carry a ?return= value naming the view
+ * the user came from. To prevent open redirects, a destination is accepted only if it is a local path
+ * (no scheme, host or "//") whose path is one of the VIEWS keys; anything else is ignored.
+ * The source is, in order: an explicit _ticket_return/return parameter, the current URL, then a
+ * same-origin Referer header. Used by the bootstrap helpers and the ticket view.
+ */
 final class TicketNavigation
 {
     private const VIEWS = [
@@ -14,6 +21,7 @@ final class TicketNavigation
         '/automation'=>'Revenir aux automatisations', '/settings'=>'Revenir aux paramètres',
     ];
 
+    /** Returns $value unchanged if it is an allowed return destination, otherwise null. */
     public static function destination(mixed $value): ?string
     {
         // Percent encoding into a ticket URL can triple this length; stay below Apache's request line.
@@ -22,6 +30,7 @@ final class TicketNavigation
         if (!$parts || isset($parts['scheme']) || isset($parts['host']) || !isset(self::VIEWS[$parts['path']??''])) return null;
         return $value;
     }
+    /** Destination from the Referer header, only for the same origin as the application URL; a ticket page referrer passes on its own return value. */
     private static function referrer(): ?string
     {
         $source=parse_url($_SERVER['HTTP_REFERER']??'');$base=parse_url(url());
@@ -35,6 +44,7 @@ final class TicketNavigation
         }
         return self::destination($path.(isset($source['query'])?'?'.$source['query']:'').(isset($source['fragment'])?'#'.$source['fragment']:''));
     }
+    /** The return destination for links built during this request, or null if none is allowed. */
     public static function current(): ?string
     {
         $explicit=self::destination($_POST['_ticket_return']??null)??self::destination($_GET['return']??null);
@@ -50,12 +60,14 @@ final class TicketNavigation
         }
         return self::referrer();
     }
+    /** URL of a ticket page carrying the current return destination. */
     public static function ticket(int $id,string $fragment='',array $query=[]): string
     {
         $source=self::current();
         $query=($source!==null?['return'=>$source]:[])+$query;
         return '/tickets/'.$id.($query?'?'.http_build_query($query,'','&',PHP_QUERY_RFC3986):'').$fragment;
     }
+    /** Path and label of the ticket page's back link; defaults to the project's list view. */
     public static function back(int $project): array
     {
         $path=self::current()??'/list?project='.$project;

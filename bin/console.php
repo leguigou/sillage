@@ -1,5 +1,13 @@
 <?php
 declare(strict_types=1);
+/**
+ * Command-line entry point for operators, deployment scripts and background workers:
+ * `php bin/console.php <command> [args]` (the full list is printed when no command matches).
+ * Notable commands: migrate (applies database/*.sql via App\Core\Migrator, run on every deploy),
+ * notifications:send (e-mail queue worker), git:work / git:watch (one pass or an endless 15-second
+ * loop of Git synchronisation), admin:create and user:role (account bootstrap), key:generate (APP_KEY).
+ * It refuses to run from a web request; seed and mail:list are restricted to APP_ENV=local.
+ */
 if (PHP_SAPI !== 'cli') {
     exit();
 }
@@ -47,6 +55,7 @@ if ($command === 'seed') {
     require ROOT . '/database/demo.php';
     exit();
 }
+// The initial password comes from SILLAGE_ADMIN_PASSWORD or is generated, and is printed once to stdout.
 if ($command === 'admin:create') {
     $email = Security::email($argv[2] ?? '');
     if (DB::one('SELECT id FROM users WHERE email=?', [$email])) {
@@ -70,6 +79,7 @@ if ($command === 'user:role') {
     if (!$u) {
         throw new RuntimeException('Compte introuvable.');
     }
+    // Actor 0 is the CLI operator: it matches no account, so the self-demotion guard in User::manage never applies.
     App\Models\User::manage((int) $u['id'], $role, (bool) $u['active'], 0);
     echo "Rôle mis à jour.\n";
     exit();
@@ -79,6 +89,7 @@ if ($command === 'company:check') {
     echo 'Société : ' . $company['name'] . PHP_EOL . App\Core\Company::signupHint() . PHP_EOL;
     exit();
 }
+// Prints every MCP tool definition by building the catalog for a synthetic admin holding all scopes.
 if ($command === 'mcp:tools') {
     $catalog = App\Mcp\Tools::catalog([
         'id' => 0,

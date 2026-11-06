@@ -3,7 +3,14 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
-/** Active project membership lives in project_connections; connections.project_id retains creation provenance. */
+/**
+ * Active project membership lives in project_connections; connections.project_id retains creation provenance.
+ *
+ * A Git repository connection (table connections) can be attached to several projects. One of them
+ * may be the project's primary repository (projects.repository_connection_id). Detaching a
+ * connection from its last project deletes the connection itself (and, through foreign keys, its
+ * stored Git data). Both the project and connection rows are locked while changing membership.
+ */
 final class RepositoryConnection
 {
     public static function all(): array
@@ -18,6 +25,7 @@ final class RepositoryConnection
             WHERE pc.project_id=?
             ORDER BY c.id',[$project]);
     }
+    /** Picks a project the connection belongs to: $preferred if attached, otherwise the lowest project id. */
     public static function contextProject(int $connection,int $preferred=0): int
     {
         if ($preferred && DB::one('SELECT project_id
@@ -27,6 +35,7 @@ final class RepositoryConnection
         if (!$row) throw new \InvalidArgumentException('Cette connexion Git n’est liée à aucun projet.');
         return (int)$row['project_id'];
     }
+    /** Attaches the connection to the project (idempotent); $primary also makes it the project's primary repository. */
     public static function attach(int $project,int $connection,bool $primary=false): void
     {
         DB::transaction(function() use($project,$connection,$primary) {

@@ -2,9 +2,16 @@
 declare(strict_types=1);
 namespace App\Services;
 
-/** Provider wire formats are interpreted once here, independently of persistence/UI. */
+/**
+ * Provider wire formats are interpreted once here, independently of persistence/UI.
+ * Pure functions (no network): validates a provider configuration, builds auth headers, model-listing
+ * paths and generation request bodies, and extracts models or text from responses for each supported
+ * provider. Generation requests are capped at 2000 output tokens; a truncated or incomplete answer is
+ * reported as an error rather than returned. Used by LlmClient, the LlmProfile model and LLM views.
+ */
 final class LlmProtocol
 {
+    /** Supported providers: display name, default base URL, and whether it is a local server (allowed on HTTP/private networks). */
     public const PROVIDERS = [
         'openai'=>['name'=>'OpenAI','url'=>'https://api.openai.com/v1','local'=>false],
         'lmstudio'=>['name'=>'LM Studio','url'=>'http://127.0.0.1:1234/v1','local'=>true],
@@ -14,6 +21,7 @@ final class LlmProtocol
         'grok'=>['name'=>'Grok (xAI)','url'=>'https://api.x.ai/v1','local'=>false],
         'gemini'=>['name'=>'Gemini (Google)','url'=>'https://generativelanguage.googleapis.com/v1beta','local'=>false],
     ];
+    /** Validates the configured base URL and API key; remote providers require HTTPS and a key. */
     public static function configuration(string $provider,string $url,string $token): array
     {
         $spec=self::PROVIDERS[$provider]??throw new \InvalidArgumentException('Fournisseur LLM inconnu.');
@@ -46,6 +54,7 @@ final class LlmProtocol
             default=>'/models',
         };
     }
+    /** Parses a model listing into [models => [id, name], cursor => next page token or '']; Gemini models that cannot generate text are skipped. */
     public static function models(string $provider,array $data): array
     {
         $items=match($provider) { 'ollama','gemini'=>$data['models']??null, default=>$data['data']??null };
@@ -67,6 +76,7 @@ final class LlmProtocol
         if (!is_string($cursor) || strlen($cursor)>2048 || ($provider==='anthropic' && !empty($data['has_more']) && $cursor==='')) throw new \InvalidArgumentException('Pagination des modèles invalide.');
         return ['models'=>array_values($models),'cursor'=>$cursor];
     }
+    /** Returns [path, body] for a single-turn request; OpenAI uses the Responses API, unlisted providers the Chat Completions format. */
     public static function generation(string $provider,string $model,string $system,string $input): array
     {
         $messages=[['role'=>'system','content'=>$system],['role'=>'user','content'=>$input]];
@@ -78,6 +88,7 @@ final class LlmProtocol
             default=>['/chat/completions',['model'=>$model,'messages'=>$messages,'stream'=>false,'max_tokens'=>2000]],
         };
     }
+    /** Extracts the answer text (Gemini "thought" parts excluded); throws when it was cut off, empty or over 16,000 characters. */
     public static function text(string $provider,array $data): string
     {
         $text='';

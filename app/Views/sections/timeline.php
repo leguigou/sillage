@@ -1,4 +1,13 @@
 <?php
+/**
+ * "Chronologie" (Gantt-like) section (/timeline), required by workspace.php.
+ * The visible period is computed by TimelineCalendar::build() from $filters['scale'] (weeks|months|quarters) and
+ * $filters['from']; each ticket with a start date gets a bar from TimelineCalendar::bar(). Positions are emitted as
+ * data-timeline-left/width attributes and applied by JavaScript.
+ * Unscheduled tickets get a "+ Planifier" button opening #schedule-dialog (handled in app.js); blocking links from
+ * Ticket::blockingLinks() are passed to JS as JSON (#timeline-dependencies) to draw dependency arrows.
+ * Expects $tickets (up to 1000), $filters, $baseQuery (from workspace.php) and $project.
+ */
 use App\Models\Ticket;
 use App\Services\TimelineCalendar;
 $calendar=TimelineCalendar::build((string)($filters['scale']??'weeks'),$filters['from']??null);

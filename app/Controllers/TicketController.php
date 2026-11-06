@@ -3,6 +3,20 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth, DB, View};
 use App\Models\{Ticket, Project};
+/**
+ * Ticket page and ticket write actions.
+ *
+ * - GET /tickets/{id}: full ticket page (any signed-in user), with history,
+ *   time entries, comments, attachments, links, sub-tickets and Git data.
+ * - POST /tickets (create), /tickets/{id} (full edit form), /tickets/{id}/quick
+ *   (inline edit of one field), /schedule (dates, e.g. from the timeline),
+ *   /move (board drag and drop), /pause, /archive, /comments, /links,
+ *   /links/{id}/delete, and POST /bulk (same change on up to 200 tickets).
+ * All write actions require an editor (read-only accounts are refused).
+ * Business rules, validation and optimistic locking (posted "version") are in
+ * App\Models\Ticket; most partial edits rebuild the full ticket data and go
+ * through Ticket::update().
+ */
 final class TicketController
 {
     public function show(string $id): void
@@ -74,6 +88,7 @@ final class TicketController
         $u = Auth::editor();
         $id = Ticket::create((int) ($_POST['project_id'] ?? 0), $_POST, (int) $u['id']);
         flash('Le ticket est créé.');
+        // "Create another": back to the list with the creation form reopened.
         if (!empty($_POST['another'])) {
             redirect('/list?project=' . (int) $_POST['project_id'] . '&create=1');
         }
@@ -89,6 +104,7 @@ final class TicketController
         flash('Modifications enregistrées.');
         redirect(ticket_url((int)$id));
     }
+    /** Inline edit of a single whitelisted field; the other fields keep their current values. JSON reply. */
     public function quick(string $id): void
     {
         $u = Auth::editor();
@@ -122,6 +138,7 @@ final class TicketController
         Ticket::update((int) $id, $data, (int) $u['id'], (int) ($_POST['version'] ?? 0));
         json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
     }
+    /** Updates only the start and due dates of the ticket. JSON reply. */
     public function schedule(string $id): void
     {
         $u = Auth::editor();
@@ -134,11 +151,18 @@ final class TicketController
         Ticket::update((int) $id, $data, (int) $u['id'], (int) ($_POST['version'] ?? 0));
         json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
     }
+    /**
+     * Board drag and drop: sets the ticket's status (column) and its position.
+     * Position uses a float rank_value: placed halfway between the previous
+     * card and "before_id", or after the last card of the column if no
+     * before_id is given. JSON reply.
+     */
     public function move(string $id): void
     {
         $u = Auth::editor();
         DB::transaction(function () use ($id, $u) {
             $t = Ticket::find((int) $id);
+            // Lock the project row so concurrent moves in the same project compute ranks one at a time.
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$t['project_id']]);
             $status = (string) ($_POST['status'] ?? '');
             if (!isset(\App\Models\Workflow::labels('status',(int)$t['project_id'],true)[$status])) {
@@ -176,6 +200,7 @@ final class TicketController
         });
         json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
     }
+    /** Pauses the ticket (hidden from active views) or resumes it to its previous status. */
     public function pause(string $id): void
     {
         $user=Auth::editor();$action=$_POST['action']??'';
@@ -184,11 +209,14 @@ final class TicketController
         flash($action==='pause'?'Ticket mis en pause. Il est masqué des vues actives.':'Le ticket a repris son état précédent.');
         redirect(ticket_url((int)$id));
     }
+    /** Archives the ticket, or restores it when "restore" is posted. */
     public function archive(string $id): void
     {
         $u = Auth::editor();
         $t = Ticket::find((int) $id);
         $restore = !empty($_POST['restore']);
+        // Uses the version just read from the database, not a posted one: no
+        // conflict check against edits made since the page was loaded.
         Ticket::archive((int) $id, !$restore, (int) $u['id'], (int) $t['version']);
         flash(
             $restore
@@ -197,6 +225,10 @@ final class TicketController
         );
         redirect(ticket_url((int)$id));
     }
+    /**
+     * Applies one change (status, priority, assignee or flag) to 1–200 selected
+     * tickets in a single transaction: one invalid ticket cancels the whole batch.
+     */
     public function bulk(): void
     {
         $u = Auth::editor();
@@ -220,6 +252,7 @@ final class TicketController
             }
         });
         flash(count($ids) . ' tickets modifiés.');
+        // Only return to /list or /all (with any query string): prevents open redirects.
         $return=(string)($_POST['_return']??'/list');
         redirect(preg_match('#^/(?:list|all)(?:\?[^\r\n]*)?$#D',$return)?$return:'/list');
     }
@@ -229,6 +262,7 @@ final class TicketController
         Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'));
         redirect(ticket_url((int)$id,'#activity'));
     }
+    /** Creates a relation (default "relates") from ticket {id} to target_id. */
     public function link(string $id): void
     {
         $u = Auth::editor();
@@ -240,6 +274,7 @@ final class TicketController
         );
         redirect(ticket_url((int)$id));
     }
+    /** Deletes ticket link {id} (a link id, not a ticket id) and returns to the source ticket. */
     public function unlink(string $id): void
     {
         Auth::editor();

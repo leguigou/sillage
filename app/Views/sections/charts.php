@@ -1,4 +1,11 @@
-<?php use App\Models\Ticket; ?>
+<?php
+/**
+ * "Rapports" section (/charts), required by workspace.php.
+ * Draws one bar chart per dimension (status, priority, type, assignee, team) from $stats, computed by
+ * Query::aggregate() over all filtered tickets ($count), using the bars() helper defined in workspace.php.
+ * Ends with the team workload partial (partials/team-workload.php).
+ */
+use App\Models\Ticket; ?>
 <div class="dashboard-grid charts-grid"><?php foreach(['status'=>['Par état',\App\Models\Workflow::labels('status',(int)$project['id'],true)],'priority'=>['Par priorité',Ticket::PRIORITIES],'type'=>['Par type',\App\Models\Workflow::labels('type',(int)$project['id'],true)],'assignee'=>['Par personne assignée',[]],'team'=>['Par équipe',[]]] as $key=>[$label,$labels]): ?><section class="panel"><div class="panel-header"><div><h2><?= e($label) ?></h2><p>Répartition des <?= $count ?> tickets correspondant aux filtres.</p></div><?= icon('chart') ?></div><?php bars($stats[$key],$labels,$key); ?></section><?php endforeach; ?></div><p class="help-text">Les rapports sont calculés sur tous les tickets filtrés, indépendamment de la pagination de la liste.</p>
 
 <?php require ROOT.'/app/Views/partials/team-workload.php'; ?>

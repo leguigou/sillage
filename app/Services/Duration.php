@@ -1,9 +1,13 @@
 <?php
 declare(strict_types=1);
 namespace App\Services;
-/** Human-readable durations; persistence and numeric APIs stay in decimal hours. */
+/**
+ * Human-readable durations; persistence and numeric APIs stay in decimal hours.
+ * Used by the view layer and ticket time/history models to display hours as e.g. "1 h 30 min".
+ */
 final class Duration
 {
+    /** Formats decimal hours, rounded up to 5 minutes; null gives "—" and any positive value at least "5 min". */
     public static function label(int|float|string|null $value): string
     {
         if($value===null) return '—';

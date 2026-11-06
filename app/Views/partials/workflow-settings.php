@@ -1,4 +1,14 @@
-<?php use App\Models\Workflow; $workflow=Workflow::get((int)$project['id']); ?>
+<?php
+/**
+ * Admin-only settings panel #workflow ("Circuit du projet") for the current project: edit
+ * or add statuses and ticket types (label, category, order, icon via appearance-picker.php,
+ * enabled flag) and the allowed-transitions matrix. Every form posts to
+ * /projects/{id}/workflow with an "action" field and the optimistic-lock "version".
+ * Included by sections/settings.php for admins when a project is selected. Loads
+ * App\Models\Workflow::get() itself; expects $project. The reserved 'paused' status is
+ * left out of the transitions matrix.
+ */
+use App\Models\Workflow; $workflow=Workflow::get((int)$project['id']); ?>
 <section class="panel workflow-settings" id="workflow">
  <div class="panel-header"><div><h2>Circuit du projet</h2><p><?= e($project['name']) ?> · Statuts, types de tickets et passages autorisés.</p></div><?= icon('board') ?></div>
  <p class="help-text">Les clés existantes sont conservées. L’ordre définit les colonnes du tableau. Une catégorie conserve le sens métier pour les rapports, les formulaires et les notifications. Un élément utilisé ne peut pas être désactivé.</p>

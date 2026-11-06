@@ -1,4 +1,13 @@
-<?php use App\Models\User; $isAdmin = $user['role'] === 'admin'; ?>
+<?php
+/**
+ * Settings panel #teams ("Équipes"), shown to every user: one card per team with members,
+ * linked projects (team-projects.php) and, for admins only, create / add member / remove /
+ * rename / delete forms. Admins also get the #users panel ("Utilisateurs et accès") to
+ * change account roles and activation (POST /users/{id}); their own row is not editable.
+ * Included by sections/settings.php. Expects $user, $teams, $teamMembers, $teamProjects,
+ * $members, $projects and $accounts (only loaded for admins in WorkspaceController).
+ */
+use App\Models\User; $isAdmin =$user['role'] === 'admin'; ?>
 <section class="panel team-section" id="teams">
   <div class="panel-header"><div><h2>Équipes</h2><p>Organisez les personnes par métier ou par initiative.</p></div><span class="pill soft"><?= count($teams) ?> équipes</span></div>
   <p class="help-text">Un utilisateur peut appartenir à plusieurs équipes. Tous les comptes connectés conservent l’accès aux projets ; une équipe peut participer à plusieurs projets et recevoir des tickets avec un responsable individuel.</p>

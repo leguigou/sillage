@@ -2,9 +2,19 @@
 declare(strict_types=1);
 namespace App\Core;
 use PDO;
+/**
+ * Static MySQL access layer used by every model, service and controller (there is no ORM).
+ * One lazily opened PDO connection per process, configured from DB_* in .env: exceptions on error,
+ * associative fetches, native (non-emulated) prepared statements, utf8mb4, session time zone UTC,
+ * and optional TLS with server certificate verification when DB_SSL_CA is set. independent() opens
+ * an extra connection outside the shared one, so its writes survive a rollback of the main transaction.
+ * Rule: values always go through the $params placeholders; only trusted fragments (column lists,
+ * validated integers for LIMIT/OFFSET) may be concatenated into SQL.
+ */
 final class DB
 {
     private static ?PDO $connection = null;
+    /** Path of the CA certificate for MySQL TLS, or '' when TLS is not configured. */
     public static function sslCA(): string
     {
         $path = env('DB_SSL_CA');
@@ -68,6 +78,11 @@ final class DB
         self::run($sql, $params);
         return (int) self::connection()->lastInsertId();
     }
+    /**
+     * Run $fn in a transaction, committing on success and rolling back on any exception.
+     * Nested calls join the outer transaction (no savepoint): an inner failure rolls back everything
+     * only if the exception propagates out of the outermost call.
+     */
     public static function transaction(callable $fn): mixed
     {
         $db = self::connection();

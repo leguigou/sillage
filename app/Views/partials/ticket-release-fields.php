@@ -1,1 +1,7 @@
+<?php /**
+ * Two ticket form selects: closing resolution (TicketClosure::RESOLUTIONS) and target
+ * release (Release::assignable(), which keeps the current release listed even if archived).
+ * Included by ticket-edit.php and by dialogs.php (new-ticket dialog, with an empty array).
+ * Expects $releaseFieldTicket (ticket array or []) and $project.
+ */ ?>
 <div class="inline-fields"><label>Résolution de clôture<select name="resolution"><option value="">Réalisé (par défaut à la clôture)</option><?php foreach(App\Models\TicketClosure::RESOLUTIONS as $value=>$label): ?><option value="<?= e($value) ?>" <?= ($releaseFieldTicket['resolution']??null)===$value?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?></select><small>Appliquée uniquement si le ticket est terminé. Une réouverture efface la résolution.</small></label><label>Version cible<select name="release_id"><option value="">Aucune</option><?php foreach(App\Models\Release::assignable((int)$project['id'],(int)($releaseFieldTicket['release_id']??0)) as $release): ?><option value="<?= (int)$release['id'] ?>" <?= (int)($releaseFieldTicket['release_id']??0)===(int)$release['id']?'selected':'' ?>><?= e($release['name'].($release['archived']?' (archivée)':'')) ?></option><?php endforeach; ?></select></label></div>

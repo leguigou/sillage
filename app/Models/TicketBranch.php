@@ -4,15 +4,24 @@ namespace App\Models;
 use App\Core\DB;
 use App\Services\DevelopmentPayload;
 
-/** Explicit branch choices are separate from the observations recomputed on each Git delivery. */
+/**
+ * Explicit branch choices are separate from the observations recomputed on each Git delivery.
+ *
+ * Manual ticket-to-branch links (table ticket_branch_links). After any change the branch event is
+ * re-saved through DevelopmentEvent::save() so the computed links in development_event_tickets
+ * reflect the new choice. Queries reading links require the repository to still be attached to the
+ * ticket's project (project_connections). Writers lock the projects of the connection first.
+ */
 final class TicketBranch
 {
+    /** Returns [ticket_id => providers] for tickets with a manual or observed active branch (github/bitbucket only). */
     public static function providersForTickets(array $ids): array
     {
         if(!$ids) return [];$slots=implode(',',array_fill(0,count($ids),'?'));
         $rows=DB::all("SELECT DISTINCT b.ticket_id,c.provider FROM ticket_branch_links b JOIN tickets t ON t.id=b.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id JOIN connections c ON c.id=b.connection_id WHERE b.ticket_id IN ($slots) UNION SELECT DISTINCT l.ticket_id,c.provider FROM development_event_tickets l JOIN development_events e ON e.id=l.event_id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id JOIN connections c ON c.id=e.connection_id WHERE l.ticket_id IN ($slots) AND e.kind='branch' AND e.state='active' ORDER BY provider",[...$ids,...$ids]);
         $result=[];foreach($rows as $row) if(in_array($row['provider'],['github','bitbucket'],true)) $result[$row['ticket_id']][]=$row['provider'];return $result;
     }
+    /** Returns the connection row, or fails if it is not attached to the ticket's project. */
     public static function connection(int $ticket,int $connection): array
     {
         $row=DB::one('SELECT c.*
@@ -33,6 +42,10 @@ final class TicketBranch
             WHERE b.ticket_id=?
             ORDER BY b.id',[$ticket]);
     }
+    /**
+     * Manually links a ticket to an active branch event (idempotent) and attaches the branch's already
+     * known commits and PRs to the ticket. Returns the link id.
+     */
     public static function link(int $ticket,array $connection,array $event,int $actor): int
     {
         if (($event['kind']??null)!=='branch' || ($event['state']??null)!=='active') throw new \InvalidArgumentException('La branche doit exister et être active chez le fournisseur.');
@@ -49,6 +62,7 @@ final class TicketBranch
             return $id;
         });
     }
+    /** An active branch of the project's repositories that is not yet linked to any ticket of the project. */
     private static function unassignedBranch(int $project, int $event): array
     {
         $branch = DB::one(
@@ -67,6 +81,7 @@ final class TicketBranch
         return DevelopmentEvent::hydrate($branch);
     }
 
+    /** WHERE fragment (one parameter: project id) for open, non-archived tickets without any branch yet. */
     private static function eligibleTicketsSql(): string
     {
         return "t.project_id=? AND t.archived=0 AND ".Workflow::categorySql()."<>'done'
@@ -81,6 +96,7 @@ final class TicketBranch
             )";
     }
 
+    /** Up to 25 eligible tickets for linking an unassigned branch, filtered by title or key (LIKE, wildcards escaped). */
     public static function candidates(int $project, int $event, string $query): array
     {
         self::unassignedBranch($project, $event);
@@ -95,11 +111,16 @@ final class TicketBranch
         return DB::all($sql.' ORDER BY t.updated_at DESC,t.id DESC LIMIT 25', $params);
     }
 
+    /**
+     * Links an observed, unassigned branch to an eligible ticket, then requests a Git sync of the
+     * connection. Returns the ticket id and key.
+     */
     public static function linkObserved(int $project, int $event, int $ticket, int $actor): array
     {
         $branch = self::unassignedBranch($project, $event);
         return DB::transaction(function () use ($project, $event, $ticket, $actor, $branch) {
             DevelopmentEvent::lockProjects((int)$branch['connection_id']);
+            // First lookup only found which connection to lock; re-check now that the projects are locked.
             $branch = self::unassignedBranch($project, $event);
             $row = DB::one('SELECT t.id,t.number FROM tickets t WHERE t.id=? AND '.self::eligibleTicketsSql().' FOR UPDATE', [$ticket, $project]);
             if (!$row) throw new \InvalidArgumentException('Choisissez un ticket ouvert du projet, sans branche associée.');
@@ -112,6 +133,7 @@ final class TicketBranch
         });
     }
 
+    /** Removes a manual branch link and re-saves the stored branch event so its ticket links are recomputed. */
     public static function unlink(int $ticket,int $link): void
     {
         $row=DB::one('SELECT * FROM ticket_branch_links WHERE id=? AND ticket_id=?',[$link,$ticket]);

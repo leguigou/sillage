@@ -4,6 +4,17 @@ namespace App\Controllers;
 use App\Core\{Auth, DB};
 use App\Models\{Team, User};
 
+/**
+ * Team and user administration (the "teams" and "users" sections of /settings).
+ *
+ * - POST /teams: create or rename a team (team_id=0 creates).
+ * - POST /teams/{id}/members, /teams/{id}/projects: add/remove a user or a
+ *   project to/from the team.
+ * - POST /teams/{id}/delete: delete a team (accounts and tickets are kept).
+ * - POST /users/{id}: change a user's role and active flag.
+ * Admin only. Rules (e.g. always keeping one active admin) are enforced in
+ * App\Models\Team and App\Models\User.
+ */
 final class TeamController
 {
     public function save(): void
@@ -48,6 +59,7 @@ final class TeamController
         redirect('/settings#teams');
     }
 
+    /** Sets role and active state of user {id}; the affected user's sessions are closed. */
     public function user(string $id): void
     {
         $actor = Auth::admin();

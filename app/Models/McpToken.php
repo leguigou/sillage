@@ -3,6 +3,16 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Bearer keys for the MCP endpoint (table mcp_tokens), either created by a user as personal keys or
+ * issued by OAuth for a grant (oauth_grant_id set; deleting the grant cascades to its tokens).
+ *
+ * Only the SHA-256 hash of a key is stored; the raw key is returned once by issue(). A key stops
+ * working when it expires, when its owner is disabled or unverified, or when the owner's
+ * auth_version changes (User::manage bumps it on a role or activation change). Effective scopes are
+ * re-derived at every request: the key's scopes, intersected with what the owner's current role
+ * allows and, for OAuth keys, with the grant's scopes. audit() logs MCP tool calls to mcp_audit.
+ */
 final class McpToken
 {
     public const SCOPES = [
@@ -18,6 +28,7 @@ final class McpToken
             default => ['read'],
         };
     }
+    /** Creates a key; $seconds null means no expiry. Returns the token id and the raw key (only time it is visible). */
     public static function issue(array $user, string $name, array $scopes, ?int $seconds): array
     {
         $name = trim($name);
@@ -48,6 +59,10 @@ final class McpToken
         );
         return ['id' => $id, 'key' => $raw];
     }
+    /**
+     * Resolves a raw key to its owner plus token_id and effective scopes, or null if invalid.
+     * OAuth keys also require a live grant, issued for this server's /mcp resource and the owner's current auth_version.
+     */
     public static function authenticate(string $raw): ?array
     {
         if (!preg_match('/^slg_mcp_[a-f0-9]{64}$/D', $raw)) {
@@ -74,11 +89,13 @@ final class McpToken
         unset($row['grant_scopes']);
         return $row;
     }
+    /** Updates the last-used time of the key and of its OAuth grant, if any. */
     public static function touch(int $id): void
     {
         DB::run('UPDATE mcp_tokens SET last_used_at=UTC_TIMESTAMP() WHERE id=?', [$id]);
         DB::run('UPDATE oauth_grants g JOIN mcp_tokens k ON k.oauth_grant_id=g.id SET g.last_used_at=UTC_TIMESTAMP() WHERE k.id=?',[$id]);
     }
+    /** Deletes one of the owner's keys; for an OAuth key the whole grant is revoked (with its refresh token). */
     public static function remove(int $id, int $owner): void
     {
         $row=DB::one('SELECT oauth_grant_id FROM mcp_tokens WHERE id=? AND user_id=?',[$id,$owner]);

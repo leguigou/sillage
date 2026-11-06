@@ -3,10 +3,19 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
-/** Immutable snapshots: identities and the labels visible at change time are retained. */
+/**
+ * Immutable snapshots: identities and the labels visible at change time are retained.
+ *
+ * Audit trail of ticket changes (table ticket_history). Each entry stores the ticket version it
+ * produced, the action, the source (application, mcp, automation, external, ...) and a JSON list of
+ * field changes with raw and human-readable before/after values. Entries must be written inside
+ * the business transaction that made the change, so history and data cannot diverge.
+ * changes() is also used by TicketClosure to detect content edits.
+ */
 final class TicketHistory
 {
     public const FIELDS=['title'=>'Résumé','description'=>'Description','type'=>'Type','status'=>'État','priority'=>'Priorité','assignee_id'=>'Responsable','team_id'=>'Équipe','parent_id'=>'Parent','labels'=>'Étiquettes','start_date'=>'Date de début','due_date'=>'Échéance','flagged'=>'Blocage','estimated_hours'=>'Temps estimé','progress_percent'=>'Avancement','release_id'=>'Version cible','resolution'=>'Résolution','validation_state'=>'Validation','validated_by'=>'Validé par','validated_at'=>'Date de validation','validation_note'=>'Note de validation','archived'=>'Archive'];
+    /** Lists the FIELDS whose normalized value differs between two ticket arrays ($after must contain project_id). */
     public static function changes(array $before,array $after): array
     {
         $changes=[];
@@ -16,6 +25,7 @@ final class TicketHistory
         }
         return $changes;
     }
+    /** Brings DB values and form values to one representation so that equal values compare equal. */
     private static function normalize(string $field,mixed $value): mixed
     {
         if ($value===null) return null;
@@ -47,17 +57,20 @@ final class TicketHistory
             default=>(string)$value,
         };
     }
+    /** Writes an entry for the differences between two ticket snapshots; skipped when nothing changed (except on creation). */
     public static function record(array $before,array $after,?int $actor,string $action='updated',string $source='application'): void
     {
         $changes=self::changes($before,$after);
         if ($changes || $action==='created') self::event((int)$after['id'],$actor,(int)$after['version'],$action,$changes,$source);
     }
+    /** Writes a raw history entry (used for changes outside FIELDS, e.g. time logs or collaborators); requires an open transaction. */
     public static function event(int $ticket,?int $actor,int $version,string $action,array $changes,string $source='application'): void
     {
         if (!DB::connection()->inTransaction()) throw new \RuntimeException('Historique hors transaction métier.');
         DB::run('INSERT INTO ticket_history(ticket_id,actor_id,ticket_version,action,source,changes_json)
             VALUES(?,?,?,?,?,?)',[$ticket,$actor,$version,$action,$source,json_encode($changes,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
     }
+    /** Paginated history, newest first; $changesOnly hides the creation entry and entries without field changes. */
     public static function page(int $ticket,int $offset=0,int $limit=30,bool $changesOnly=false): array
     {
         Ticket::find($ticket);$limit=max(1,min(100,$limit));$offset=max(0,$offset);

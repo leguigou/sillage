@@ -1,8 +1,16 @@
 <?php
 declare(strict_types=1);
 namespace App\Services;
+/**
+ * Diagnoses the permissions of a stored Git connection (called from DevelopmentController).
+ * Makes one small read request per area (repository, pull requests, CI pipelines, deployments) and
+ * reports, per area, whether it succeeded plus the token permission the user should grant.
+ * Only controlled InvalidArgumentException messages are shown; any other error becomes a generic
+ * message pointing to the technical logs.
+ */
 final class GitAccessTest
 {
+    /** Returns one result row per check: key, label, ok, http_status, message, permission. */
     public static function run(array $connection): array
     {
         $github=$connection['provider']==='github';

@@ -1,4 +1,14 @@
 <?php
+/**
+ * Ticket table section for /list and /all (both map to this file in workspace.php).
+ * Expects $tickets (one page of 50), $count, $page, $limit, $filters, $section, $baseQuery (from workspace.php),
+ * $project, $members, $user, $activeView and $rules.
+ * Visible columns and their order come from ListLayout::columns()/order(); each row's cells and actions are rendered
+ * by partials/list-ticket-cells.php and partials/list-ticket-actions.php. $deploymentBadges (TicketDevelopment::badges())
+ * is prepared here for those partials.
+ * Before output, rows may be reordered as a parent/child tree ($filters['hierarchy']) and then grouped ($filters['group']).
+ * The hidden #bulk-form (POST /bulk) is shown by JS when rows are ticked; its value choices are in #bulk-value-options.
+ */
 use App\Models\Ticket;
 use App\Services\ListLayout;
 $deploymentBadges=App\Services\TicketDevelopment::badges($tickets);

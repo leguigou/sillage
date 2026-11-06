@@ -3,8 +3,15 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 use App\Models\Ticket;
+/**
+ * Read-side ticket queries for lists, exports, reports and MCP tools: ticket pages, counts, team workload
+ * and per-field aggregates. Every method takes its WHERE clause from Filter::where(), whose bound
+ * parameters carry all user values. ORDER BY / GROUP BY columns come from fixed maps here (sort keys
+ * are validated by ListLayout::sorts()), never from raw input.
+ */
 final class Query
 {
+    /** Shared FROM/JOIN clause; defines the aliases (t, p, a, u, tm) that Filter::FIELDS relies on. */
     public const JOIN = ' FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id LEFT JOIN teams tm ON tm.id=t.team_id ';
     public static function tickets(
         int $project,
@@ -31,6 +38,7 @@ final class Query
         $order=[];
         foreach(ListLayout::sorts($filters) as $field=>$direction) $order[]=$sorts[$field].' '.strtoupper($direction);
         $order=implode(',',$order?:['t.rank_value ASC']);
+        // t.id is appended as a final tie-breaker so LIMIT/OFFSET paging is stable.
         $rows = DB::all(
             'SELECT t.*,'.\App\Models\TicketTime::selectSql().',p.project_key,a.name assignee_name,u.name reporter_name,tm.name team_name' .
                 self::JOIN .
@@ -40,6 +48,7 @@ final class Query
                 max(0, $offset),
             $args,
         );
+        // Git indicators are loaded in bulk for the page rather than per row.
         $conflicts=\App\Models\DevelopmentEvent::conflictsForTickets(array_column($rows,'id'));
         $branchProviders=\App\Models\TicketBranch::providersForTickets(array_column($rows,'id'));
         foreach ($rows as &$row) {
@@ -56,11 +65,13 @@ final class Query
         [$w, $p] = Filter::where($project, $filters);
         return (int) DB::one('SELECT COUNT(*) n' . self::JOIN . 'WHERE ' . $w, $p)['n'];
     }
+    /** Per-team totals (ticket count, done count, average progress, estimated/spent/remaining hours). */
     public static function teamWorkload(int $project,array $filters): array
     {
         [$where,$args]=Filter::where($project,$filters);
         return DB::all("SELECT t.team_id,COALESCE(tm.name,'Sans équipe') name,COUNT(*) total,SUM(".\App\Models\Workflow::categorySql()."='done') done,AVG(t.progress_percent) progress,SUM(t.estimated_hours) hours,SUM(".\App\Models\TicketTime::spentSql().") spent_hours,SUM(".\App\Models\TicketTime::remainingSql().") remaining_hours,SUM(t.estimated_hours IS NULL) unestimated".self::JOIN."WHERE $where GROUP BY t.team_id,tm.name ORDER BY name,t.team_id",$args);
     }
+    /** Ticket counts grouped by one field (unknown field names fall back to status); status/type/priority rows also get their display colour. */
     public static function aggregate(int $project, array $filters, string $field): array
     {
         $col = match ($field) {

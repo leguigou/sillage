@@ -1,3 +1,10 @@
+<?php /**
+ * Admin-only dialog #connection-dialog: connect GitHub or Bitbucket Cloud repositories
+ * with an access token (POST /connections). Included by sections/development.php when
+ * the user is an admin; embeds provider-guides.php. Expects $project.
+ * Token check, repository discovery and the result list are driven by front-end JS
+ * (data-discover-repositories, data-repository-* hooks). The token field is never pre-filled.
+ */ ?>
 <dialog id="connection-dialog" class="dialog"><form action="/connections" method="post" class="stack" autocomplete="off" data-connect-repositories>
  <?= csrf() ?><input type="hidden" name="project_id" value="<?= (int)$project['id'] ?>"><input type="hidden" name="_return" value="/development">
  <header class="dialog-header"><h2>Connecter des dépôts</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>

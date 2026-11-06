@@ -4,8 +4,22 @@ namespace App\Controllers;
 use App\Core\{Auth, DB, View};
 use App\Models\{Project, Ticket};
 use App\Services\{Csv, Query};
+/**
+ * Ticket export (CSV/JSON) and CSV import.
+ *
+ * - GET /export (any signed-in user): downloads the tickets matching the
+ *   current list filters (same query-string filters as the list, via
+ *   App\Services\Query), up to 10,000 tickets.
+ * - GET /import, POST /import/preview, POST /import (editors): two-step CSV
+ *   import. The parsed file is kept in the session for preview, then the user
+ *   maps CSV columns to ticket fields and confirms.
+ */
 final class TransferController
 {
+    /**
+     * Streams the export in batches of 500 tickets. CSV starts with a UTF-8 BOM
+     * (for Excel) and cells go through Csv::safe() against spreadsheet formula injection.
+     */
     public function export(): void
     {
         Auth::requireUser();
@@ -95,6 +109,7 @@ final class TransferController
         }
         fclose($f);
     }
+    /** Import screen, showing the pending preview (if any) stored in the session. */
     public function page(): void
     {
         $user = Auth::editor();
@@ -110,6 +125,10 @@ final class TransferController
             compact('user', 'projects', 'project', 'title', 'section', 'preview'),
         );
     }
+    /**
+     * Step 1: parses the uploaded CSV (max 2 MB, see Csv::parse) and stores it
+     * in the session with a random nonce that step 2 must send back.
+     */
     public function preview(): void
     {
         Auth::editor();
@@ -126,6 +145,12 @@ final class TransferController
         ];
         redirect('/import?project=' . $pid);
     }
+    /**
+     * Step 2: applies the column mapping ("map[field] = CSV header") to every
+     * row, validates all rows first, then creates all tickets in one
+     * transaction (all or nothing). Error messages give the CSV line number
+     * (+2: header line and 1-based numbering).
+     */
     public function commit(): void
     {
         $u = Auth::editor();
@@ -156,6 +181,8 @@ final class TransferController
                     $data[$field] = $row[$mapping[$field]];
                 }
             }
+            // CSV files contain display labels ("Bug", "Haute"...): convert them,
+            // case-insensitively, to the internal codes of the project's workflow.
             foreach (
                 [
                     'type' => \App\Models\Workflow::labels('type',(int)$preview['project_id'],true),

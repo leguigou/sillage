@@ -2,8 +2,18 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * Projects (table projects): name, immutable key (prefix of ticket references such as ABC-12),
+ * description, icon/color, the "validation required before closing" option, the primary Git
+ * connection, and participating teams (via Team::setProjectTeams).
+ *
+ * The project row also serves as the per-project lock: other models take
+ * "SELECT ... FROM projects ... FOR UPDATE" before changing tickets, rules, workflows or releases
+ * of that project. A project can only be deleted when no other data references it.
+ */
 final class Project
 {
+    /** Creates ($id null) or updates a project; fields missing from $input keep their current value. */
     public static function save(array $input, ?int $id = null): int
     {
         return DB::transaction(function () use ($input, $id) {
@@ -78,6 +88,7 @@ final class Project
             }
         });
     }
+    /** Deletes a project that has no attached repository and no dependent rows (relies on foreign keys, MySQL error 1451). */
     public static function deleteEmpty(int $id): void
     {
         self::find($id);
@@ -109,6 +120,7 @@ final class Project
         $p['team_ids']=array_map('intval',array_column(Team::forProject($id),'id'));
         return $p;
     }
+    /** All active, verified users (installation-wide, not filtered by project). */
     public static function members(): array
     {
         return DB::all(

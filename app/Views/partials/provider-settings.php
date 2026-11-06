@@ -1,4 +1,15 @@
-<?php require_once ROOT.'/app/Views/copy-field.php'; ?>
+<?php
+/**
+ * Admin dialog #provider-settings-{provider}: manage the existing connections of one Git
+ * provider. Per repository: replace the token (POST /connections/{id}/update), reveal the
+ * webhook URL/secret, test access, and the automatic sync settings
+ * (POST /connections/{id}/sync-settings, current values from GitJob::status()).
+ * Included by sections/development.php in a loop over GitHub/Bitbucket, admins only, when
+ * that provider has connections. Expects $provider, $providerName, $configured (the
+ * provider's connections) and $project. Connections, tokens and sync settings are shared
+ * by every project using the same repository.
+ */
+require_once ROOT.'/app/Views/copy-field.php'; ?>
 <dialog id="provider-settings-<?= e($provider) ?>" class="dialog">
  <header class="dialog-header"><div><h2>Configuration <?= e($providerName) ?></h2><p class="help-text">Vos dépôts et leurs informations enregistrées.</p></div><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
  <div class="provider-connections">

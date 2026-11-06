@@ -4,6 +4,14 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Models\Appearance;
 
+/**
+ * Saves the installation-wide icons and colours used to display ticket types,
+ * priorities, etc. (POST /appearance, from the settings screen).
+ *
+ * Admin only. Delegates validation and storage to App\Models\Appearance, then
+ * redirects back to the "appearance" section of /settings, keeping the
+ * currently selected project if a valid project_id was posted.
+ */
 final class AppearanceController
 {
     public function save(): void

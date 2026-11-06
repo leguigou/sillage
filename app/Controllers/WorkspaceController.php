@@ -4,12 +4,31 @@ namespace App\Controllers;
 use App\Core\{Auth, DB, View};
 use App\Models\{Project, Ticket};
 use App\Services\{Filter, FilterMemory, ListLayout, Query};
+/**
+ * The main workspace screens and project-level settings.
+ *
+ * - show(): every section of the "workspace" view: / (dashboard), /list,
+ *   /board, /timeline, /forms, /development, /charts, /settings, /all,
+ *   /automation, /releases. Any signed-in user; admin-only data (user
+ *   accounts, repository catalog) is only loaded for admins.
+ * - POST /projects, /projects/{id}/update, GET /projects/{id}/settings
+ *   (HTML fragment): project management, admin only.
+ * - POST /views, /views/{id}/delete: the user's own saved list views ("rapports").
+ * - POST /rules, /rules/{id}/delete: list formatting rules, admin only.
+ * - POST /account: the user's own name and avatar.
+ */
 final class WorkspaceController
 {
+    /**
+     * Renders one workspace section for the current project (?project=, else
+     * the last one used in this session, else the first). Loads the filtered
+     * tickets plus the extra data each section needs.
+     */
     public function show(string $section = 'dashboard'): void
     {
         $user = Auth::requireUser();
         $projects = Project::all();
+        // No project yet: show the onboarding screen (settings stays reachable).
         if (!$projects && $section !== 'settings') {
             View::render('initial-project', [
                 'guest' => true,
@@ -35,10 +54,14 @@ final class WorkspaceController
         $isList = $section === 'list';
         $reset = !empty($_GET['filters_reset']);
         $reportId = $_GET['view'] ?? null;
+        // On /list without explicit filters, reopen the saved view last used for
+        // this project (remembered per user in the session).
         if ($isList && !$reset && !FilterMemory::hasExplicitFilters($_GET)) {
             $reportId = $_SESSION['list_reports'][$userId][$projectId] ?? null;
         }
         $reportId = filter_var($reportId, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        // A saved view is only loaded if it belongs to the current user and project;
+        // its stored settings are the base, overridden by the query string.
         if (!$reset && $reportId) {
             $activeView = DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=? AND project_id=?', [
                 $reportId, $userId, $projectId,
@@ -47,6 +70,7 @@ final class WorkspaceController
                 $filters = array_replace(json_decode($activeView['settings'], true), $_GET, ['view'=>$reportId]);
             }
         }
+        // Invalid filters do not break the page: they are dropped and the error is displayed.
         $error = null;
         try {
             if ($isList && $activeView) {
@@ -67,6 +91,7 @@ final class WorkspaceController
             if ($activeView) $reports[$projectId] = $reportId;
             $_SESSION['list_reports'][$userId] = array_slice($reports, -20, null, true);
         }
+        // Board and timeline load up to 1000 tickets at once; list views paginate by 50.
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $limit = in_array($section, ['board', 'timeline'], true) ? 1000 : 50;
         $count = Query::count($pid, $filters);
@@ -117,6 +142,7 @@ final class WorkspaceController
                 )
                 : [];
         $editingRule = null;
+        // ?edit= must reference a rule of the current project.
         if ($section === 'automation' && !empty($_GET['edit'])) {
             $editingRule = \App\Models\Automation::find((int) $_GET['edit']);
             if ((int) $editingRule['project_id'] !== (int) $project['id']) {
@@ -162,6 +188,8 @@ final class WorkspaceController
         foreach (['status', 'type', 'priority', 'assignee', 'team'] as $field) {
             $stats[$field] = Query::aggregate($pid, $filters, $field);
         }
+        // Dashboard KPIs over the filtered tickets: last 7 days activity, and
+        // open tickets due within 7 days or overdue.
         [$where, $args] = Filter::where($pid, $filters);
         $kpis = DB::one(
             "SELECT SUM(t.completed_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) completed,SUM(t.created_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) created,SUM(t.updated_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY) updated,SUM(".\App\Models\Workflow::categorySql()." NOT IN ('done','paused') AND t.due_date BETWEEN UTC_DATE() AND UTC_DATE()+INTERVAL 7 DAY) upcoming,SUM(".\App\Models\Workflow::categorySql()." NOT IN ('done','paused') AND t.due_date<UTC_DATE()) overdue" .
@@ -241,9 +269,12 @@ final class WorkspaceController
             ),
         );
     }
+    /** Saves project {id} settings (details, teams, main repository); JSON reply for AJAX callers. */
     public function updateProject(string $id): void
     {
         Auth::admin();
+        // "*_present" hidden fields mark that the checkbox / team list was on the
+        // form, so an unchecked box or an empty selection is saved as such.
         if (isset($_POST['validation_present'])) $_POST['require_ticket_validation']=!empty($_POST['require_ticket_validation']);
         if (isset($_POST['teams_present'])) $_POST['team_ids']=$_POST['team_ids']??[];
         Project::save($_POST,(int)$id);
@@ -254,6 +285,7 @@ final class WorkspaceController
         flash('Projet, équipes et dépôt principal enregistrés.');
         redirect('/?project='.(int)$id);
     }
+    /** Returns the project settings form as an HTML fragment, fetched by public/assets/app.js to edit a project. */
     public function projectSettings(string $id): void
     {
         Auth::admin();
@@ -264,6 +296,7 @@ final class WorkspaceController
         require_once ROOT.'/app/Views/icons.php';
         require ROOT.'/app/Views/partials/project-settings.php';
     }
+    /** Creates a new project, then opens its dashboard. */
     public function project(): void
     {
         Auth::admin();
@@ -272,6 +305,12 @@ final class WorkspaceController
         flash('Votre nouveau projet est prêt.');
         redirect('/?project=' . $id);
     }
+    /**
+     * Creates, updates or copies (mode=copy) a personal saved list view.
+     * "settings" is the JSON filter state; with report_options, sort, grouping
+     * and visible columns (only known columns, in the posted order) are added.
+     * "revision" lets SavedView::save() detect concurrent edits.
+     */
     public function saveView(): void
     {
         $u = Auth::requireUser();
@@ -322,6 +361,7 @@ final class WorkspaceController
         flash('Vue supprimée.');
         redirect('/list');
     }
+    /** Creates a formatting rule (colour and title for one ticket field value in lists). */
     public function rule(): void
     {
         Auth::admin();
@@ -336,6 +376,7 @@ final class WorkspaceController
         \App\Models\FormattingRule::delete((int) $id);
         redirect('/list');
     }
+    /** Updates the current user's display name and profile picture (upload or removal). */
     public function account(): void
     {
         $u = Auth::requireUser();
