@@ -66,6 +66,8 @@ jobs:
           php tests/run.php fixtures
           python3 tests/http_ticket_people.py
           php tests/run.php fixtures
+          python3 tests/http_wiki.py
+          php tests/run.php fixtures
           SILLAGE_MCP_PYTHON=/tmp/sillage-mcp-sdk/bin/python python3 tests/http_mcp.py
       - name: Tester une autre société avec domaines restreints
         env:

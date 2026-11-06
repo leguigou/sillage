@@ -4,8 +4,10 @@ storage/*
 !storage/.gitkeep
 !storage/.htaccess
 vendor/
+!public/assets/vendor/
 .DS_Store
 *.zip
 deploy/current.env
 __pycache__/
 *.pyc
+tools/wiki-editor/node_modules/

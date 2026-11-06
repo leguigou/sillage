@@ -56,7 +56,7 @@ final class LlmController
     {
         $user=Auth::requireUser();
         $mode=(string)($_POST['mode']??'');
-        if (!in_array($mode,['draft','rewrite','summarize','search'],true)) throw new \InvalidArgumentException('Aide LLM inconnue.');
+        if (!in_array($mode,['draft','rewrite','summarize','correct','procedure','search'],true)) throw new \InvalidArgumentException('Aide LLM inconnue.');
         // Writing helpers are not available to read-only accounts; "search" is.
         if ($mode!=='search') Auth::editor();
         // 30 requests per user per 10 min.
@@ -78,7 +78,7 @@ final class LlmController
             $input="Question : ".$text."\nTickets retrouvés par recherche lexicale (extraits partiels, limite 30) :\n".json_encode($found['tickets'],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
             $instruction='Réponds uniquement à partir des tickets fournis. Cite leurs clés dans ton texte et signale les informations manquantes. N’invente pas de ticket ou de conclusion sur des tickets non examinés.';
         } else {
-            $instruction=match($mode) { 'draft'=>'Rédige une description de ticket structurée : contexte, résultat attendu, critères de validation. N’invente pas les détails absents ; indique les points à préciser.', 'rewrite'=>'Reformule le texte pour le rendre clair et concis en conservant les faits et le sens.',default=>'Résume le texte en mettant en évidence le besoin, les faits et les questions ouvertes.' };
+            $instruction=match($mode) { 'draft'=>'Rédige une description de ticket structurée : contexte, résultat attendu, critères de validation. N’invente pas les détails absents ; indique les points à préciser.', 'rewrite'=>'Reformule le texte pour le rendre clair et concis en conservant les faits et le sens.','correct'=>'Corrige uniquement l’orthographe, la grammaire et la ponctuation. Conserve la structure, le sens, le ton et le balisage Markdown éventuel ; ne reformule pas.','procedure'=>'Réorganise le texte en procédure : un titre, les prérequis éventuels, puis des étapes numérotées courtes à l’impératif. Conserve tous les faits, n’ajoute aucune étape inventée et signale les informations manquantes. Réponds en Markdown simple.',default=>'Résume le texte en mettant en évidence le besoin, les faits et les questions ouvertes.' };
             $input=$text;
         }
         $answer=LlmProfile::generate($profile,TicketAssistant::SYSTEM.' '.$instruction,$input);
