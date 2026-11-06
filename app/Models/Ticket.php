@@ -22,6 +22,7 @@ final class Ticket
         'highest' => 'Critique',
         'high' => 'Haute',
         'medium' => 'Moyenne',
+        'normal' => 'Normale',
         'low' => 'Basse',
         'lowest' => 'Très basse',
     ];
@@ -29,8 +30,9 @@ final class Ticket
         'highest' => 'P1',
         'high' => 'P2',
         'medium' => 'P3',
-        'low' => 'P4',
-        'lowest' => 'P5',
+        'normal' => 'P4',
+        'low' => 'P5',
+        'lowest' => 'P6',
     ];
     public static function find(int $id): array
     {

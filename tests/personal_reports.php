@@ -30,6 +30,12 @@ $rpMulti=Project::save(['name'=>'Tris multiples','key'=>'MT'.strtoupper(bin2hex(
 foreach([['Alpha','high',50],['Zulu','high',50],['Avant','high',10],['Urgent','highest',0]] as [$rpTitle,$rpPriority,$rpProgress]) $rpSortIds[]=Ticket::create($rpMulti,['title'=>$rpTitle,'priority'=>$rpPriority,'progress_percent'=>$rpProgress],$uid);
 $rpMultiSettings=['sort'=>'priority','direction'=>'asc','sort2'=>'progress_percent','direction2'=>'desc','sort3'=>'title','direction3'=>'desc'];
 check(array_column(Query::tickets($rpMulti,$rpMultiSettings),'id')===[$rpSortIds[3],$rpSortIds[1],$rpSortIds[0],$rpSortIds[2]],'trois tris appliqués dans leur priorité avec directions indépendantes');
+$rpMedium=Ticket::create($rpMulti,['title'=>'Moyenne','priority'=>'medium'],$uid);
+$rpNormal=Ticket::create($rpMulti,['title'=>'Normale','priority'=>'normal'],$uid);
+$rpLow=Ticket::create($rpMulti,['title'=>'Basse','priority'=>'low'],$uid);
+check(array_slice(array_column(Query::tickets($rpMulti,['sort'=>'priority']),'id'),-3)===[$rpMedium,$rpNormal,$rpLow]
+    && array_column(Query::tickets($rpMulti,['priority'=>'normal']),'id')===[$rpNormal],
+    'priorité Normale enregistrée, filtrable et classée entre Moyenne et Basse');
 $rpMultiView=SavedView::save($uid,$rpMulti,'Trois tris',$rpMultiSettings);check(json_decode(DB::one('SELECT settings FROM saved_views WHERE id=?',[$rpMultiView])['settings'],true)==$rpMultiSettings,'rapport conserve les trois critères et leurs sens');
 foreach([['sort'=>'priority','sort2'=>'priority'],['sort2'=>'unknown'],['sort3'=>'title','direction3'=>'invalid'],['sort4'=>'title']] as $rpInvalidSort) rejects(fn()=>SavedView::save($uid,$rpMulti,'Tri invalide',$rpInvalidSort),'tri multiple invalide ou supérieur à trois refusé');
 check(str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=') && !str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=progress_percent') && str_contains(query_url('/list',$rpMultiSettings,['sort'=>'priority','direction'=>'desc']),'sort2=progress_percent'),'autre en-tête réinitialise les critères secondaires et inversion conserve les critères');

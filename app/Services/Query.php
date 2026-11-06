@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
+use App\Models\Ticket;
 final class Query
 {
     public const JOIN = ' FROM tickets t JOIN projects p ON p.id=t.project_id LEFT JOIN users a ON a.id=t.assignee_id LEFT JOIN users u ON u.id=t.reporter_id LEFT JOIN teams tm ON tm.id=t.team_id ';
@@ -16,7 +17,7 @@ final class Query
             'rank' => 't.rank_value',
             'title' => 't.title',
             'status' => 't.status',
-            'priority' => "FIELD(t.priority,'highest','high','medium','low','lowest')",
+            'priority' => "FIELD(t.priority,'".implode("','", array_keys(Ticket::PRIORITIES))."')",
             'due' => 't.due_date',
             'estimated_hours' => 't.estimated_hours',
             'progress_percent' => 't.progress_percent',

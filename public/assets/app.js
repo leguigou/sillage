@@ -537,7 +537,7 @@ document.addEventListener('click',event=>{
   $('[data-list-progress-control]',dialog).hidden = !isProgress;
   const help = isProgress ? 'Le temps affiché correspond à l’estimation totale du ticket.'
     : isAssignee ? 'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.'
-    : isPriority ? 'P1 correspond à Critique et P5 à Très basse. Cliquez sur la priorité pour la modifier.'
+    : isPriority ? 'P1 correspond à Critique et P6 à Très basse. Cliquez sur la priorité pour la modifier.'
     : 'L’icône et son infobulle restent visibles.';
   $('[data-list-label-help]',dialog).textContent = help + ' Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport.';
   const stored = preferences['column-label.'+columnLayoutKey+'.'+key];

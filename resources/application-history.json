@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.21.1",
+  "current_version": "1.22.0",
   "entries": [
+    {
+      "version": "1.22.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Priorité Normale",
+      "summary": "Normale est disponible entre Moyenne et Basse dans les priorités des tickets.",
+      "changes": [
+        "Normale peut être sélectionnée dans les tickets, les filtres et les automatisations.",
+        "Dans l’affichage par codes, Normale correspond à P4, Basse à P5 et Très basse à P6."
+      ]
+    },
     {
       "version": "1.21.1",
       "date": "2026-11-06",

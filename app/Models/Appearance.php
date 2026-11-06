@@ -28,6 +28,7 @@ final class Appearance
             'highest'=>['icon'=>'up-double','color'=>'#dc2626'],
             'high'=>['icon'=>'up','color'=>'#c2410c'],
             'medium'=>['icon'=>'equal','color'=>'#b45309'],
+            'normal'=>['icon'=>'equal','color'=>'#0f766e'],
             'low'=>['icon'=>'down','color'=>'#2563eb'],
             'lowest'=>['icon'=>'down-double','color'=>'#64748b'],
         ],
