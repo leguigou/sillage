@@ -7,6 +7,7 @@ import '@milkdown/crepe/theme/common/prosemirror.css';
 import '@milkdown/crepe/theme/common/reset.css';
 import '@milkdown/crepe/theme/common/block-edit.css';
 import '@milkdown/crepe/theme/common/cursor.css';
+import '@milkdown/crepe/theme/common/image-block.css';
 import '@milkdown/crepe/theme/common/link-tooltip.css';
 import '@milkdown/crepe/theme/common/list-item.css';
 import '@milkdown/crepe/theme/common/placeholder.css';
@@ -31,10 +32,10 @@ const blockEdit = {
     h4: { label: 'Titre 4' }, h5: null, h6: null, quote: { label: 'Citation' }, divider: { label: 'Séparateur' },
   },
   listGroup: { label: 'Listes', bulletList: { label: 'Liste à puces' }, orderedList: { label: 'Liste numérotée' }, taskList: { label: 'Cases à cocher' } },
-  advancedGroup: { label: 'Avancé', image: null, codeBlock: { label: 'Bloc de code' }, table: { label: 'Tableau' }, math: null },
+  advancedGroup: { label: 'Avancé', image: { label: 'Image' }, codeBlock: { label: 'Bloc de code' }, table: { label: 'Tableau' }, math: null },
 };
 /** Accessible names for the icon-only top bar buttons, in the order Crepe renders them. */
-const topBarTitles = ['Gras', 'Italique', 'Barré', 'Code', 'Liste à puces', 'Liste numérotée', 'Cases à cocher', 'Lien', 'Tableau', 'Bloc de code', 'Citation', 'Séparateur'];
+const topBarTitles = ['Gras', 'Italique', 'Barré', 'Code', 'Liste à puces', 'Liste numérotée', 'Cases à cocher', 'Lien', 'Image', 'Tableau', 'Bloc de code', 'Citation', 'Séparateur'];
 
 function labelTopBar(root) {
   const buttons = [...root.querySelectorAll('.top-bar button, .milkdown-top-bar button')].filter((b) => !b.closest('[class*="selector"]'));
@@ -48,18 +49,32 @@ function labelTopBar(root) {
  * Creates an editor in `root` with the given Markdown.
  * Returns { getMarkdown, selectedText, replaceSelection, focus, destroy }.
  * onChange(markdown) is called after each edit (debounced by the caller if needed).
+ * uploadImage(file) stores a pasted, dropped or chosen image and resolves to the Markdown address
+ * to keep ("_assets/<name>"); imageUrl(address) maps it to the URL the browser displays.
+ * Without uploadImage, images cannot be added.
  */
-async function create({ root, markdown, onChange, placeholder, readonly = false }) {
+async function create({ root, markdown, onChange, placeholder, readonly = false, uploadImage = null, imageUrl = (url) => url, onImageError = null }) {
   const crepe = new Crepe({
     root,
     defaultValue: markdown,
-    features: { [F.Latex]: false, [F.CodeMirror]: false, [F.AI]: false, [F.ImageBlock]: false, [F.TopBar]: true },
+    features: { [F.Latex]: false, [F.CodeMirror]: false, [F.AI]: false, [F.ImageBlock]: Boolean(uploadImage), [F.TopBar]: true },
     featureConfigs: {
       [F.TopBar]: { headingOptions },
       [F.BlockEdit]: blockEdit,
       [F.Placeholder]: { text: placeholder || 'Commencez à écrire, ou tapez / pour insérer un bloc…', mode: 'doc' },
       [F.Toolbar]: { boldLabel: 'Gras', italicLabel: 'Italique', strikethroughLabel: 'Barré', codeLabel: 'Code', linkLabel: 'Lien' },
       [F.LinkTooltip]: { inputPlaceholder: 'Adresse du lien (https://…)' },
+      [F.ImageBlock]: {
+        onUpload: uploadImage || undefined,
+        proxyDomURL: imageUrl,
+        onImageLoadError: onImageError || undefined,
+        blockUploadButton: 'Choisir une image',
+        blockUploadPlaceholderText: 'ou collez une image',
+        blockCaptionPlaceholderText: 'Légende de l’image',
+        blockConfirmButton: 'Valider',
+        inlineUploadButton: 'Choisir',
+        inlineUploadPlaceholderText: 'ou collez une image',
+      },
     },
   });
   if (onChange) crepe.on((listener) => listener.markdownUpdated((_ctx, md) => onChange(md)));

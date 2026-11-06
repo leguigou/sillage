@@ -41,12 +41,63 @@
 
   function content() { return mode === 'visual' && editor ? editor.getMarkdown() : source.value; }
 
+  // Images: stored by the server as "_assets/<hash>.<ext>" (relative in the .md), displayed from /wiki/assets/.
+  const csrf = $('input[name="_csrf"]', form).value;
+  const imageUrl = (url) => (url.startsWith('_assets/') ? '/wiki/assets/' + url.slice(8) : url);
+  async function uploadImage(file) {
+    if (file.size > Number(form.dataset.imageMax)) throw new Error('L’image dépasse la taille autorisée.');
+    const body = new FormData();
+    body.set('_csrf', csrf);
+    body.set('image', file, file.name || 'image');
+    status.textContent = 'Envoi de l’image…';
+    const response = await fetch(form.dataset.imageUrl, { method: 'POST', headers: { Accept: 'application/json' }, body });
+    let result = {};
+    try { result = await response.json(); } catch { result = {}; }
+    if (!response.ok || !result.src) {
+      const message = result.error || 'L’image n’a pas pu être envoyée.';
+      status.textContent = message; notify(message, true);
+      throw new Error(message);
+    }
+    status.textContent = 'Image ajoutée. Enregistrez la page pour la conserver.';
+    markDirty();
+    return result.src;
+  }
+
   async function startVisual() {
     visual.hidden = false;
     sourceLabel.hidden = true;
-    editor = await window.SillageWikiEditor.create({ root: visual, markdown: source.value, onChange: (md) => { source.value = md; markDirty(); } });
+    editor = await window.SillageWikiEditor.create({
+      root: visual, markdown: source.value, onChange: (md) => { source.value = md; markDirty(); },
+      uploadImage, imageUrl,
+      onImageError: () => { status.textContent = 'Une image ne s’affiche pas : seules les images ajoutées au wiki sont visibles (les adresses externes sont bloquées).'; },
+    });
     mode = 'visual';
   }
+
+  // Markdown mode: a pasted or dropped image is uploaded and inserted at the cursor.
+  async function insertFiles(files) {
+    for (const file of [...files].filter((f) => f.type.startsWith('image/'))) {
+      try {
+        const src = await uploadImage(file);
+        source.setRangeText('![](' + src + ')', source.selectionStart, source.selectionEnd, 'end');
+        source.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch { /* message already shown */ }
+    }
+  }
+  source.addEventListener('paste', (event) => { if ([...event.clipboardData.files].some((f) => f.type.startsWith('image/'))) { event.preventDefault(); insertFiles(event.clipboardData.files); } });
+  source.addEventListener('drop', (event) => { if ([...event.dataTransfer.files].some((f) => f.type.startsWith('image/'))) { event.preventDefault(); insertFiles(event.dataTransfer.files); } });
+
+  // Callouts ("> [!NOTE]" …) are inserted at the cursor, in both modes.
+  const callout = $('[data-wiki-callout]', form);
+  callout.addEventListener('change', () => {
+    const type = callout.value;
+    callout.value = '';
+    if (!type) return;
+    const block = '> [!' + type + ']\n> Votre texte ici.';
+    if (mode === 'visual' && editor) { editor.replaceSelection(block); editor.focus(); }
+    else { source.setRangeText('\n' + block + '\n', source.selectionStart, source.selectionEnd, 'end'); source.dispatchEvent(new Event('input', { bubbles: true })); source.focus(); }
+    markDirty();
+  });
 
   async function switchMode(next) {
     if (next === mode) return;

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
-use App\Models\{WikiPage, WikiRevision};
+use App\Models\{WikiAsset, WikiPage, WikiRevision};
 
 /**
  * Wiki operations keeping the Markdown files, wiki_pages and wiki_revisions consistent.
@@ -43,6 +43,38 @@ final class Wiki
     {
         $stat = WikiStorage::stat($path);
         if ($stat) DB::run('UPDATE wiki_pages SET file_mtime=?,file_size=? WHERE id=?', [$stat[0], $stat[1], $id]);
+    }
+
+    /**
+     * Writes the readable "_assets" copies of the images referenced by $markdown into $folder, from
+     * wiki_assets. Copies are a convenience for people browsing the folder: a failure never undoes
+     * the operation that called this.
+     */
+    private static function ensureAssets(string $folder, string ...$markdown): void
+    {
+        foreach (array_unique(array_merge(...array_map([WikiAsset::class, 'referenced'], $markdown ?: ['']))) as $name) {
+            try {
+                if (WikiStorage::assetFiles($folder)[$name] ?? null) continue;
+                $asset = WikiAsset::find($name);
+                if ($asset) WikiStorage::writeAsset($folder, $name, $asset['data']);
+            } catch (\Throwable $error) {
+                error_log('[' . gmdate('c') . '] Wiki : copie de l’image ' . $name . ' impossible dans « ' . $folder . ' ».' . PHP_EOL, 3, ROOT . '/storage/error.log');
+            }
+        }
+    }
+
+    /** Stores an image sent from the editor of page $id; returns its name (referenced as "_assets/<name>"). */
+    public static function uploadImage(array $user, int $id, string $data): string
+    {
+        $page = WikiPage::find($id);
+        $name = WikiAsset::store($data, (int) $user['id']);
+        self::ensureAssets(WikiStorage::parent($page['path']), '_assets/' . $name);
+        return $name;
+    }
+
+    private static function revisionContents(int $id): array
+    {
+        return array_column(DB::all('SELECT content FROM wiki_revisions WHERE page_id=?', [$id]), 'content');
     }
 
     private static function ensureFolder(string $folder): string
@@ -138,6 +170,7 @@ final class Wiki
         }
         WikiStorage::commit($temp, $page['path']);
         self::remember($id, $page['path']);
+        self::ensureAssets(WikiStorage::parent($page['path']), $content);
         return $number;
     }
 
@@ -168,6 +201,7 @@ final class Wiki
         }
         WikiStorage::commit($temp, $page['path']);
         self::remember($id, $page['path']);
+        self::ensureAssets(WikiStorage::parent($page['path']), $content);
         return $new;
     }
 
@@ -197,6 +231,8 @@ final class Wiki
             throw $error;
         }
         self::remember($id, $target);
+        // Older revisions keep their relative "_assets/" links: copy every image they use.
+        if (WikiStorage::parent($target) !== WikiStorage::parent($page['path'])) self::ensureAssets(WikiStorage::parent($target), ...self::revisionContents($id));
     }
 
     /** Deletes a page: its file is removed, its history is kept and it can be restored. */
@@ -314,7 +350,21 @@ final class Wiki
     public static function scan(): array
     {
         $tree = WikiStorage::tree();
-        $report = ['created' => 0, 'external' => 0, 'repaired' => 0, 'deleted' => 0, 'invalid' => [], 'rejected' => $tree['rejected']];
+        $report = ['created' => 0, 'external' => 0, 'repaired' => 0, 'deleted' => 0, 'images' => 0, 'invalid' => [], 'rejected' => $tree['rejected']];
+        // Images copied by hand into an "_assets" folder are added to wiki_assets when valid.
+        foreach (array_merge([''], $tree['folders']) as $folder) {
+            foreach (WikiStorage::assetFiles($folder) as $name => $file) {
+                if (WikiAsset::exists($name)) continue;
+                $data = (string) file_get_contents($file);
+                try {
+                    if (WikiAsset::inspect($data)['name'] !== $name) throw new \InvalidArgumentException('le nom ne correspond pas à l’empreinte du contenu');
+                    WikiAsset::store($data, null);
+                    $report['images']++;
+                } catch (\InvalidArgumentException $error) {
+                    $report['invalid'][] = WikiStorage::join($folder, WikiStorage::ASSETS . '/' . $name) . ' — ' . $error->getMessage();
+                }
+            }
+        }
         $seen = [];
         foreach ($tree['files'] as $path) {
             $key = WikiStorage::key($path);$seen[$key] = true;
@@ -359,6 +409,7 @@ final class Wiki
                     if (!WikiStorage::isFolder($folder)) WikiStorage::makeFolder($folder);
                 }
                 WikiStorage::commit(WikiStorage::prepare($page['path'], (string) $latest['content']), $page['path']);
+                self::ensureAssets(WikiStorage::parent($page['path']), ...self::revisionContents((int) $page['id']));
                 $count++;
             }
             return $count;

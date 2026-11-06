@@ -162,6 +162,8 @@ final class WikiStorage
         if (str_starts_with($content, "\xEF\xBB\xBF")) $content = substr($content, 3);
         if (!mb_check_encoding($content, 'UTF-8')) throw new \InvalidArgumentException('Le contenu n’est pas un texte UTF-8 valide.');
         $content = str_replace(["\r\n", "\r"], "\n", $content);
+        // The editor escapes callout markers ("> \[!NOTE]"); keep the GitHub syntax readable in the file.
+        $content = preg_replace('/^((?:[ \t]*>)+[ \t]*)\\\\\[!(NOTE|INFO|TIP|IMPORTANT|WARNING|CAUTION)\]/mi', '$1[!$2]', $content) ?? $content;
         $content = rtrim($content, "\n") . "\n";
         if ($content === "\n") $content = '';
         if (strlen($content) > self::MAX_BYTES) throw new \InvalidArgumentException('Une page est limitée à 512 Ko.');
@@ -287,7 +289,10 @@ final class WikiStorage
         if (!mkdir($path, 0700)) throw new \RuntimeException('Création du dossier impossible.');
     }
 
-    /** Removes an empty folder; hidden leftovers of interrupted operations do not count as content. */
+    /**
+     * Removes a folder without pages or sub-folders. Hidden leftovers of interrupted operations and
+     * the "_assets" image copies do not count as content (images stay in wiki_assets).
+     */
     public static function removeFolder(string $relative): void
     {
         if ($relative === '') throw new \InvalidArgumentException('Le dossier racine ne peut pas être supprimé.');
@@ -295,10 +300,58 @@ final class WikiStorage
         if (!is_dir($path)) throw new \InvalidArgumentException('Dossier introuvable.');
         $entries = array_diff(scandir($path) ?: [], ['.', '..']);
         foreach ($entries as $entry) {
+            if ($entry === self::ASSETS && is_dir($path . '/' . $entry) && !is_link($path . '/' . $entry)) continue;
             if (!preg_match('/^\.wiki-[0-9a-f]{16}\.(tmp|deleted|move)$/D', $entry)) throw new \InvalidArgumentException('Le dossier n’est pas vide.');
         }
-        foreach ($entries as $entry) @unlink($path . '/' . $entry);
+        $assets = $path . '/' . self::ASSETS;
+        if (is_dir($assets) && !is_link($assets)) {
+            foreach (array_diff(scandir($assets) ?: [], ['.', '..']) as $entry) {
+                if (!is_file($assets . '/' . $entry) || is_link($assets . '/' . $entry)) throw new \InvalidArgumentException('Le dossier des images contient un élément inattendu.');
+                @unlink($assets . '/' . $entry);
+            }
+            if (!rmdir($assets)) throw new \RuntimeException('Suppression du dossier des images impossible.');
+        }
+        foreach ($entries as $entry) if ($entry !== self::ASSETS) @unlink($path . '/' . $entry);
         if (!rmdir($path)) throw new \RuntimeException('Suppression du dossier impossible.');
+    }
+
+    /** Folder holding the readable image copies of the pages of a folder. */
+    public const ASSETS = '_assets';
+
+    /** Relative path of an image copy; $name must be a WikiAsset name (hash + extension). */
+    public static function assetPath(string $folder, string $name): string
+    {
+        if (!preg_match(\App\Models\WikiAsset::NAME, $name)) throw new \InvalidArgumentException('Nom d’image invalide.');
+        return self::join(self::relativePath($folder), self::ASSETS . '/' . $name);
+    }
+
+    /** Writes an image copy next to the pages of $folder, unless it is already there. */
+    public static function writeAsset(string $folder, string $name, string $data): void
+    {
+        $relative = self::assetPath($folder, $name);
+        $file = self::absolute($relative);
+        if (is_file($file)) return;
+        $directory = dirname($file);
+        if (is_link($directory)) throw new \InvalidArgumentException('Les liens symboliques ne sont pas suivis dans le wiki.');
+        if (!is_dir($directory) && !mkdir($directory, 0700) && !is_dir($directory)) throw new \RuntimeException('Création du dossier des images impossible.');
+        $temp = $directory . '/.wiki-' . bin2hex(random_bytes(8)) . '.tmp';
+        if (file_put_contents($temp, $data, LOCK_EX) !== strlen($data) || !@rename($temp, $file)) {
+            @unlink($temp);
+            throw new \RuntimeException('Écriture de l’image impossible.');
+        }
+    }
+
+    /** Image copies found in "_assets" of $folder: [name => absolute path]; other entries are ignored. */
+    public static function assetFiles(string $folder): array
+    {
+        $directory = self::absolute(self::join(self::relativePath($folder), self::ASSETS));
+        if (!is_dir($directory) || is_link($directory)) return [];
+        $files = [];
+        foreach (scandir($directory) ?: [] as $entry) {
+            $file = $directory . '/' . $entry;
+            if (preg_match(\App\Models\WikiAsset::NAME, $entry) && is_file($file) && !is_link($file)) $files[$entry] = $file;
+        }
+        return $files;
     }
 
     /**

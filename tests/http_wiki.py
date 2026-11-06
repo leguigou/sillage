@@ -1,5 +1,5 @@
 """Wiki through actual HTTP: pages, editor saves and conflicts, history, search, rights, CSRF, escaping."""
-import re, json, uuid, urllib.parse, urllib.request, http.cookiejar
+import re, json, uuid, base64, hashlib, urllib.parse, urllib.request, http.cookiejar
 import http_workflows_support as support
 from http_workflows_support import call, get_token, token, check, passed_count
 
@@ -61,6 +61,26 @@ with support.client.open(request, timeout=20) as response:
     check(response.headers['Content-Type'].startswith('text/markdown') and 'attachment' in response.headers['Content-Disposition'], 'Markdown download headers')
     check(raw == content, 'downloaded file equals the saved Markdown')
 
+png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
+images = '/wiki/pages/' + page + '/images'
+check(support.upload(images, {}, 'image', 'schema.png', png, 'image/png', json_accept=True)[0] == 403, 'image upload requires CSRF')
+status, body, _ = support.upload(images, {'_csrf': csrf}, 'image', 'schema.svg', b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', 'image/png', json_accept=True)
+check(status == 422, 'SVG refused even when announced as PNG')
+status, body, _ = support.upload(images, {'_csrf': csrf}, 'image', 'schema.png', png, 'image/png', json_accept=True)
+uploaded = json.loads(body)
+asset = hashlib.sha256(png).hexdigest() + '.png'
+check(status == 200 and uploaded['src'] == '_assets/' + asset, 'image stored under its content hash')
+with support.client.open(urllib.request.Request(support.BASE + '/wiki/assets/' + asset), timeout=20) as response:
+    check(response.headers['Content-Type'] == 'image/png' and response.read() == png and 'immutable' in response.headers['Cache-Control'], 'image served with its type and a long cache')
+check(call('/wiki/pages/' + page + '/_assets/' + asset)[0] == 200, 'image reachable relatively from the editor URL')
+check(call('/wiki/assets/' + '0' * 64 + '.png')[0] == 404, 'unknown image returns 404')
+illustrated = content + '\n![1.00](_assets/' + asset + ' "Parcours d’achat")\n\n> [!WARNING]\n> Ne jamais partager les identifiants.\n'
+status, body, _ = call(save, {'_csrf': csrf, 'content': illustrated, 'base_revision': '4'}, True)
+check(status == 200 and json.loads(body)['revision'] == 5, 'page saved with an image and a callout')
+status, html, _ = call('/wiki/pages/' + page)
+check('<figure class="wiki-figure"><img class="wiki-image" src="/wiki/assets/' + asset + '"' in html and '<figcaption>Parcours d’achat</figcaption>' in html, 'image rendered as a figure with its caption')
+check('wiki-callout wiki-callout-warning' in html and 'Attention</p>' in html, 'callout rendered with a French title')
+
 status, html, _ = call('/wiki/search?q=' + urllib.parse.quote('cloture'))
 check(status == 200 and '/wiki/pages/' + page in html, 'search ignores accents')
 status, html, _ = call('/wiki/search?q=' + urllib.parse.quote('montan') + '&folder=' + urllib.parse.quote(folder))
@@ -80,8 +100,10 @@ vcsrf = token(html)
 status, html, _ = call('/wiki/pages/' + page)
 check(status == 200 and 'Modifier</a>' not in html and 'Nouvelle page' not in html, 'viewer reads without edit actions')
 check(call('/wiki/pages/' + page + '/edit')[0] == 403, 'viewer cannot open the editor')
-check(call(save, {'_csrf': vcsrf, 'content': 'x', 'base_revision': '4'}, True)[0] == 403, 'viewer cannot save')
+check(call(save, {'_csrf': vcsrf, 'content': 'x', 'base_revision': '5'}, True)[0] == 403, 'viewer cannot save')
 check(call('/wiki/pages/' + page + '/delete', {'_csrf': vcsrf})[0] == 403, 'viewer cannot delete')
+check(support.upload(images, {'_csrf': vcsrf}, 'image', 'schema.png', png, 'image/png', json_accept=True)[0] == 403, 'viewer cannot upload images')
+check(call('/wiki/assets/' + asset)[0] == 200, 'viewer sees wiki images')
 check(call('/wiki/deleted')[0] == 403, 'deleted pages are admin only')
 support.client = admin
 

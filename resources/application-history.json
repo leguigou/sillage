@@ -7,7 +7,7 @@
       "date": "2026-11-06",
       "category": "features",
       "title": "Wiki de documentation",
-      "summary": "Un nouveau menu Wiki rassemble la documentation de l’équipe dans des pages Markdown rangées en dossiers, avec un éditeur visuel, une recherche et l’historique des modifications.",
+      "summary": "Un nouveau menu Wiki rassemble la documentation de l’équipe dans des pages Markdown rangées en dossiers, avec un éditeur visuel, des images, des encadrés, une recherche et l’historique des modifications.",
       "changes": [
         "Les pages sont créées dans des dossiers et sous-dossiers, puis renommées, déplacées ou supprimées ; chaque page est un fichier .md lisible dans le dossier du wiki.",
         "L’éditeur visuel propose une barre d’outils, les tableaux, les listes à cocher et un mode Markdown ; l’aide à la rédaction peut reformuler, résumer, corriger l’orthographe ou structurer une procédure.",
@@ -15,8 +15,10 @@
         "Deux personnes qui modifient la même page sont prévenues avant d’écraser le travail de l’autre.",
         "La recherche porte sur les titres et les contenus, sans tenir compte des accents ni des majuscules.",
         "Les fichiers modifiés, ajoutés ou supprimés hors de Sillage sont détectés et inscrits dans l’historique comme modifications externes.",
-        "Les fichiers du wiki ne font pas partie du transfert de site : après un import, la commande wiki:rebuild les recrée à partir de l’historique.",
-        "Limites : les images, les liens entre pages et l’import de documents ne sont pas encore disponibles ; toutes les personnes connectées peuvent lire le wiki."
+        "Les images se collent, se glissent ou se choisissent dans l’éditeur (PNG, JPEG, WebP ou GIF) et s’affichent avec leur légende ; elles suivent la page quand elle est déplacée.",
+        "Les encadrés Remarque, Astuce, Important, Attention et Danger mettent en valeur une information, comme les panneaux de Confluence.",
+        "Les fichiers du wiki ne font pas partie du transfert de site : après un import, la commande wiki:rebuild recrée les pages et leurs images à partir de la base.",
+        "Limites : les liens entre pages et l’import de documents ne sont pas encore disponibles ; toutes les personnes connectées peuvent lire le wiki."
       ]
     },
     {

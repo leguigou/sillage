@@ -93,6 +93,21 @@ try {
         check(!$unsafe, 'injection neutralisée : ' . $attack);
     }
     check(!str_contains(strtolower(WikiRenderer::render('[x](javascript:alert(1)) [y](JAVASCRIPT:x)')['html']), 'href="javascript'), 'liens javascript neutralisés retirés du rendu');
+
+    // Images and callouts.
+    $asset = str_repeat('ab', 32) . '.png';
+    $figure = WikiRenderer::render('![1.00](_assets/' . $asset . ' "Parcours d’achat")')['html'];
+    check(str_contains($figure, '<figure class="wiki-figure"><img class="wiki-image" src="/wiki/assets/' . $asset . '" alt="" loading="lazy"><figcaption>Parcours d’achat</figcaption></figure>'), 'image du wiki en figure avec légende, ratio de l’éditeur ignoré');
+    $inline = WikiRenderer::render('Voir ![logo](_assets/' . $asset . ') ici')['html'];
+    check(str_contains($inline, '<img class="wiki-image" src="/wiki/assets/' . $asset . '" alt="logo"') && !str_contains($inline, '<figure'), 'image dans le texte sans figure');
+    foreach (['![x](_assets/../secret.png)', '![x](_assets/' . $asset . '.svg)', '![x](https://exemple.fr/a.png)', '![x](/wiki/assets/' . $asset . ')'] as $other) {
+        check(!str_contains(WikiRenderer::render($other)['html'], '<img'), 'image hors du wiki affichée en lien : ' . $other);
+    }
+    $callout = WikiRenderer::render("> [!WARNING]\n> Ne pas partager.\n\n> \\[!tip] Astuce en ligne\n\n> Citation\n")['html'];
+    check(str_contains($callout, '<blockquote class="wiki-callout wiki-callout-warning" role="note"><p class="wiki-callout-title">Attention</p>') && str_contains($callout, 'wiki-callout-tip') && substr_count($callout, 'wiki-callout ') === 2, 'encadrés colorés, citation simple inchangée');
+    check(!str_contains($callout, '[!WARNING]') && str_contains($callout, 'Ne pas partager.'), 'marqueur d’encadré retiré, texte conservé');
+    check(WikiStorage::normalizeContent("> \\[!NOTE]\n> x\n") === "> [!NOTE]\n> x\n", 'échappement des encadrés retiré à l’enregistrement');
+    check(\App\Models\WikiAsset::referenced("![](_assets/$asset) ![](_assets/$asset) ![](_assets/x.png)") === [$asset], 'images référencées extraites sans doublon');
     check(WikiRenderer::title("```\n# pas un titre\n```\n# Vrai titre\n") === 'Vrai titre', 'titre ignoré dans un bloc de code');
     check(WikiRenderer::title("Texte\n") === null, 'page sans titre de niveau 1');
 

@@ -68,6 +68,31 @@
 .wiki-content table { border-collapse: collapse; min-width: 50%; }
 .wiki-content th, .wiki-content td { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
 .wiki-content th { background: var(--surface-soft); text-align: left; }
+.wiki-content img.wiki-image { max-width: 100%; height: auto; border-radius: 8px; vertical-align: middle; }
+.wiki-content .wiki-figure { margin: 0 0 1em; text-align: center; }
+.wiki-content .wiki-figure img.wiki-image { display: block; margin: 0 auto; border: 1px solid var(--line); }
+.wiki-content .wiki-figure figcaption { margin-top: 6px; font-size: 13px; color: var(--subtle); }
+.wiki-content .wiki-callout { --callout: #3b82f6; border-left: 4px solid var(--callout); background: color-mix(in srgb, var(--callout) 9%, var(--surface)); border-radius: 0 10px 10px 0; padding: 10px 16px; }
+.wiki-content .wiki-callout > :last-child { margin-bottom: 0; }
+.wiki-content .wiki-callout-title { font-weight: 700; color: var(--callout); margin: 0 0 4px; }
+.wiki-content .wiki-callout-title::before { margin-right: 6px; }
+.wiki-content .wiki-callout-note { --callout: #2563eb; }
+.wiki-content .wiki-callout-note .wiki-callout-title::before { content: 'ℹ'; }
+.wiki-content .wiki-callout-tip { --callout: #16a34a; }
+.wiki-content .wiki-callout-tip .wiki-callout-title::before { content: '✓'; }
+.wiki-content .wiki-callout-important { --callout: #7c3aed; }
+.wiki-content .wiki-callout-important .wiki-callout-title::before { content: '★'; }
+.wiki-content .wiki-callout-warning { --callout: #d97706; }
+.wiki-content .wiki-callout-warning .wiki-callout-title::before { content: '⚠'; }
+.wiki-content .wiki-callout-caution { --callout: #dc2626; }
+.wiki-content .wiki-callout-caution .wiki-callout-title::before { content: '⛔'; }
+[data-theme='dark'] .wiki-content .wiki-callout-note { --callout: #60a5fa; }
+[data-theme='dark'] .wiki-content .wiki-callout-tip { --callout: #4ade80; }
+[data-theme='dark'] .wiki-content .wiki-callout-important { --callout: #a78bfa; }
+[data-theme='dark'] .wiki-content .wiki-callout-warning { --callout: #fbbf24; }
+[data-theme='dark'] .wiki-content .wiki-callout-caution { --callout: #f87171; }
+.wiki-callout-picker select { margin: 0; }
+.wiki-editor .milkdown img { max-width: 100%; }
 .wiki-content .align-left { text-align: left; }
 .wiki-content .align-center { text-align: center; }
 .wiki-content .align-right { text-align: right; }

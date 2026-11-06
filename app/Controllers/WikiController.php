@@ -156,6 +156,48 @@ final class WikiController
         redirect(self::pageUrl((int) $id));
     }
 
+    /** Image sent by the editor (field "image"). JSON: {ok, name, src: "_assets/<name>"}. */
+    public function uploadImage(string $id): void
+    {
+        $user = Auth::editor();
+        \App\Core\Security::limit('wiki-image-' . $user['id'], 60, 600);
+        $file = $_FILES['image'] ?? null;
+        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
+            $tooLarge = in_array($file['error'] ?? null, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true);
+            throw new \InvalidArgumentException($tooLarge ? 'L’image dépasse la taille autorisée.' : 'L’image n’a pas pu être envoyée.');
+        }
+        if ((int) filesize($file['tmp_name']) > \App\Models\WikiAsset::maxBytes()) throw new \InvalidArgumentException('L’image dépasse la taille autorisée.');
+        $name = Wiki::uploadImage($user, (int) $id, (string) file_get_contents($file['tmp_name']));
+        json_response(['ok' => true, 'name' => $name, 'src' => WikiStorage::ASSETS . '/' . $name]);
+    }
+
+    /** Serves a wiki image to any signed-in user. Names are content hashes: the response never changes. */
+    public function asset(string $name): void
+    {
+        Auth::requireUser();
+        $asset = \App\Models\WikiAsset::find($name);
+        if (!$asset) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Image introuvable.';
+            return;
+        }
+        if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === '"' . $asset['name'] . '"') { http_response_code(304);return; }
+        header('Content-Type: ' . $asset['mime']);
+        header('Content-Length: ' . strlen($asset['data']));
+        header('Content-Disposition: inline; filename="' . $asset['name'] . '"');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, max-age=31536000, immutable');
+        header('ETag: "' . $asset['name'] . '"');
+        echo $asset['data'];
+    }
+
+    /** Same image, addressed relatively from a page URL (the editor resolves "_assets/…" this way). */
+    public function pageAsset(string $id, string $name): void
+    {
+        $this->asset($name);
+    }
+
     public function move(string $id): void
     {
         $user = Auth::editor();

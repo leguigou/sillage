@@ -10,6 +10,8 @@ La spécification complète et les choix techniques sont dans [wiki-specificatio
 - **Nouveau dossier**, puis dans un dossier : **Renommer ou déplacer**, et pour un administrateur **Supprimer le dossier** (vide uniquement).
 - **Modifier** : éditeur visuel avec barre d’outils, menu `/` pour insérer un bloc, tableaux et cases à cocher. Le bouton **Markdown** montre le texte brut. `Ctrl+S` enregistre. Le champ **Décrire la modification** devient le message de la version.
 - **Aide à la rédaction** (si un fournisseur IA est configuré) : reformuler, résumer, corriger l’orthographe ou structurer en procédure. Le texte sélectionné, ou toute la page sans sélection (6 000 caractères au maximum), est envoyé au fournisseur affiché dans la fenêtre. La proposition est insérée seulement sur **Insérer la proposition** et n’est enregistrée qu’avec **Enregistrer**.
+- **Images** : coller, glisser ou **Image** dans la barre d’outils (PNG, JPEG, WebP ou GIF ; taille limitée par `UPLOAD_MAX_MB`, 15 Mo au plus ; 10 000 pixels de côté). Le SVG est refusé, car il peut contenir du code. La légende saisie sous l’image s’affiche en dessous. Les images d’adresses externes ne s’affichent pas (politique de sécurité de Sillage) : elles apparaissent comme un lien.
+- **Encadrés** : menu **Insérer un encadré…** ou, en Markdown, la syntaxe de GitHub : `> [!NOTE]` (Remarque), `> [!TIP]` (Astuce), `> [!IMPORTANT]`, `> [!WARNING]` (Attention), `> [!CAUTION]` (Danger). `> [!INFO]` est accepté comme Remarque.
 - **Historique** : chaque version avec son auteur, sa date, son action et le nombre de lignes ajoutées et supprimées. **Comparer** affiche les lignes et mots modifiés ; **Ignorer la mise en forme** masque les réécritures de syntaxe (puces, espaces des tableaux). **Restaurer cette version** crée une nouvelle version ; aucune n’est effacée.
 - **Recherche** : titres et contenus, sans tenir compte des accents ni des majuscules ; tous les mots sont requis et un mot trouve aussi les mots qui commencent par lui. Les mots de moins de 3 lettres sont ignorés et il n’y a pas de gestion du pluriel.
 - **Supprimer une page** retire son fichier. Un administrateur la retrouve dans **Pages supprimées** et peut la restaurer si son emplacement est libre.
@@ -24,17 +26,19 @@ L’éditeur envoie la version sur laquelle il est parti. Si quelqu’un a enreg
 
 Les fichiers sont dans `WIKI_PATH` (par défaut `storage/wiki`, donc dans le volume Docker `sillage_storage`). Les noms commençant par `.` ou `_` sont réservés et ignorés. Les liens symboliques ne sont jamais suivis.
 
-**Sauvegarde** : `bin/backup.php` sauvegarde la base, qui contient une copie complète de chaque version. Sauvegardez aussi le volume `storage`. En cas de perte des fichiers :
+**Images** : chaque image est enregistrée une fois dans la table `wiki_assets`, sous le nom de son empreinte SHA-256 (`<empreinte>.png`), et une copie lisible est placée dans le dossier `_assets/` à côté des pages qui l’utilisent (le `.md` contient `![légende](_assets/<empreinte>.png)`). Une image n’est jamais remplacée : les anciennes versions d’une page continuent de l’afficher. Déplacer une page copie ses images dans son nouveau dossier ; supprimer un dossier sans page retire ses copies, pas les images en base. Les images inutilisées ne sont pas encore nettoyées automatiquement.
+
+**Sauvegarde** : `bin/backup.php` sauvegarde la base, qui contient une copie complète de chaque version et toutes les images. Sauvegardez aussi le volume `storage`. En cas de perte des fichiers :
 
 ```bash
 php bin/console.php wiki:rebuild /chemin/vers/un/dossier/vide
 ```
 
-écrit la dernière version de chaque page dans ce dossier, qu’il suffit ensuite de placer comme `WIKI_PATH`.
+écrit la dernière version de chaque page et ses images dans ce dossier, qu’il suffit ensuite de placer comme `WIKI_PATH`.
 
 **Transfert de site** (`site:export` / `site:import`, voir [transfert-site.md](transfert-site.md)) : les tables du wiki sont transférées, pas les fichiers. Après l’import, lancer `wiki:rebuild` vers le dossier du wiki encore vide.
 
-Les fichiers peuvent être modifiés hors de Sillage, mais ce n’est pas recommandé. À l’ouverture d’une page, Sillage compare le fichier à sa dernière version connue : une différence est enregistrée comme **Modification externe** (sans auteur). Pour tout le dossier, y compris les fichiers ajoutés ou supprimés : **Analyser le dossier** (administrateurs) ou
+Les fichiers peuvent être modifiés hors de Sillage, mais ce n’est pas recommandé. À l’ouverture d’une page, Sillage compare le fichier à sa dernière version connue : une différence est enregistrée comme **Modification externe** (sans auteur). Pour tout le dossier, y compris les fichiers ajoutés ou supprimés et les images copiées à la main dans un `_assets/` (leur nom doit être l’empreinte de leur contenu) : **Analyser le dossier** (administrateurs) ou
 
 ```bash
 php bin/console.php wiki:scan
@@ -50,7 +54,7 @@ Un fichier non UTF-8, au nom invalide (caractère interdit, nom réservé Window
 | `App\Services\Wiki` | Opérations : créer, enregistrer, déplacer, supprimer, restaurer, synchroniser, analyser, reconstruire |
 | `App\Services\WikiRenderer` | Markdown → HTML (Parsedown 1.8.0 en mode sécurisé, `app/Libraries/Parsedown`) puis nettoyage compatible CSP |
 | `App\Services\TextDiff` | Comparaison ligne à ligne et mot à mot |
-| `App\Models\WikiPage`, `WikiRevision` | Tables `wiki_pages` (index, cache HTML, recherche) et `wiki_revisions` (historique) |
+| `App\Models\WikiPage`, `WikiRevision`, `WikiAsset` | Tables `wiki_pages` (index, cache HTML, recherche), `wiki_revisions` (historique) et `wiki_assets` (images) |
 | `App\Controllers\WikiController`, `app/Views/wiki.php`, `public/assets/wiki.{js,css}` | Écrans |
 
 Ordre d’écriture : le contenu est d’abord écrit dans un fichier temporaire du dossier cible, puis la transaction verrouille la page, vérifie la version de départ et ajoute la version ; le fichier temporaire ne remplace la page qu’après la validation. Si ce remplacement échoue, le fichier garde la version précédente : la synchronisation le reconnaît à son empreinte et le réécrit. Déplacements et suppressions font l’inverse : l’opération disque d’abord, annulée si la transaction échoue.
@@ -67,8 +71,8 @@ npm ci --ignore-scripts
 npm run build
 ```
 
-Choisir des versions publiées depuis au moins deux semaines, garder les versions exactes dans `package.json`, relire le diff du dossier `vendor` et vérifier dans le navigateur qu’aucune violation de la politique de sécurité (CSP) n’apparaît. Les fonctionnalités LaTeX, CodeMirror, IA et images de Milkdown sont désactivées ; KaTeX et les langages CodeMirror sont remplacés par des modules vides au moment de la préparation.
+Choisir des versions publiées depuis au moins deux semaines, garder les versions exactes dans `package.json`, relire le diff du dossier `vendor` et vérifier dans le navigateur qu’aucune violation de la politique de sécurité (CSP) n’apparaît. Les fonctionnalités LaTeX, CodeMirror et IA de Milkdown sont désactivées ; les images passent par `POST /wiki/pages/{id}/images` ; KaTeX et les langages CodeMirror sont remplacés par des modules vides au moment de la préparation.
 
-## Limites du lot 1
+## Limites actuelles
 
-Pas d’images ni de pièces jointes dans les pages (une image Markdown s’affiche comme un lien), pas de liens `[[Page]]`, de modèles, d’abonnements ni de droits par dossier, pas d’import de documents. Voir la section « Lots suivants » de la spécification.
+Pas de pièces jointes autres que les images, pas de liens `[[Page]]`, de modèles, d’abonnements ni de droits par dossier, pas d’import de documents. L’éditeur enregistre le rapport d’affichage d’une image dans son texte alternatif (`![1.00](…)`) ; ce texte est ignoré au rendu. Voir la section « Lots suivants » de la spécification.

@@ -2,7 +2,7 @@
 // Wiki with the database (included by tests/run.php inside its rolled-back transaction).
 // Full-text search is not visible before a commit in InnoDB: it is covered by tests/http_wiki.py.
 use App\Core\DB;
-use App\Models\{WikiPage, WikiRevision};
+use App\Models\{WikiAsset, WikiPage, WikiRevision};
 use App\Services\{Wiki, WikiConflict, WikiStorage};
 
 $wikiDbRoot = sys_get_temp_dir() . '/sillage-wiki-db-' . bin2hex(random_bytes(6));
@@ -105,12 +105,39 @@ try {
     check(Wiki::scan()['created'] === 0, 'analyse idempotente');
     unlink(WikiStorage::absolute('Externe/CON.md'));
 
+    // Images: content-addressed, stored once, copied next to the pages that use them.
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+    $gif = base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+    rejects(fn() => WikiAsset::inspect('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'image SVG refusée');
+    rejects(fn() => WikiAsset::inspect('pas une image'), 'fichier non image refusé');
+    $pngName = Wiki::uploadImage($wikiUser, $wikiId, $png);
+    check($pngName === hash('sha256', $png) . '.png' && WikiAsset::find($pngName)['data'] === $png && WikiAsset::find($pngName)['mime'] === 'image/png', 'image stockée sous son empreinte');
+    check(Wiki::uploadImage($wikiUser, $wikiId, $png) === $pngName && (int) DB::one('SELECT COUNT(*) n FROM wiki_assets WHERE name=?', [$pngName])['n'] === 1, 'image identique stockée une seule fois');
+    check(is_file(WikiStorage::absolute('Boutiques/_assets/' . $pngName)) && !in_array('Boutiques/_assets', WikiStorage::tree()['folders'], true), 'copie lisible dans le dossier de la page, ignorée par l’arborescence');
+    $withImage = $content . "
+![schéma](_assets/$pngName)
+";
+    Wiki::save($wikiUser, $wikiId, $withImage, (int) WikiPage::find($wikiId)['current_revision_no']);
+    check(str_contains((string) DB::one('SELECT html FROM wiki_pages WHERE id=?', [$wikiId])['html'], 'src="/wiki/assets/' . $pngName . '"'), 'image affichée depuis le wiki');
+    Wiki::move($wikiUser, $wikiId, 'Externe', 'clôture');
+    check(is_file(WikiStorage::absolute('Externe/_assets/' . $pngName)), 'images copiées avec la page déplacée');
+    $gifName = hash('sha256', $gif) . '.gif';
+    file_put_contents(WikiStorage::absolute('Boutiques/_assets/' . $gifName), $gif);
+    file_put_contents(WikiStorage::absolute('Boutiques/_assets/' . str_repeat('0', 64) . '.png'), $png);
+    $report = Wiki::scan();
+    check($report['images'] === 1 && WikiAsset::exists($gifName), 'analyse : image copiée à la main enregistrée');
+    check(count(array_filter($report['invalid'], fn($line) => str_contains($line, str_repeat('0', 64)))) === 1, 'image dont le nom ne correspond pas au contenu signalée');
+
     // Rebuild from revisions.
     check(Wiki::rebuild($wikiRebuild) === count(WikiPage::under('')), 'reconstruction : une page écrite par page active');
-    check(file_get_contents($wikiRebuild . '/Boutiques/clôture.md') === $content, 'reconstruction fidèle à la dernière version');
+    check(file_get_contents($wikiRebuild . '/Externe/clôture.md') === WikiRevision::latest($wikiId)['content'] && str_contains(WikiRevision::latest($wikiId)['content'], '_assets/' . $pngName), 'reconstruction fidèle à la dernière version');
+    check(file_get_contents($wikiRebuild . '/Externe/_assets/' . $pngName) === $png, 'reconstruction des images depuis la base');
     rejects(fn() => Wiki::rebuild($wikiRebuild), 'reconstruction refusée dans un dossier non vide');
     $navigation = Wiki::navigation();
-    check(isset($navigation['folders']['Boutiques']['folders']['Boutiques/Caisse']) && count($navigation['folders']['Boutiques']['pages']) === 1, 'arborescence des dossiers et pages');
+    check(isset($navigation['folders']['Boutiques']['folders']['Boutiques/Caisse']) && count($navigation['folders']['Externe']['pages']) === 2 && !$navigation['folders']['Boutiques']['pages'], 'arborescence des dossiers et pages');
+    Wiki::deleteFolder('Boutiques/Caisse');
+    Wiki::deleteFolder('Boutiques');
+    check(!WikiStorage::exists('Boutiques') && WikiAsset::exists($gifName), 'dossier sans page supprimé avec ses copies d’images, images conservées en base');
 } finally {
     WikiStorage::useRoot(null);
     foreach ([$wikiDbRoot, $wikiRebuild] as $directory) {

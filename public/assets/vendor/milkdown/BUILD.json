@@ -5,13 +5,13 @@
   "files": [
     {
       "name": "wiki-editor.js",
-      "bytes": 1198824,
-      "sha256": "0893ddf9dfe5570514f6431655e5de3c8c1c41983ba0816e69b8618e8cdaf90d"
+      "bytes": 1199229,
+      "sha256": "92d4fc9227b8e8f3e7691b08a15a267fab44bc3344f1b6f04b6a373519010d3b"
     },
     {
       "name": "wiki-editor.css",
-      "bytes": 23581,
-      "sha256": "6a31cd509fb1418bebcd788fc5f573bee3c1e18d8326d85daeb26e4b5e707cc4"
+      "bytes": 32113,
+      "sha256": "4d78b97c5a38d62222b27f84b044c122c02a9e872a871f03bfea9f18e2311051"
     }
   ]
 }

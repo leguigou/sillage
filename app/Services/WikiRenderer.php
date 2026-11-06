@@ -8,15 +8,16 @@ require_once ROOT . '/app/Libraries/Parsedown/Parsedown.php';
  * Markdown → HTML for wiki pages, with Parsedown 1.8.0 in safe mode (raw HTML escaped, unsafe link
  * schemes neutralized), then a DOM pass that makes the output compatible with Sillage's CSP and
  * adds what Parsedown lacks: heading anchors and table of contents, alignment classes instead of
- * style attributes, read-only task-list checkboxes, images shown as links (lot 1), external links
- * opened in a new tab. Any remaining style or on* attribute is removed defensively.
+ * style attributes, read-only task-list checkboxes, other images shown as links, external links
+ * opened in a new tab, "> [!NOTE]" callouts, images of the wiki ("_assets/<hash>") served by
+ * /wiki/assets. Any remaining style or on* attribute is removed defensively.
  *
  * The result is cached in wiki_pages.html; bump VERSION whenever the output changes so cached
  * pages are rendered again.
  */
 final class WikiRenderer
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
 
     /** @return array{html: string, toc: list<array{level:int, id:string, text:string}>, text: string, title: ?string} */
     public static function render(string $markdown): array
@@ -66,8 +67,14 @@ final class WikiRenderer
                 self::taskItem($document, $element);
             }
         }
-        // Images are not stored in lot 1: replace them by a link to their address.
+        foreach (iterator_to_array($root->getElementsByTagName('blockquote')) as $quote) self::callout($document, $quote);
+        // Wiki images ("_assets/<hash>.<ext>") are served by Sillage; any other image (external
+        // address, data URI) would be blocked by the CSP and is shown as a link to its address.
         foreach (iterator_to_array($root->getElementsByTagName('img')) as $image) {
+            if (preg_match('#^_assets/([a-f0-9]{64}\.(?:png|jpg|webp|gif))$#D', $image->getAttribute('src'), $asset)) {
+                self::image($document, $image, $asset[1]);
+                continue;
+            }
             $link = $document->createElement('a');
             $link->setAttribute('href', $image->getAttribute('src'));
             $link->setAttribute('class', 'wiki-image-link');
@@ -130,6 +137,52 @@ final class WikiRenderer
             'ü' => 'u', 'ú' => 'u', 'ÿ' => 'y', 'ñ' => 'n', 'œ' => 'o', 'æ' => 'a', '’' => "'",
         ];
         return strtr(mb_strtolower($text, 'UTF-8'), $map);
+    }
+
+    public const CALLOUTS = ['NOTE' => ['note', 'Remarque'], 'INFO' => ['note', 'Information'], 'TIP' => ['tip', 'Astuce'], 'IMPORTANT' => ['important', 'Important'], 'WARNING' => ['warning', 'Attention'], 'CAUTION' => ['caution', 'Danger']];
+
+    /** "> [!NOTE]" … quotes (GitHub syntax) become coloured callouts with a French title. */
+    private static function callout(\DOMDocument $document, \DOMElement $quote): void
+    {
+        $paragraph = null;
+        foreach ($quote->childNodes as $child) { if ($child instanceof \DOMElement) { $paragraph = $child;break; } }
+        if (!$paragraph || strtolower($paragraph->nodeName) !== 'p' || !$paragraph->firstChild instanceof \DOMText) return;
+        $text = $paragraph->firstChild;
+        if (!preg_match('/^\s*\[!(NOTE|INFO|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/i', $text->data, $match)) return;
+        [$kind, $label] = self::CALLOUTS[strtoupper($match[1])];
+        $text->data = substr($text->data, strlen($match[0]));
+        if (trim($paragraph->textContent) === '' && $paragraph->getElementsByTagName('*')->length === 0) $quote->removeChild($paragraph);
+        $quote->setAttribute('class', 'wiki-callout wiki-callout-' . $kind);
+        $quote->setAttribute('role', 'note');
+        $title = $document->createElement('p');
+        $title->setAttribute('class', 'wiki-callout-title');
+        $title->textContent = $label;
+        $quote->insertBefore($title, $quote->firstChild);
+    }
+
+    /** Wiki image: served by /wiki/assets; alone in its paragraph it becomes a figure with its title as caption. */
+    private static function image(\DOMDocument $document, \DOMElement $image, string $name): void
+    {
+        $alt = $image->getAttribute('alt');
+        $title = trim($image->getAttribute('title'));
+        $clean = $document->createElement('img');
+        $clean->setAttribute('class', 'wiki-image');
+        $clean->setAttribute('src', '/wiki/assets/' . $name);
+        // The editor stores the display ratio in the alternative text (e.g. "1.00"): not a description.
+        $clean->setAttribute('alt', preg_match('/^\d+(\.\d+)?$/', $alt) ? '' : $alt);
+        $clean->setAttribute('loading', 'lazy');
+        $parent = $image->parentNode;
+        $alone = $parent instanceof \DOMElement && strtolower($parent->nodeName) === 'p' && trim($parent->textContent) === '' && $parent->getElementsByTagName('*')->length === 1;
+        if (!$alone) { $parent->replaceChild($clean, $image);return; }
+        $figure = $document->createElement('figure');
+        $figure->setAttribute('class', 'wiki-figure');
+        $figure->appendChild($clean);
+        if ($title !== '') {
+            $caption = $document->createElement('figcaption');
+            $caption->textContent = $title;
+            $figure->appendChild($caption);
+        }
+        $parent->parentNode->replaceChild($figure, $parent);
     }
 
     /** "[ ] text" / "[x] text" list items become read-only checkboxes. */
