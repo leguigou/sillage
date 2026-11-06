@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.6",
+  "current_version": "1.24.7",
   "entries": [
+    {
+      "version": "1.24.7",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Rapport actualisé après modification",
+      "summary": "La liste se recharge après l’enregistrement d’un rapport existant.",
+      "changes": [
+        "Les filtres, le tri et les colonnes enregistrés s’appliquent immédiatement."
+      ]
+    },
     {
       "version": "1.24.6",
       "date": "2026-11-06",

@@ -37,9 +37,17 @@
   async function request(url,body){const response=await fetch(url,{method:'POST',body,headers:{Accept:'application/json'}});if(response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Votre session a expiré. Rechargez la page.');const data=await response.json();if(!response.ok) throw new Error(data.error||'Enregistrement impossible.');return data;}
   async function saveReport(mode) {
     if(busy) return;recordOrder();const body=new FormData(form);body.set('mode',mode);lock(true);status.textContent='Enregistrement…';
+    const editing = mode === 'save' && !form.hasAttribute('data-report-create') && Number(body.get('view_id')) > 0;
     let saved=false;
     try {
-      const result=await request('/views',body);form.elements.view_id.value=result.id;form.elements.revision.value=result.revision;form.elements.name.value=result.name;
+      const result=await request('/views',body);
+      if (editing) {
+        try { sessionStorage.setItem('sillage.notice', 'Rapport enregistré.'); } catch {}
+        window.SillageDialogs.complete(dialog);
+        location.assign(result.url);
+        return;
+      }
+      form.elements.view_id.value=result.id;form.elements.revision.value=result.revision;form.elements.name.value=result.name;
       open.hidden=copy.hidden=remove.hidden=false;open.href=result.url;
       const links=document.querySelector('[data-personal-reports]');let link=links?.querySelector('[data-personal-report-link="'+result.id+'"]');
       if(links && !link){link=document.createElement('a');link.className='saved-view';link.dataset.personalReportLink=result.id;links.insertBefore(link,links.querySelector('[data-report-add]'));}
