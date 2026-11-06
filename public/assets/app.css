@@ -3710,6 +3710,10 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .list-column-heading{display:flex;align-items:center;gap:4px;white-space:nowrap}
 .list-column-grip{flex:none;padding:0 2px;color:var(--subtle);font-size:14px;line-height:1;cursor:grab;user-select:none}
 .list-column-grip:hover{color:var(--accent)}
+@media (hover: hover) {
+  .list-column-grip{opacity:0}
+  .ticket-table th:is(:hover,:focus-within,.column-drag-source) .list-column-grip{opacity:1}
+}
 .ticket-table th.column-drag-source .list-column-heading{opacity:.55}
 .ticket-table th[data-column-drop="before"]{box-shadow:inset 3px 0 var(--accent)}
 .ticket-table th[data-column-drop="after"]{box-shadow:inset -3px 0 var(--accent)}

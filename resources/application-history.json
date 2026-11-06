@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.1",
+  "current_version": "1.24.2",
   "entries": [
+    {
+      "version": "1.24.2",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Poignées de colonnes discrètes",
+      "summary": "La poignée de déplacement apparaît au survol de son en-tête.",
+      "changes": [
+        "Le libellé de la colonne garde sa position quand la poignée apparaît."
+      ]
+    },
     {
       "version": "1.24.1",
       "date": "2026-11-06",
