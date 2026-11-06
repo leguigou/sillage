@@ -2,7 +2,7 @@
 declare(strict_types=1);
 use App\Core\Security;
 
-// Adresse retenue pour les limites de tentatives, avec et sans reverse proxy de confiance.
+// Address used by rate limits, with and without a trusted reverse proxy.
 $originalProxies = getenv('TRUSTED_PROXIES');
 $originalRemote = $_SERVER['REMOTE_ADDR'] ?? null;
 $originalForwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null;

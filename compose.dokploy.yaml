@@ -30,9 +30,8 @@ services:
       - SMTP_STARTTLS=${SMTP_STARTTLS:-on}
       - SESSION_SECURE=true
       - UPLOAD_MAX_MB=10
-      # Traefik (Dokploy) est le seul point d'entrée : ses adresses Docker privées sont
-      # de confiance pour X-Forwarded-For, afin que les limites de tentatives visent
-      # l'adresse réelle de chaque visiteur et non celle du proxy partagée par tous.
+      # Traefik (Dokploy) is the only entry point: trust its private Docker addresses
+      # for X-Forwarded-For so rate limits apply per visitor, not to the shared proxy IP.
       - TRUSTED_PROXIES=${TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     volumes:
       - sillage_storage:/var/www/html/storage

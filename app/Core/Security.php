@@ -127,10 +127,10 @@ final class Security
         }
     }
     /**
-     * Adresse du visiteur. Sans TRUSTED_PROXIES, c'est REMOTE_ADDR, comme avant.
-     * Derrière un reverse proxy déclaré, X-Forwarded-For est lu de droite à gauche en
-     * sautant les proxys de confiance : on retient la première adresse ajoutée par un
-     * proxy de confiance. Les valeurs écrites par le visiteur, à gauche, sont ignorées.
+     * Visitor address used for rate limiting. Without TRUSTED_PROXIES this is REMOTE_ADDR.
+     * When the direct peer is a trusted proxy, X-Forwarded-For is read right to left,
+     * skipping trusted hops: the first untrusted address is the one a trusted proxy saw.
+     * Anything further left was written by the client and is never used.
      */
     public static function clientIp(): string
     {
@@ -143,7 +143,7 @@ final class Security
         for ($i = count($chain) - 1; $i >= 0; $i--) {
             $ip = trim($chain[$i]);
             if (self::packIp($ip) === null) {
-                // Chaîne vide ou illisible : on garde l'adresse du proxy plutôt que de deviner.
+                // Missing or malformed chain: keep the proxy address rather than guess.
                 return $remote;
             }
             if (!self::ipInRanges($ip, $trusted)) {
@@ -152,7 +152,7 @@ final class Security
         }
         return $remote;
     }
-    /** @return list<array{0:string,1:int}> réseaux binaires et longueur de préfixe */
+    /** @return list<array{0:string,1:int}> packed network address and prefix length */
     private static function trustedProxies(): array
     {
         $ranges = [];
@@ -199,7 +199,7 @@ final class Security
         }
         return false;
     }
-    /** Forme binaire d'une adresse ; une IPv4 notée ::ffff:a.b.c.d est ramenée à l'IPv4. */
+    /** Packed form of an address; IPv4-mapped IPv6 (::ffff:a.b.c.d) becomes plain IPv4. */
     private static function packIp(string $ip): ?string
     {
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
