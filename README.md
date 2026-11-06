@@ -175,7 +175,7 @@ Les données MySQL et les fichiers utilisent des volumes persistants. Ne pas ex�
 
 Le workflow `.github/workflows/ci.yml` vérifie PHP et les parcours HTTP avec MySQL 8.4. Le workflow **Déployer Sillage** est manuel, attend les vérifications et utilise l’environnement GitHub `production`.
 
-Préparer un serveur Linux avec Apache 2.4 + PHP 8.3 minimum (8.5 conseillé), `pdo_mysql`, `mbstring`, `curl`, `openssl`, `fileinfo`, `dom`, et MySQL 8.4. Installer le client `mysqldump` pour les sauvegardes. Pointer Apache **uniquement vers `public/`**, jamais vers la racine du dépôt. Un exemple est fourni dans `deploy/apache-vhost.conf` ; configurer HTTPS auprès de l’hébergeur.
+Préparer un serveur Linux avec Apache 2.4 + PHP 8.3 minimum (8.5 conseillé), `pdo_mysql`, `mbstring`, `curl`, `openssl`, `fileinfo`, `dom`, `zip`, et MySQL 8.4. Installer le client `mysqldump` pour les sauvegardes. Pointer Apache **uniquement vers `public/`**, jamais vers la racine du dépôt. Un exemple est fourni dans `deploy/apache-vhost.conf` ; configurer HTTPS auprès de l’hébergeur.
 
 ```text
 /var/www/sillage/
@@ -205,6 +205,8 @@ php bin/backup.php /chemin/prive/backups
 ```
 
 La sauvegarde MySQL utilise `--single-transaction`, n’inclut pas les fichiers joints et garde les identifiants hors des arguments du processus. Sauvegarder séparément **`storage/uploads` et `APP_KEY`**, indispensable au déchiffrement des jetons. Pour porter une base locale, restaurer son dump sur MySQL de production puis adapter `.env` ; utiliser des données nettoyées et retirer les comptes de démonstration avant toute exposition. Pour démarrer une nouvelle instance, préférer les migrations sur une base vide.
+
+Pour **déplacer un site entier** (comptes, configuration, projets, tickets, pièces jointes) vers une nouvelle installation, utiliser `php bin/console.php site:export` puis `site:import` sur le site neuf : un seul fichier zip, vérifié avant tout chargement. Voir [le guide du transfert de site](docs/transfert-site.md).
 
 En cas d’échec avant activation, le lien `current` reste sur la version précédente. Pour un retour arrière, rétablir le lien vers une version précédente compatible avec le schéma ; restaurer la sauvegarde sous contrôle opérateur si une migration incompatible l’exige. Les versions et sauvegardes ne sont pas automatiquement supprimées.
 

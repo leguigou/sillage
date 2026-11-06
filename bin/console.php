@@ -5,7 +5,8 @@ declare(strict_types=1);
  * `php bin/console.php <command> [args]` (the full list is printed when no command matches).
  * Notable commands: migrate (applies database/*.sql via App\Core\Migrator, run on every deploy),
  * notifications:send (e-mail queue worker), git:work / git:watch (one pass or an endless 15-second
- * loop of Git synchronisation), admin:create and user:role (account bootstrap), key:generate (APP_KEY).
+ * loop of Git synchronisation), admin:create and user:role (account bootstrap), key:generate (APP_KEY),
+ * site:export and site:import (whole-site transfer to a fresh installation, App\Services\SiteTransfer).
  * It refuses to run from a web request; seed and mail:list are restricted to APP_ENV=local.
  */
 if (PHP_SAPI !== 'cli') {
@@ -120,4 +121,34 @@ if ($command === 'mail:list') {
     }
     exit();
 }
-echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | git:work | git:watch | admin:create email | user:role email admin/member/viewer\n";
+// Whole-site transfer (App\Services\SiteTransfer, docs/transfert-site.md).
+if ($command === 'site:export') {
+    $directory = rtrim($argv[2] ?? ROOT . '/storage/exports', '/\\');
+    if (!is_dir($directory) && !mkdir($directory, 0700, true)) {
+        throw new RuntimeException('Dossier d’export inaccessible : ' . $directory);
+    }
+    $file = $directory . '/sillage-site-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.zip';
+    $manifest = App\Services\SiteTransfer::export($file);
+    echo 'Export créé : ' . $file . PHP_EOL;
+    echo count($manifest['tables']) . ' tables, ' . array_sum(array_column($manifest['tables'], 'rows')) . ' lignes, '
+        . count($manifest['uploads']) . ' pièces jointes.' . PHP_EOL;
+    if ($manifest['missing_uploads']) {
+        echo 'Attention : ' . count($manifest['missing_uploads']) . ' pièce(s) jointe(s) absente(s) du disque, non incluse(s).' . PHP_EOL;
+    }
+    echo 'Ce fichier contient des données personnelles : conservez-le hors du site et supprimez-le après l’import.' . PHP_EOL;
+    echo 'Le site de destination doit utiliser la même APP_KEY et la même version de Sillage.' . PHP_EOL;
+    exit();
+}
+if ($command === 'site:import') {
+    $file = $argv[2] ?? '';
+    if ($file === '') {
+        throw new RuntimeException('Usage : php bin/console.php site:import chemin/vers/export.zip');
+    }
+    $result = App\Services\SiteTransfer::import($file);
+    echo 'Import terminé : ' . count($result['tables']) . ' tables, ' . array_sum($result['tables']) . ' lignes, '
+        . $result['uploads'] . ' pièces jointes copiées'
+        . ($result['skipped_uploads'] ? ', ' . $result['skipped_uploads'] . ' déjà présentes' : '') . '.' . PHP_EOL;
+    echo 'Chaque utilisateur doit se reconnecter. Si l’adresse du site a changé, mettez à jour APP_URL, les webhooks Git et les clients OAuth.' . PHP_EOL;
+    exit();
+}
+echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | git:work | git:watch | admin:create email | user:role email admin/member/viewer | site:export [dossier] | site:import fichier.zip\n";
