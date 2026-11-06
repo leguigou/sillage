@@ -34,7 +34,9 @@ final class TicketClosure
             $note=trim($note);
             if (mb_strlen($note)>2000 || (!$approved && $note==='')) throw new \InvalidArgumentException('Précisez la raison de la reprise (2 000 caractères maximum).');
             if ($old['archived'] || in_array($old['status_category'],['done','paused'],true)) throw new \InvalidArgumentException('Le ticket doit être actif et ouvert pour être validé.');
-            DB::run('UPDATE tickets SET validation_state=?,validated_by=?,validated_at=UTC_TIMESTAMP(),validation_note=?,version=version+1,updated_at=UTC_TIMESTAMP() WHERE id=?',[$approved?'approved':'rejected',$actor,$note,$ticket]);
+            DB::run('UPDATE tickets
+                SET validation_state=?,validated_by=?,validated_at=UTC_TIMESTAMP(),validation_note=?,version=version+1,updated_at=UTC_TIMESTAMP()
+                WHERE id=?',[$approved?'approved':'rejected',$actor,$note,$ticket]);
             $after=Ticket::find($ticket);
             TicketHistory::record($old,$after,$actor,$approved?'validation.approved':'validation.rejected');
             Ticket::activity((int)$old['project_id'],$ticket,$actor,$approved?'a validé le ticket':'a demandé une reprise du ticket');

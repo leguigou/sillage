@@ -330,7 +330,12 @@ final class Tools
                         $a['id'],
                     ])['n'],
                     'comments' => DB::all(
-                        'SELECT c.id,c.body,c.body_format,c.created_at,COALESCE(u.name,\'Sillage\') name FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY c.id LIMIT ' .
+                        'SELECT c.id,c.body,c.body_format,c.created_at,COALESCE(u.name,\'Sillage\') name
+                            FROM comments c
+                            LEFT JOIN users u ON u.id=c.user_id
+                            WHERE ticket_id=?
+                            ORDER BY c.id
+                            LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,
@@ -849,7 +854,11 @@ final class Tools
                 $offset = $a['offset'] ?? 0;
                 return [
                     'connections' => DB::all(
-                        'SELECT c.id,c.provider,c.repository,c.last_sync_at FROM connections c JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY c.id',
+                        'SELECT c.id,c.provider,c.repository,c.last_sync_at
+                            FROM connections c
+                            JOIN project_connections pc ON pc.connection_id=c.id
+                            WHERE pc.project_id=?
+                            ORDER BY c.id',
                         [$a['project_id']],
                     ),
                     'total' => (int) DB::one(
@@ -857,7 +866,11 @@ final class Tools
                         [$a['project_id']],
                     )['n'],
                     'events' => \App\Models\DevelopmentEvent::withTickets(DB::all(
-                        'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').' FROM development_events d JOIN project_connections pc ON pc.connection_id=d.connection_id WHERE pc.project_id=? ORDER BY d.id DESC LIMIT ' .
+                        'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').' FROM development_events d
+                            JOIN project_connections pc ON pc.connection_id=d.connection_id
+                            WHERE pc.project_id=?
+                            ORDER BY d.id DESC
+                            LIMIT ' .
                             $limit .
                             ' OFFSET ' .
                             $offset,

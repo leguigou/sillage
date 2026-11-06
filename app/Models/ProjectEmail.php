@@ -52,12 +52,18 @@ final class ProjectEmail
             }
             $ids=[];
             foreach($selected as $id) {
-                if ((!is_int($id) && !is_string($id)) || !ctype_digit((string)$id) || (int)$id<1 || !DB::one('SELECT id FROM users WHERE id=? AND active=1 AND verified_at IS NOT NULL',[(int)$id])) throw new \InvalidArgumentException('Choisissez des comptes actifs et vérifiés pour les notifications.');
+                if ((!is_int($id) && !is_string($id)) || !ctype_digit((string)$id) || (int)$id<1 || !DB::one('SELECT id
+                    FROM users
+                    WHERE id=? AND active=1 AND verified_at IS NOT NULL',[(int)$id])) throw new \InvalidArgumentException('Choisissez des comptes actifs et vérifiés pour les notifications.');
                 $ids[]=(int)$id;
             }
             $ids=array_values(array_unique($ids));sort($ids);
-            DB::run('INSERT INTO project_email_settings(project_id,enabled,notify_actor,rules_json,recipients_json) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),notify_actor=VALUES(notify_actor),rules_json=VALUES(rules_json),recipients_json=VALUES(recipients_json),version=version+1',[$project,(int)!empty($input['enabled']),(int)!empty($input['notify_actor']),json_encode($normalized,JSON_THROW_ON_ERROR),json_encode($ids,JSON_THROW_ON_ERROR)]);
-            if (empty($input['enabled'])) DB::run("UPDATE notification_outbox SET state='cancelled',lease_token=NULL WHERE project_id=? AND state IN ('pending','failed')",[$project]);
+            DB::run('INSERT INTO project_email_settings(project_id,enabled,notify_actor,rules_json,recipients_json)
+                VALUES(?,?,?,?,?)
+                ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),notify_actor=VALUES(notify_actor),rules_json=VALUES(rules_json),recipients_json=VALUES(recipients_json),version=version+1',[$project,(int)!empty($input['enabled']),(int)!empty($input['notify_actor']),json_encode($normalized,JSON_THROW_ON_ERROR),json_encode($ids,JSON_THROW_ON_ERROR)]);
+            if (empty($input['enabled'])) DB::run("UPDATE notification_outbox
+                SET state='cancelled',lease_token=NULL
+                WHERE project_id=? AND state IN ('pending','failed')",[$project]);
         });
     }
 }

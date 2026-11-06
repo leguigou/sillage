@@ -81,14 +81,22 @@ final class WorkspaceController
         $mcpTokens =
             $section === 'settings'
                 ? DB::all(
-                    'SELECT id,name,fingerprint,scopes,auth_version,expires_at,last_used_at,created_at FROM mcp_tokens WHERE user_id=? AND oauth_grant_id IS NULL ORDER BY id DESC',
+                    'SELECT id,name,fingerprint,scopes,auth_version,expires_at,last_used_at,created_at
+                        FROM mcp_tokens
+                        WHERE user_id=? AND oauth_grant_id IS NULL
+                        ORDER BY id DESC',
                     [$user['id']],
                 )
                 : [];
         $mcpAudit =
             $section === 'settings'
                 ? DB::all(
-                    'SELECT a.tool_name,a.succeeded,a.created_at,k.name token_name FROM mcp_audit a LEFT JOIN mcp_tokens k ON k.id=a.token_id WHERE a.user_id=? ORDER BY a.id DESC LIMIT 20',
+                    'SELECT a.tool_name,a.succeeded,a.created_at,k.name token_name
+                        FROM mcp_audit a
+                        LEFT JOIN mcp_tokens k ON k.id=a.token_id
+                        WHERE a.user_id=?
+                        ORDER BY a.id DESC
+                        LIMIT 20',
                     [$user['id']],
                 )
                 : [];
@@ -124,7 +132,10 @@ final class WorkspaceController
         $teams = DB::all('SELECT * FROM teams ORDER BY name,id');
         $projectTeams=\App\Models\Team::forProject((int)$project['id']);
         $teamProjects=[];
-        if ($section==='settings') foreach(DB::all('SELECT tp.team_id,p.id,p.name,p.project_key FROM team_projects tp JOIN projects p ON p.id=tp.project_id ORDER BY p.name,p.id') as $linked) $teamProjects[$linked['team_id']][]=$linked;
+        if ($section==='settings') foreach(DB::all('SELECT tp.team_id,p.id,p.name,p.project_key
+            FROM team_projects tp
+            JOIN projects p ON p.id=tp.project_id
+            ORDER BY p.name,p.id') as $linked) $teamProjects[$linked['team_id']][]=$linked;
         $teamMembers = [];
         if ($section === 'settings') {
             foreach (
@@ -137,7 +148,14 @@ final class WorkspaceController
             }
         }
         $activity = DB::all(
-            'SELECT h.*,u.name,t.number,p.project_key FROM activity h LEFT JOIN users u ON u.id=h.user_id LEFT JOIN tickets t ON t.id=h.ticket_id JOIN projects p ON p.id=h.project_id WHERE h.project_id=? ORDER BY h.id DESC LIMIT 16',
+            'SELECT h.*,u.name,t.number,p.project_key
+                FROM activity h
+                LEFT JOIN users u ON u.id=h.user_id
+                LEFT JOIN tickets t ON t.id=h.ticket_id
+                JOIN projects p ON p.id=h.project_id
+                WHERE h.project_id=?
+                ORDER BY h.id DESC
+                LIMIT 16',
             [$project['id']],
         );
         $stats = [];
@@ -163,7 +181,13 @@ final class WorkspaceController
         $connections = \App\Models\RepositoryConnection::forProject((int)$project['id']);
         $repositoryCatalog = $user['role']==='admin' ? \App\Models\RepositoryConnection::all() : [];
         $events = $section==='development'?\App\Models\DevelopmentEvent::withTickets(DB::all(
-            'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').',c.provider,c.repository FROM development_events d JOIN connections c ON c.id=d.connection_id JOIN project_connections pc ON pc.connection_id=c.id WHERE pc.project_id=? ORDER BY d.occurred_at DESC,d.id DESC LIMIT 100',
+            'SELECT '.\App\Models\DevelopmentEvent::summaryColumns('d').',c.provider,c.repository
+                FROM development_events d
+                JOIN connections c ON c.id=d.connection_id
+                JOIN project_connections pc ON pc.connection_id=c.id
+                WHERE pc.project_id=?
+                ORDER BY d.occurred_at DESC,d.id DESC
+                LIMIT 100',
             [$project['id']],
         ),(int)$project['id']):[];
         $title = match ($section) {

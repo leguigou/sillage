@@ -101,7 +101,8 @@ final class TechnicalLog
     public static function prune(?\PDO $db=null,int $limit=1000): int
     {
         $db??=DB::independent();$limit=max(1,min(10000,$limit));
-        $statement=$db->prepare('DELETE FROM technical_logs WHERE created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL '.self::retention().' DAY) ORDER BY created_at,id LIMIT '.$limit);$statement->execute();return $statement->rowCount();
+        $statement=$db->prepare('DELETE FROM technical_logs
+            WHERE created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL '.self::retention().' DAY) ORDER BY created_at,id LIMIT '.$limit);$statement->execute();return $statement->rowCount();
     }
     public static function page(array $filters): array
     {
@@ -122,7 +123,10 @@ final class TechnicalLog
         $before=filter_var($filters['before']??0,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);
         if ($before===false) throw new \InvalidArgumentException('Page du journal invalide.');
         if ($before>0) {$where[]='l.id<?';$args[]=$before;}
-        $statement=(self::$writer??=DB::independent())->prepare('SELECT l.*,u.name AS user_name FROM technical_logs l LEFT JOIN users u ON u.id=l.user_id WHERE '.implode(' AND ',$where).' ORDER BY l.id DESC LIMIT 51');
+        $statement=(self::$writer??=DB::independent())->prepare('SELECT l.*,u.name AS user_name
+            FROM technical_logs l
+            LEFT JOIN users u ON u.id=l.user_id
+            WHERE '.implode(' AND ',$where).' ORDER BY l.id DESC LIMIT 51');
         $statement->execute($args);$rows=$statement->fetchAll();
         $more=count($rows)>50;$rows=array_slice($rows,0,50);
         return ['rows'=>$rows,'filters'=>$clean,'next'=>$more?(int)$rows[array_key_last($rows)]['id']:null];

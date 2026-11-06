@@ -30,7 +30,8 @@ final class TicketDevelopment
     {
         if(!$tickets) return [];
         $ids=array_column($tickets,'id');$events=[];$result=[];
-        $rows=DB::all('SELECT '.DevelopmentEvent::summaryColumns('e').',r.linked_ticket,c.repository,c.provider FROM (SELECT e.id,l.ticket_id linked_ticket,ROW_NUMBER() OVER(PARTITION BY l.ticket_id,e.kind ORDER BY e.occurred_at DESC,e.id DESC) position_in_kind FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE l.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND e.kind IN (\'pull_request\',\'deployment\')) r JOIN development_events e ON e.id=r.id JOIN connections c ON c.id=e.connection_id WHERE r.position_in_kind=1 ORDER BY e.occurred_at DESC,e.id DESC',$ids);
+        $rows=DB::all('SELECT '.DevelopmentEvent::summaryColumns('e').',r.linked_ticket,c.repository,c.provider
+            FROM (SELECT e.id,l.ticket_id linked_ticket,ROW_NUMBER() OVER(PARTITION BY l.ticket_id,e.kind ORDER BY e.occurred_at DESC,e.id DESC) position_in_kind FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE l.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND e.kind IN (\'pull_request\',\'deployment\')) r JOIN development_events e ON e.id=r.id JOIN connections c ON c.id=e.connection_id WHERE r.position_in_kind=1 ORDER BY e.occurred_at DESC,e.id DESC',$ids);
         foreach($rows as $row) $events[$row['linked_ticket']][]=DevelopmentEvent::hydrate($row);
         foreach($tickets as $ticket) {
             if(!empty($ticket['has_merge_conflict'])) $badge=['tone'=>'warning','label'=>'Conflit de fusion','detail'=>'Intervention requise','icon'=>'alert','title'=>'Conflit confirmé dans une pull request liée.'];
@@ -74,8 +75,17 @@ final class TicketDevelopment
         $ticketRepositories=RepositoryConnection::forProject((int)$project['id']);$primaryRepository=null;
         foreach($ticketRepositories as $repository) if($repository['id']===$project['repository_connection_id']) $primaryRepository=$repository;
         $ticketBranches=TicketBranch::all((int)$ticket['id']);
-        $events=DevelopmentEvent::withTickets(DB::all('SELECT '.DevelopmentEvent::summaryColumns('e').',c.repository,c.provider FROM (SELECT d.*,ROW_NUMBER() OVER(PARTITION BY d.kind ORDER BY d.occurred_at DESC,d.id DESC) AS kind_rank FROM development_events d JOIN development_event_tickets l ON l.event_id=d.id JOIN project_connections pc ON pc.connection_id=d.connection_id AND pc.project_id=? WHERE l.ticket_id=?) e JOIN connections c ON c.id=e.connection_id WHERE e.kind_rank<=20 ORDER BY e.occurred_at DESC,e.id DESC',[$project['id'],$ticket['id']]),(int)$project['id']);
-        $developmentCounts=array_column(DB::all('SELECT e.kind,COUNT(*) n FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN project_connections pc ON pc.connection_id=e.connection_id WHERE pc.project_id=? AND l.ticket_id=? GROUP BY e.kind',[$project['id'],$ticket['id']]),'n','kind');
+        $events=DevelopmentEvent::withTickets(DB::all('SELECT '.DevelopmentEvent::summaryColumns('e').',c.repository,c.provider
+            FROM (SELECT d.*,ROW_NUMBER() OVER(PARTITION BY d.kind ORDER BY d.occurred_at DESC,d.id DESC) AS kind_rank FROM development_events d JOIN development_event_tickets l ON l.event_id=d.id JOIN project_connections pc ON pc.connection_id=d.connection_id AND pc.project_id=? WHERE l.ticket_id=?) e
+            JOIN connections c ON c.id=e.connection_id
+            WHERE e.kind_rank<=20
+            ORDER BY e.occurred_at DESC,e.id DESC',[$project['id'],$ticket['id']]),(int)$project['id']);
+        $developmentCounts=array_column(DB::all('SELECT e.kind,COUNT(*) n
+            FROM development_events e
+            JOIN development_event_tickets l ON l.event_id=e.id
+            JOIN project_connections pc ON pc.connection_id=e.connection_id
+            WHERE pc.project_id=? AND l.ticket_id=?
+            GROUP BY e.kind',[$project['id'],$ticket['id']]),'n','kind');
         return compact('ticketRepositories','primaryRepository','ticketBranches','events','developmentCounts');
     }
 }

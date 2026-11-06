@@ -34,7 +34,10 @@ final class TicketHistory
             'assignee_id','validated_by'=>DB::one('SELECT name FROM users WHERE id=?',[$value])['name']??'#'.$value,
             'team_id'=>DB::one('SELECT name FROM teams WHERE id=?',[$value])['name']??'#'.$value,
             'release_id'=>DB::one('SELECT name FROM releases WHERE id=?',[$value])['name']??'#'.$value,
-            'parent_id'=>(function() use($value){$p=DB::one('SELECT p.project_key,t.number FROM tickets t JOIN projects p ON p.id=t.project_id WHERE t.id=?',[$value]);return $p?$p['project_key'].'-'.$p['number']:'#'.$value;})(),
+            'parent_id'=>(function() use($value){$p=DB::one('SELECT p.project_key,t.number
+                FROM tickets t
+                JOIN projects p ON p.id=t.project_id
+                WHERE t.id=?',[$value]);return $p?$p['project_key'].'-'.$p['number']:'#'.$value;})(),
             'resolution'=>TicketClosure::RESOLUTIONS[$value]??(string)$value,
             'validation_state'=>TicketClosure::VALIDATIONS[$value]??(string)$value,
             'labels'=>$value?implode(', ',$value):'—',
@@ -52,7 +55,8 @@ final class TicketHistory
     public static function event(int $ticket,?int $actor,int $version,string $action,array $changes,string $source='application'): void
     {
         if (!DB::connection()->inTransaction()) throw new \RuntimeException('Historique hors transaction métier.');
-        DB::run('INSERT INTO ticket_history(ticket_id,actor_id,ticket_version,action,source,changes_json) VALUES(?,?,?,?,?,?)',[$ticket,$actor,$version,$action,$source,json_encode($changes,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
+        DB::run('INSERT INTO ticket_history(ticket_id,actor_id,ticket_version,action,source,changes_json)
+            VALUES(?,?,?,?,?,?)',[$ticket,$actor,$version,$action,$source,json_encode($changes,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
     }
     public static function page(int $ticket,int $offset=0,int $limit=30,bool $changesOnly=false): array
     {

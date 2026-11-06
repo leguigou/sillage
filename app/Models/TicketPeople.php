@@ -8,7 +8,10 @@ final class TicketPeople
     {
         if(!$ids) return [];
         $result=[];
-        foreach(DB::all('SELECT c.ticket_id,u.id,u.name FROM ticket_collaborators c JOIN users u ON u.id=c.user_id WHERE c.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND u.active=1 AND u.verified_at IS NOT NULL ORDER BY u.name,u.id',$ids) as $row) $result[$row['ticket_id']][]=$row;
+        foreach(DB::all('SELECT c.ticket_id,u.id,u.name
+            FROM ticket_collaborators c
+            JOIN users u ON u.id=c.user_id
+            WHERE c.ticket_id IN ('.implode(',',array_fill(0,count($ids),'?')).') AND u.active=1 AND u.verified_at IS NOT NULL ORDER BY u.name,u.id',$ids) as $row) $result[$row['ticket_id']][]=$row;
         return $result;
     }
     public static function save(int $id,array $input,int $actor,int $version): array
@@ -21,7 +24,9 @@ final class TicketPeople
             $ids=[];
             foreach($raw as $value) {
                 $user=filter_var($value,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
-                if(!$user || !DB::one('SELECT id FROM users WHERE id=? AND active=1 AND verified_at IS NOT NULL',[$user])) throw new \InvalidArgumentException('Un collaborateur est indisponible. Rechargez la liste.');
+                if(!$user || !DB::one('SELECT id
+                    FROM users
+                    WHERE id=? AND active=1 AND verified_at IS NOT NULL',[$user])) throw new \InvalidArgumentException('Un collaborateur est indisponible. Rechargez la liste.');
                 $ids[$user]=$user;
             }
             $assignee=$input['assignee_id']??$old['assignee_id'];$team=$input['team_id']??$old['team_id'];
@@ -29,7 +34,11 @@ final class TicketPeople
             // Reuse the ticket's validation, history, transition and notification boundary.
             $validated=Ticket::validate(array_replace($old,['labels'=>$old['labels_array'],'assignee_id'=>$assignee,'team_id'=>$team]),(int)$old['project_id'],$id);
             unset($ids[$validated['assignee_id']??0]);sort($ids,SORT_NUMERIC);
-            $before=DB::all('SELECT u.id,u.name FROM ticket_collaborators c JOIN users u ON u.id=c.user_id WHERE ticket_id=? ORDER BY u.id',[$id]);$beforeIds=array_map('intval',array_column($before,'id'));
+            $before=DB::all('SELECT u.id,u.name
+                FROM ticket_collaborators c
+                JOIN users u ON u.id=c.user_id
+                WHERE ticket_id=?
+                ORDER BY u.id',[$id]);$beforeIds=array_map('intval',array_column($before,'id'));
             $changed=$beforeIds!==$ids;$baseChanged=$old['assignee_id']!=$validated['assignee_id'] || $old['team_id']!=$validated['team_id'];
             if(!$changed && !$baseChanged) return Ticket::find($id);
             if($baseChanged) Ticket::patch($id,['assignee_id'=>$assignee,'team_id'=>$team],$actor,$version);

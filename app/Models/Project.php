@@ -52,7 +52,9 @@ final class Project
                         $appearance['icon'],
                         $id,
                     ]);
-                    if (array_key_exists('require_ticket_validation',$input)) DB::run('UPDATE projects SET require_ticket_validation=? WHERE id=?',[(int)(bool)$input['require_ticket_validation'],$id]);
+                    if (array_key_exists('require_ticket_validation',$input)) DB::run('UPDATE projects
+                        SET require_ticket_validation=?
+                        WHERE id=?',[(int)(bool)$input['require_ticket_validation'],$id]);
                     if (array_key_exists('repository_connection_id',$input)) {
                         $connection=(int)($input['repository_connection_id']??0);
                         if ($connection) RepositoryConnection::attach($id,$connection,true);
@@ -79,7 +81,10 @@ final class Project
     public static function deleteEmpty(int $id): void
     {
         self::find($id);
-        if (DB::one('SELECT connection_id FROM project_connections WHERE project_id=? LIMIT 1',[$id])) throw new \InvalidArgumentException('Détachez les dépôts Git avant de supprimer un projet vide.');
+        if (DB::one('SELECT connection_id
+            FROM project_connections
+            WHERE project_id=?
+            LIMIT 1',[$id])) throw new \InvalidArgumentException('Détachez les dépôts Git avant de supprimer un projet vide.');
         try {
             DB::run('DELETE FROM projects WHERE id=?', [$id]);
         } catch (\PDOException $e) {

@@ -38,13 +38,24 @@ final class GitMonitor
     }
     public static function pullRequest(array $c,array $p): ?array
     {
-        $row=DB::one("SELECT e.* FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.connection_id=e.connection_id AND pc.project_id=t.project_id WHERE e.id=? AND e.connection_id=? AND e.kind='pull_request' LIMIT 1",[$p['event_id'],$c['id']]);
+        $row=DB::one("SELECT e.*
+            FROM development_events e
+            JOIN development_event_tickets l ON l.event_id=e.id
+            JOIN tickets t ON t.id=l.ticket_id
+            JOIN project_connections pc ON pc.connection_id=e.connection_id AND pc.project_id=t.project_id
+            WHERE e.id=? AND e.connection_id=? AND e.kind='pull_request'
+            LIMIT 1",[$p['event_id'],$c['id']]);
         if(!$row) return null;$stored=DevelopmentEvent::hydrate($row);$number=substr($stored['external_key'],3);
         if(!ctype_digit($number)) throw new \InvalidArgumentException('Identité PR invalide.');
         $raw=Development::request($c,($c['provider']==='github'?'pulls/':'pullrequests/').$number,8);
         $event=DevelopmentPayload::object($c['provider'],'pull_request',$raw,$c['repository']);
         if($event['external_key']!==$stored['external_key']) throw new \InvalidArgumentException('La réponse concerne une autre pull request.');
-        self::save($c,$event);$ticket=DB::one('SELECT l.ticket_id FROM development_event_tickets l JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=? WHERE l.event_id=? LIMIT 1',[$c['id'],$row['id']]);
+        self::save($c,$event);$ticket=DB::one('SELECT l.ticket_id
+            FROM development_event_tickets l
+            JOIN tickets t ON t.id=l.ticket_id
+            JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=?
+            WHERE l.event_id=?
+            LIMIT 1',[$c['id'],$row['id']]);
         if(!$ticket) return null;
         if(($stored['metadata']['details']['revision']??'')!==GitPullRequest::revision($event)) GitPullRequest::sync((int)$ticket['ticket_id'],(int)$row['id'],$raw);
         foreach(array_unique(array_filter([$event['commit_sha'],$event['metadata']['merge_sha']??null])) as $sha) foreach($c['provider']==='github'?['check','status']:['status'] as $phase) GitJob::enqueue((int)$c['id'],'checks',$phase.':'.$sha,['sha'=>$sha,'phase'=>$phase,'page'=>1]);
@@ -58,7 +69,13 @@ final class GitMonitor
         if($page<1 || $page>100) throw new \InvalidArgumentException('Le rattrapage dépasse 100 pages. Consultez le fournisseur ou synchronisez une branche ciblée.');
         if($job['kind']==='pull_request') return self::pullRequest($c,$p);
         if($job['kind']==='branch') {
-            $link=DB::one('SELECT b.* FROM ticket_branch_links b JOIN tickets t ON t.id=b.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id WHERE b.connection_id=? AND BINARY b.branch_name=? ORDER BY b.id LIMIT 1',[$c['id'],$p['name']]);
+            $link=DB::one('SELECT b.*
+                FROM ticket_branch_links b
+                JOIN tickets t ON t.id=b.ticket_id
+                JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id
+                WHERE b.connection_id=? AND BINARY b.branch_name=?
+                ORDER BY b.id
+                LIMIT 1',[$c['id'],$p['name']]);
             if(!$link) return null;$result=GitPullRequest::branch((int)$link['ticket_id'],(int)$link['id'],$page);
             foreach($result['pull_requests'] as $id) GitSync::queuePullRequest($c,(int)$id);
             return $result['has_more']?['payload'=>array_replace($p,['page'=>$page+1])]:null;
@@ -102,8 +119,17 @@ final class GitMonitor
     }
     private static function deploymentLinks(array $c,array $p): ?array
     {
-        $deployment=DB::one("SELECT * FROM development_events WHERE id=? AND connection_id=? AND kind='deployment'",[$p['event_id'],$c['id']]);if(!$deployment || !$deployment['commit_sha']) return null;
-        $rows=DB::all("SELECT DISTINCT e.id,JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.merge_sha')) AS merge_sha FROM development_events e JOIN development_event_tickets l ON l.event_id=e.id JOIN tickets t ON t.id=l.ticket_id JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id WHERE e.connection_id=? AND e.kind='pull_request' AND e.state='merged' AND e.id>? ORDER BY e.id LIMIT 5",[$c['id'],$p['after']??0]);
+        $deployment=DB::one("SELECT *
+            FROM development_events
+            WHERE id=? AND connection_id=? AND kind='deployment'",[$p['event_id'],$c['id']]);if(!$deployment || !$deployment['commit_sha']) return null;
+        $rows=DB::all("SELECT DISTINCT e.id,JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.merge_sha')) AS merge_sha
+            FROM development_events e
+            JOIN development_event_tickets l ON l.event_id=e.id
+            JOIN tickets t ON t.id=l.ticket_id
+            JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=e.connection_id
+            WHERE e.connection_id=? AND e.kind='pull_request' AND e.state='merged' AND e.id>?
+            ORDER BY e.id
+            LIMIT 5",[$c['id'],$p['after']??0]);
         foreach($rows as $row) {
             $base=DevelopmentPayload::sha($row['merge_sha']);if(!$base) continue;$head=$deployment['commit_sha'];
             if($base===$head) $contains=true;

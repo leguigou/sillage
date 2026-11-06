@@ -17,7 +17,9 @@ final class NotificationController
         $user=Auth::requireUser();
         DB::transaction(function() use($user) {
             DB::run('UPDATE users SET ticket_email_enabled=? WHERE id=?',[(int)!empty($_POST['ticket_email_enabled']),$user['id']]);
-            if (empty($_POST['ticket_email_enabled'])) DB::run("UPDATE notification_outbox SET state='cancelled' WHERE recipient_id=? AND state IN ('pending','failed')",[$user['id']]);
+            if (empty($_POST['ticket_email_enabled'])) DB::run("UPDATE notification_outbox
+                SET state='cancelled'
+                WHERE recipient_id=? AND state IN ('pending','failed')",[$user['id']]);
         });
         flash('Votre préférence de notifications est enregistrée. Les e-mails de sécurité restent actifs.');
         redirect('/settings#email-preferences');
@@ -38,7 +40,9 @@ final class NotificationController
     {
         Auth::admin();
         \App\Models\Project::find((int)$id);
-        DB::run("UPDATE notification_outbox SET state='pending',attempts=0,available_at=UTC_TIMESTAMP(),last_error=NULL WHERE project_id=? AND state='failed'",[(int)$id]);
+        DB::run("UPDATE notification_outbox
+            SET state='pending',attempts=0,available_at=UTC_TIMESTAMP(),last_error=NULL
+            WHERE project_id=? AND state='failed'",[(int)$id]);
         flash('Les notifications en échec sont remises en attente.');
         redirect('/settings?project='.(int)$id.'#notifications');
     }

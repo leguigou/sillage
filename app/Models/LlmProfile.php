@@ -9,7 +9,9 @@ final class LlmProfile
     private const PUBLIC_FIELDS='p.id,p.name,p.provider,p.base_url,p.model,p.enabled,p.version,p.verified_at,p.last_used_at';
     public static function all(): array
     {
-        return DB::all('SELECT '.self::PUBLIC_FIELDS.',(s.default_profile_id=p.id) is_default FROM llm_profiles p CROSS JOIN llm_settings s ORDER BY p.name,p.id');
+        return DB::all('SELECT '.self::PUBLIC_FIELDS.',(s.default_profile_id=p.id) is_default
+            FROM llm_profiles p CROSS JOIN llm_settings s
+            ORDER BY p.name,p.id');
     }
     public static function current(): ?array
     {
@@ -40,8 +42,11 @@ final class LlmProfile
             if ($id) {
                 $old=DB::one('SELECT version FROM llm_profiles WHERE id=? FOR UPDATE',[$id]);
                 if (!$old || (int)$old['version']!==(int)$candidate['version']) throw new \InvalidArgumentException('Ce profil a changé. Testez à nouveau sa connexion.');
-                DB::run('UPDATE llm_profiles SET name=?,provider=?,base_url=?,secret_cipher=?,model=?,enabled=?,verified_at=UTC_TIMESTAMP(),version=version+1 WHERE id=?',[$name,$candidate['provider'],$candidate['base_url'],$candidate['secret_cipher'],$model,(int)$enabled,$id]);
-            } else $id=DB::insert('INSERT INTO llm_profiles(name,provider,base_url,secret_cipher,model,enabled,verified_at) VALUES(?,?,?,?,?,?,UTC_TIMESTAMP())',[$name,$candidate['provider'],$candidate['base_url'],$candidate['secret_cipher'],$model,(int)$enabled]);
+                DB::run('UPDATE llm_profiles
+                    SET name=?,provider=?,base_url=?,secret_cipher=?,model=?,enabled=?,verified_at=UTC_TIMESTAMP(),version=version+1
+                    WHERE id=?',[$name,$candidate['provider'],$candidate['base_url'],$candidate['secret_cipher'],$model,(int)$enabled,$id]);
+            } else $id=DB::insert('INSERT INTO llm_profiles(name,provider,base_url,secret_cipher,model,enabled,verified_at)
+                VALUES(?,?,?,?,?,?,UTC_TIMESTAMP())',[$name,$candidate['provider'],$candidate['base_url'],$candidate['secret_cipher'],$model,(int)$enabled]);
             if ($default) DB::run('UPDATE llm_settings SET default_profile_id=? WHERE id=1',[$id]);
             else DB::run('UPDATE llm_settings SET default_profile_id=NULL WHERE id=1 AND default_profile_id=?',[$id]);
             return $id;

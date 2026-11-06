@@ -15,7 +15,10 @@ final class Auth
         }
         if (self::$cached === null) {
             self::$cached = DB::one(
-                'SELECT u.id,u.email,u.name,u.role,u.verified_at,u.active,u.auth_version,(r.selector IS NOT NULL) remember_valid FROM users u LEFT JOIN persistent_logins r ON r.selector=? AND r.user_id=u.id AND r.auth_version=u.auth_version AND r.expires_at>UTC_TIMESTAMP() WHERE u.id=?',
+                'SELECT u.id,u.email,u.name,u.role,u.verified_at,u.active,u.auth_version,(r.selector IS NOT NULL) remember_valid
+                    FROM users u
+                    LEFT JOIN persistent_logins r ON r.selector=? AND r.user_id=u.id AND r.auth_version=u.auth_version AND r.expires_at>UTC_TIMESTAMP()
+                    WHERE u.id=?',
                 [(string)($_SESSION['remember_selector']??''),(int) $_SESSION['user_id']],
             );
         }

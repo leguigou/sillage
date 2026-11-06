@@ -13,7 +13,10 @@ final class TicketController
         $time=\App\Models\TicketTime::page((int)$id,max(0,(int)($_GET['time_offset']??0)),50);
         $targetRelease=$ticket['release_id']?\App\Models\Release::find((int)$ticket['release_id']):null;
         $project = Project::find((int) $ticket['project_id']);
-        $parent = $ticket['parent_id'] ? DB::one('SELECT t.id,t.number,t.title,p.project_key FROM tickets t JOIN projects p ON p.id=t.project_id WHERE t.id=?',[$ticket['parent_id']]) : null;
+        $parent = $ticket['parent_id'] ? DB::one('SELECT t.id,t.number,t.title,p.project_key
+            FROM tickets t
+            JOIN projects p ON p.id=t.project_id
+            WHERE t.id=?',[$ticket['parent_id']]) : null;
         $projects = Project::all();
         $members = Project::members();
         $projectTeams=\App\Models\Team::forProject((int)$project['id']);
@@ -27,7 +30,11 @@ final class TicketController
             [$id],
         );
         $links = DB::all(
-            'SELECT l.*,t.number,t.title,p.project_key FROM ticket_links l JOIN tickets t ON t.id=l.target_id JOIN projects p ON p.id=t.project_id WHERE l.source_id=?',
+            'SELECT l.*,t.number,t.title,p.project_key
+                FROM ticket_links l
+                JOIN tickets t ON t.id=l.target_id
+                JOIN projects p ON p.id=t.project_id
+                WHERE l.source_id=?',
             [$id],
         );
         $children = DB::all(

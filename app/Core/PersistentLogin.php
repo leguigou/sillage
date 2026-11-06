@@ -22,7 +22,8 @@ final class PersistentLogin
             if ($replaceSelector!==null) DB::run('DELETE FROM persistent_logins WHERE selector=? AND user_id=?',[$replaceSelector,$user['id']]);
             DB::run('DELETE FROM persistent_logins WHERE expires_at<=UTC_TIMESTAMP() LIMIT 100');
             $selector=bin2hex(random_bytes(12));$validator=bin2hex(random_bytes(32));
-            DB::run('INSERT INTO persistent_logins(selector,validator_hash,user_id,auth_version,expires_at) VALUES(?,?,?,?,?)',[$selector,self::fingerprint($validator),$user['id'],$user['auth_version'],gmdate('Y-m-d H:i:s',$expires)]);
+            DB::run('INSERT INTO persistent_logins(selector,validator_hash,user_id,auth_version,expires_at)
+                VALUES(?,?,?,?,?)',[$selector,self::fingerprint($validator),$user['id'],$user['auth_version'],gmdate('Y-m-d H:i:s',$expires)]);
             return ['cookie'=>$selector.':'.$validator,'selector'=>$selector,'expires'=>$expires];
         });
     }
@@ -35,7 +36,10 @@ final class PersistentLogin
             // All account changes lock the user before credentials; use the same order here.
             $identity=DB::one('SELECT user_id FROM persistent_logins WHERE selector=?',[$selector]);
             if (!$identity || !DB::one('SELECT id FROM users WHERE id=? FOR UPDATE',[$identity['user_id']])) return null;
-            $row=DB::one('SELECT r.validator_hash,r.auth_version remembered_version,r.expires_at,u.id,u.email,u.name,u.role,u.verified_at,u.active,u.auth_version FROM persistent_logins r JOIN users u ON u.id=r.user_id WHERE r.selector=? FOR UPDATE',[$selector]);
+            $row=DB::one('SELECT r.validator_hash,r.auth_version remembered_version,r.expires_at,u.id,u.email,u.name,u.role,u.verified_at,u.active,u.auth_version
+                FROM persistent_logins r
+                JOIN users u ON u.id=r.user_id
+                WHERE r.selector=? FOR UPDATE',[$selector]);
             if (!$row) return null;
             if (!hash_equals($row['validator_hash'],self::fingerprint($validator))) return null;
             $expires=strtotime($row['expires_at'].' UTC');
