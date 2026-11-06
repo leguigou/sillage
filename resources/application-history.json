@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.24.11",
+  "current_version": "1.24.12",
   "entries": [
+    {
+      "version": "1.24.12",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Suppression des pièces jointes plus sûre",
+      "summary": "Le fichier d’une pièce jointe n’est effacé qu’une fois sa suppression enregistrée.",
+      "changes": [
+        "Si l’enregistrement de la suppression échoue, la pièce jointe et son fichier restent disponibles.",
+        "Un fichier qui n’a pas pu être effacé après la suppression est signalé dans le journal d’erreurs du serveur."
+      ]
+    },
     {
       "version": "1.24.11",
       "date": "2026-11-06",

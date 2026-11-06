@@ -26,8 +26,11 @@ with http_support.client.open(BASE+'/attachments/'+image_id+'/preview') as respo
 check(call('/attachments/'+attachment.group(1)+'/preview')[0]==415, 'non-image preview refused')
 status, body, _ = call('/tickets/'+ticket_id+'/comments',{'_csrf':csrf,'body_format':'html','body':'<img src="/attachments/999999999/preview">'},True)
 check(status==422, 'foreign or missing attachment cannot be embedded')
+uploads_dir=__import__('pathlib').Path(__file__).resolve().parents[1]/'storage'/'uploads'
+stored_files_before=len(list(uploads_dir.iterdir()))
 status, body, _=call('/attachments/'+image_id+'/delete',{'_csrf':csrf},True)
 check(status==200 and call('/attachments/'+image_id+'/preview')[0]==404, 'attachment deletion removes private image')
+check(len(list(uploads_dir.iterdir()))==stored_files_before-1, 'attachment deletion removes the stored file after the database commit')
 check(call('/attachments/'+attachment.group(1)+'/delete',{},True)[0]==403, 'attachment deletion requires CSRF')
 status, body, _ = upload('/tickets/'+ticket_id+'/attachments',{'_csrf':csrf},'files[]','first.txt',b'First','text/plain',extra_files=[('second.txt',b'Second','text/plain'),('unsafe.html',b'<html><body>unsafe</body></html>','text/html')],json_accept=True)
 batch=json.loads(body)

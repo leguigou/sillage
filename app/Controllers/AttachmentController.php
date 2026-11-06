@@ -119,23 +119,34 @@ final class AttachmentController
         flash($errors ? implode(' ', array_column($errors, 'message')) : 'Pièces jointes ajoutées.', $errors ? 'error' : 'success');
         redirect(ticket_url((int)$id));
     }
+    /**
+     * Deletes an attachment. The database row is removed first, inside the transaction; the file
+     * is removed only after the commit. A failed DELETE or activity insert therefore rolls back
+     * cleanly and the file is still there. If the file cannot be removed after the commit, the
+     * attachment is already gone for users and the orphan file is logged for an operator.
+     */
     public function delete(string $id): void
     {
         $user = Auth::editor();
-        $ticket = DB::transaction(function () use ($id, $user) {
+        [$ticket, $path] = DB::transaction(function () use ($id, $user) {
             $file = DB::one('SELECT * FROM attachments WHERE id=? FOR UPDATE', [(int) $id]);
             if (!$file) {
                 throw new \InvalidArgumentException('Pièce jointe introuvable.');
             }
             $ticket = Ticket::find((int) $file['ticket_id']);
+            // Resolve (and validate) the path before deleting the row that holds stored_name.
             $path = self::path($file);
-            if (is_file($path) && !unlink($path)) {
-                throw new \RuntimeException('Suppression du fichier impossible.');
-            }
             DB::run('DELETE FROM attachments WHERE id=?', [(int) $id]);
             Ticket::activity((int) $ticket['project_id'], (int) $ticket['id'], (int) $user['id'], 'a supprimé une pièce jointe');
-            return (int) $ticket['id'];
+            return [(int) $ticket['id'], $path];
         });
+        if (is_file($path) && !@unlink($path)) {
+            error_log(
+                '[' . gmdate('c') . '] Attachment ' . (int) $id . ' deleted but its file could not be removed: storage/uploads/' . basename($path) . PHP_EOL,
+                3,
+                ROOT . '/storage/error.log',
+            );
+        }
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
             json_response(['ok' => true]);
         }
