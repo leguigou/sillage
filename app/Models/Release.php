@@ -92,4 +92,28 @@ final class Release
         if ((int)$release['project_id']!==$project || ($release['archived'] && (int)$previous!==(int)$value)) throw new \InvalidArgumentException('La version cible doit appartenir au projet et être active.');
         return (int)$value;
     }
+
+    /** Every version of a project, archived ones included, for the list filter. */
+    public static function options(int $project): array
+    {
+        return DB::all(
+            'SELECT id,name
+                FROM releases
+                WHERE project_id=?
+                ORDER BY name,id',
+            [$project],
+        );
+    }
+
+    /** Versions a ticket may target: active ones, plus its current one even when archived. */
+    public static function assignable(int $project, int $current): array
+    {
+        return DB::all(
+            'SELECT id,name,archived
+                FROM releases
+                WHERE project_id=? AND (archived=0 OR id=?)
+                ORDER BY name,id',
+            [$project, $current],
+        );
+    }
 }

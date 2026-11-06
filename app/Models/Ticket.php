@@ -444,4 +444,44 @@ final class Ticket
         DB::run('DELETE FROM ticket_links WHERE id=?', [$id]);
         return (int) $link['source_id'];
     }
+
+    /** Recent open tickets offered as parent candidates in the ticket creation dialog. */
+    public static function parentCandidates(int $project): array
+    {
+        return DB::all(
+            'SELECT id,number,title
+                FROM tickets
+                WHERE project_id=? AND archived=0
+                ORDER BY number DESC
+                LIMIT 500',
+            [$project],
+        );
+    }
+
+    /** Five latest epics of a project with their done/total child counts, for the dashboard. */
+    public static function epicProgress(int $project): array
+    {
+        return DB::all(
+            "SELECT t.id,t.number,t.title,t.type,COUNT(c.id) total,SUM(".Workflow::categorySql('status','c')."='done') done
+                FROM tickets t
+                LEFT JOIN tickets c ON c.parent_id=t.id AND c.archived=0
+                WHERE t.project_id=? AND ".Workflow::categorySql('type')."='epic' AND t.archived=0
+                GROUP BY t.id
+                ORDER BY t.id DESC
+                LIMIT 5",
+            [$project],
+        );
+    }
+
+    /** "Blocks" relations inside a project, drawn as dependency arrows on the timeline. */
+    public static function blockingLinks(int $project): array
+    {
+        return DB::all(
+            "SELECT l.source_id,l.target_id
+                FROM ticket_links l
+                JOIN tickets t ON t.id=l.source_id
+                WHERE t.project_id=? AND l.relation='blocks'",
+            [$project],
+        );
+    }
 }

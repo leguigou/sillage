@@ -53,4 +53,15 @@ final class User
             }
         });
     }
+
+    /** Whether the user accepts ticket e-mails (row with ticket_email_enabled, or null). */
+    public static function emailPreference(int $id): ?array
+    {
+        return DB::one(
+            'SELECT ticket_email_enabled
+                FROM users
+                WHERE id=?',
+            [$id],
+        );
+    }
 }

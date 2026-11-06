@@ -124,4 +124,14 @@ final class Team
             }
         });
     }
+
+    /** All teams, sorted by name, for selection lists. */
+    public static function options(): array
+    {
+        return DB::all(
+            'SELECT id,name
+                FROM teams
+                ORDER BY name,id',
+        );
+    }
 }

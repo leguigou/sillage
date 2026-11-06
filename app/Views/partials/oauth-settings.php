@@ -1,7 +1,7 @@
 <?php
 require_once ROOT.'/app/Views/copy-field.php';
-$oauthClients=$user['role']==='admin'?App\Core\DB::all('SELECT id,name,redirect_uri,auth_method FROM oauth_clients ORDER BY created_at DESC,id'):[];
-$oauthGrants=App\Core\DB::all('SELECT g.id,g.scopes,g.expires_at,g.last_used_at,g.auth_version,c.name FROM oauth_grants g JOIN oauth_clients c ON c.id=g.client_id WHERE g.user_id=? ORDER BY g.created_at DESC,g.id',[$user['id']]);
+$oauthClients=$user['role']==='admin'?App\Models\OAuth::clients():[];
+$oauthGrants=App\Models\OAuth::grantsForUser((int)$user['id']);
 $newOAuth=$_SESSION['new_oauth_client']??null; unset($_SESSION['new_oauth_client']);
 ?>
 <section class="panel team-section oauth-settings" id="oauth">

@@ -66,4 +66,31 @@ final class ProjectEmail
                 WHERE project_id=? AND state IN ('pending','failed')",[$project]);
         });
     }
+
+    /** Number of queued e-mails per delivery state for a project. */
+    public static function queueCounts(int $project): array
+    {
+        return DB::all(
+            'SELECT state,COUNT(*) n
+                FROM notification_outbox
+                WHERE project_id=?
+                GROUP BY state',
+            [$project],
+        );
+    }
+
+    /** The 20 latest e-mails queued for a project, with recipient and ticket number. */
+    public static function recentDeliveries(int $project): array
+    {
+        return DB::all(
+            'SELECT n.state,n.attempts,n.created_at,n.sent_at,n.last_error,u.name,t.number
+                FROM notification_outbox n
+                JOIN users u ON u.id=n.recipient_id
+                JOIN tickets t ON t.id=n.ticket_id
+                WHERE n.project_id=?
+                ORDER BY n.id DESC
+                LIMIT 20',
+            [$project],
+        );
+    }
 }

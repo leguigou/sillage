@@ -162,4 +162,27 @@ final class OAuth
             if ($row) DB::run('DELETE FROM oauth_grants WHERE id=?',[$row['id']]);
         });
     }
+
+    /** Registered OAuth clients, newest first (administration screen). */
+    public static function clients(): array
+    {
+        return DB::all(
+            'SELECT id,name,redirect_uri,auth_method
+                FROM oauth_clients
+                ORDER BY created_at DESC,id',
+        );
+    }
+
+    /** Access a user has granted to OAuth clients, newest first. */
+    public static function grantsForUser(int $user): array
+    {
+        return DB::all(
+            'SELECT g.id,g.scopes,g.expires_at,g.last_used_at,g.auth_version,c.name
+                FROM oauth_grants g
+                JOIN oauth_clients c ON c.id=g.client_id
+                WHERE g.user_id=?
+                ORDER BY g.created_at DESC,g.id',
+            [$user],
+        );
+    }
 }
