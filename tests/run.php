@@ -419,6 +419,7 @@ try {
     require __DIR__ . '/tracking.php';
     require __DIR__ . '/application_history.php';
     require __DIR__ . '/technical_logs.php';
+    require __DIR__ . '/trusted_proxies.php';
 } finally {
     DB::connection()->rollBack();
 }

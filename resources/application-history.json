@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.24.9",
+  "current_version": "1.24.10",
   "entries": [
+    {
+      "version": "1.24.10",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Limites de tentatives par visiteur derrière un proxy",
+      "summary": "Derrière un reverse proxy déclaré, les limites de tentatives visent l’adresse réelle de chaque visiteur.",
+      "changes": [
+        "Le nouveau réglage TRUSTED_PROXIES indique les proxys de confiance. Sans lui, le fonctionnement reste inchangé.",
+        "Les erreurs de connexion d’une personne ne bloquent plus les autres utilisateurs passant par le même proxy.",
+        "Une adresse fournie par le visiteur lui-même n’est jamais prise en compte."
+      ]
+    },
     {
       "version": "1.24.9",
       "date": "2026-11-06",

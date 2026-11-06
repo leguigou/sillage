@@ -114,7 +114,7 @@ final class Security
     {
         $key = hash_hmac(
             'sha256',
-            $scope . '|' . ($_SERVER['REMOTE_ADDR'] ?? 'cli'),
+            $scope . '|' . self::clientIp(),
             env('APP_KEY'),
         );
         DB::run(
@@ -125,6 +125,94 @@ final class Security
             http_response_code(429);
             exit('Trop de tentatives. Réessayez plus tard.');
         }
+    }
+    /**
+     * Visitor address used for rate limiting. Without TRUSTED_PROXIES this is REMOTE_ADDR.
+     * When the direct peer is a trusted proxy, X-Forwarded-For is read right to left,
+     * skipping trusted hops: the first untrusted address is the one a trusted proxy saw.
+     * Anything further left was written by the client and is never used.
+     */
+    public static function clientIp(): string
+    {
+        $remote = (string) ($_SERVER['REMOTE_ADDR'] ?? 'cli');
+        $trusted = self::trustedProxies();
+        if ($trusted === [] || !self::ipInRanges($remote, $trusted)) {
+            return $remote;
+        }
+        $chain = explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        for ($i = count($chain) - 1; $i >= 0; $i--) {
+            $ip = trim($chain[$i]);
+            if (self::packIp($ip) === null) {
+                // Missing or malformed chain: keep the proxy address rather than guess.
+                return $remote;
+            }
+            if (!self::ipInRanges($ip, $trusted)) {
+                return $ip;
+            }
+        }
+        return $remote;
+    }
+    /** @return list<array{0:string,1:int}> packed network address and prefix length */
+    private static function trustedProxies(): array
+    {
+        $ranges = [];
+        foreach (explode(',', env('TRUSTED_PROXIES')) as $entry) {
+            $entry = trim($entry);
+            if ($entry === '') {
+                continue;
+            }
+            $parts = explode('/', $entry, 2);
+            $network = self::packIp($parts[0]);
+            $max = $network === null ? 0 : strlen($network) * 8;
+            $bits = $parts[1] ?? (string) $max;
+            if ($network === null || !ctype_digit($bits) || (int) $bits > $max) {
+                throw new \RuntimeException(
+                    'TRUSTED_PROXIES doit lister des adresses IP ou des réseaux CIDR séparés par des virgules.',
+                );
+            }
+            $ranges[] = [$network, (int) $bits];
+        }
+        return $ranges;
+    }
+    private static function ipInRanges(string $ip, array $ranges): bool
+    {
+        $packed = self::packIp($ip);
+        if ($packed === null) {
+            return false;
+        }
+        foreach ($ranges as [$network, $bits]) {
+            if (strlen($network) !== strlen($packed)) {
+                continue;
+            }
+            $bytes = intdiv($bits, 8);
+            if (substr($packed, 0, $bytes) !== substr($network, 0, $bytes)) {
+                continue;
+            }
+            $rest = $bits % 8;
+            if ($rest === 0) {
+                return true;
+            }
+            $mask = (0xff << (8 - $rest)) & 0xff;
+            if ((ord($packed[$bytes]) & $mask) === (ord($network[$bytes]) & $mask)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /** Packed form of an address; IPv4-mapped IPv6 (::ffff:a.b.c.d) becomes plain IPv4. */
+    private static function packIp(string $ip): ?string
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return null;
+        }
+        $packed = inet_pton($ip);
+        if ($packed === false) {
+            return null;
+        }
+        if (strlen($packed) === 16 && str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff")) {
+            return substr($packed, 12);
+        }
+        return $packed;
     }
     public static function encrypt(string $plain): string
     {
