@@ -1,4 +1,11 @@
-<?php use App\Models\ProjectEmail; $inboxQuery=['project'=>(int)$project['id'],'unread'=>$onlyUnread?'1':null]; ?>
+<?php
+/**
+ * Personal notifications inbox (/notifications, inside layout.php). Rendered by InboxController::index().
+ * Expects: $inbox from TicketNotification::page() ('rows', 'unread', 'total', 'page', 'pages'), $onlyUnread and $project
+ * ($project only keeps the project in the filter links; the list covers all projects).
+ * Each entry has POST forms to /notifications/{id}/state (open, read, unread); inbox.js enhances them via data-inbox-* attributes.
+ */
+use App\Models\ProjectEmail; $inboxQuery=['project'=>(int)$project['id'],'unread'=>$onlyUnread?'1':null]; ?>
 <section class="inbox-page" data-inbox>
  <div class="panel-header"><div><h1>Notifications</h1><p>Mentions et nouvelles des tickets que vous suivez ou qui vous concernent.</p></div><form method="post" action="/notifications/read-all" data-inbox-all><?= csrf() ?><button class="button subtle" <?= !$inbox['unread']?'disabled':'' ?>>Tout marquer comme lu</button></form></div>
  <nav class="inbox-filters" aria-label="Filtrer les notifications"><a class="button <?= !$onlyUnread?'primary':'subtle' ?>" href="<?= e(query_url('/notifications',$inboxQuery,['unread'=>null])) ?>">Toutes</a><a class="button <?= $onlyUnread?'primary':'subtle' ?>" href="<?= e(query_url('/notifications',$inboxQuery,['unread'=>1])) ?>">Non lues <span data-inbox-count><?= $inbox['unread'] ?></span></a><span class="help-text"><?= $inbox['total'] ?> notification(s) · Tous les projets</span></nav>

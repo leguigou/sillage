@@ -2,6 +2,23 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\{DB, Security};
+/**
+ * Tickets (table tickets) and their comments, links (ticket_links) and activity feed (activity).
+ * This is the central model: most other models validate against it or call it.
+ *
+ * Rules enforced here:
+ * - Validation (validate()): type and status must be enabled items of the project's Workflow;
+ *   assignee, team, parent (same project, no cycles, required for sub-tasks), release, dates,
+ *   labels, estimate and progress are checked. TicketClosure adds resolution and approval rules.
+ * - Concurrency: field changes (update/patch, pause, archive) lock the project row
+ *   (SELECT ... FOR UPDATE) and require the version the client loaded; the UPDATE bumps
+ *   tickets.version. Comments do not check the version. Ticket numbers come from
+ *   projects.next_number under the same project lock.
+ * - Side effects, in the same transaction: TicketHistory snapshot, activity line, automation rules
+ *   (Automation::run, unless disabled) and notifications (App\Services\Notifications).
+ * - Pause: entering the "paused" status remembers the previous status in paused_from_status so the
+ *   ticket can resume it later.
+ */
 final class Ticket
 {
     public const STATUSES = [
@@ -34,6 +51,7 @@ final class Ticket
         'low' => 'P5',
         'lowest' => 'P6',
     ];
+    /** Loads a ticket with names of related records, computed key (e.g. ABC-12), time totals and workflow decorations. */
     public static function find(int $id): array
     {
         $t = DB::one(
@@ -55,6 +73,10 @@ final class Ticket
         $t['labels_array'] = json_decode($t['labels'], true);
         return Workflow::decorate($t);
     }
+    /**
+     * Locks the ticket's project row, reloads the ticket (and the workflow cache) and checks that it is
+     * still at $version. Must be called inside a transaction; returns the fresh ticket.
+     */
     public static function lock(int $id,int $version): array
     {
         $ticket=self::find($id);
@@ -72,6 +94,10 @@ final class Ticket
             mb_substr($message, 0, 500),
         ]);
     }
+    /**
+     * Normalizes and checks ticket fields for project $project ($self = id of the ticket being edited).
+     * Returns the column values in the exact order used by create()'s INSERT.
+     */
     public static function validate(array $input, int $project, ?int $self = null): array
     {
         $title = trim((string) ($input['title'] ?? ''));
@@ -122,6 +148,7 @@ final class Ticket
             if (!$p) {
                 throw new \InvalidArgumentException('Le parent doit appartenir au même projet.');
             }
+            // Walk up the ancestors: reaching $self (or any ticket twice) would create a cycle.
             $seen = [];
             $cursor = $p;
             while ($cursor) {
@@ -189,6 +216,10 @@ final class Ticket
         // Textareas submit CRLF while API/CLI clients commonly submit LF.
         return str_replace(["\r\n","\r"],"\n",trim($value));
     }
+    /**
+     * Creates a ticket and returns its id. $external is the requester e-mail for tickets coming from
+     * a public form (history then records no actor); $source labels the origin in the history.
+     */
     public static function create(
         int $project,
         array $input,
@@ -203,7 +234,9 @@ final class Ticket
             }
             Workflow::reset();
             $data = self::validate($input,$project);
+            // Called only for its check: refuses a ticket created directly as done when the project requires approval.
             TicketClosure::prepare(null,$data,$project);
+            // $p was read under the lock, so $p['next_number'] is this ticket's number (rank_value is derived from it).
             DB::run('UPDATE projects SET next_number=next_number+1 WHERE id=?', [$project]);
             $id = DB::insert(
                 'INSERT INTO tickets(project_id,number,title,description,type,status,priority,assignee_id,team_id,parent_id,labels,start_date,due_date,flagged,estimated_hours,progress_percent,release_id,resolution,reporter_id,external_email,rank_value,completed_at)
@@ -231,6 +264,11 @@ final class Ticket
             return $id;
         });
     }
+    /**
+     * Full update from a complete form ($input replaces all editable fields; team, release and
+     * resolution default to their current values). $automate=false skips automation rules, which
+     * is how rules apply their own actions without re-triggering themselves.
+     */
     public static function update(
         int $id,
         array $input,
@@ -244,6 +282,8 @@ final class Ticket
             $data = self::validate(array_replace(['team_id'=>$old['team_id'],'release_id'=>$old['release_id'],'resolution'=>$old['resolution']],$input), (int) $old['project_id'], $id);
             Workflow::assertTransition((int)$old['project_id'],$old['status'],$data['status'],$old['paused_from_status']??null);
             $data+=TicketClosure::prepare($old,$data,(int)$old['project_id']);
+            // paused_from_status: set to the previous status when entering pause, kept while paused, cleared otherwise.
+            // completed_at: kept from the first completion while the status stays in the "done" category.
             $resume=$data['status']==='paused'?($old['status']==='paused'?($old['paused_from_status']??'todo'):$old['status']):null;
             $completed =
                 Workflow::category('status',(int)$old['project_id'],$data['status']) === 'done' ? $old['completed_at'] ?? gmdate('Y-m-d H:i:s') : null;
@@ -273,6 +313,7 @@ final class Ticket
             \App\Services\Notifications::changed($old,self::find($id),$actor);
         });
     }
+    /** Partial update: merges $changes (whitelisted fields only) into the current ticket and delegates to update(). */
     public static function patch(
         int $id,
         array $changes,
@@ -312,6 +353,10 @@ final class Ticket
             $source,
         );
     }
+    /**
+     * Pauses or resumes a ticket. Resuming returns to paused_from_status, or to "todo" when that
+     * status is missing or disabled. Does nothing if the ticket is already in the requested state.
+     */
     public static function setPaused(int $id,bool $paused,int $actor,int $version): void
     {
         DB::transaction(function() use($id,$paused,$actor,$version) {
@@ -350,6 +395,7 @@ final class Ticket
             if ((bool)$t['archived']!==$archived) \App\Services\Notifications::enqueue(self::find($id),['archived'],$actor);
         });
     }
+    /** Adds a plain-text or sanitized HTML comment, queues notifications (mentions included), and returns the comment id. */
     public static function comment(int $id, string $body, int $actor, string $format = 'text'): int
     {
         return DB::transaction(function () use ($id, $body, $actor, $format) {
@@ -384,6 +430,10 @@ final class Ticket
             return $comment;
         });
     }
+    /**
+     * Links two tickets of the same project ("relates", "blocks" or "duplicates"); duplicate links
+     * are ignored. For "blocks", walks existing blocking links from the target to refuse cycles.
+     */
     public static function link(int $id, int $targetId, string $relation, int $actor): void
     {
         DB::transaction(function () use ($id, $targetId, $relation, $actor) {
@@ -435,6 +485,7 @@ final class Ticket
             );
         });
     }
+    /** Deletes link $id and returns its source ticket id. Performs no permission check, lock or activity logging. */
     public static function unlink(int $id): int
     {
         $link = DB::one('SELECT * FROM ticket_links WHERE id=?', [$id]);
@@ -443,5 +494,45 @@ final class Ticket
         }
         DB::run('DELETE FROM ticket_links WHERE id=?', [$id]);
         return (int) $link['source_id'];
+    }
+
+    /** Recent open tickets offered as parent candidates in the ticket creation dialog. */
+    public static function parentCandidates(int $project): array
+    {
+        return DB::all(
+            'SELECT id,number,title
+                FROM tickets
+                WHERE project_id=? AND archived=0
+                ORDER BY number DESC
+                LIMIT 500',
+            [$project],
+        );
+    }
+
+    /** Five latest epics of a project with their done/total child counts, for the dashboard. */
+    public static function epicProgress(int $project): array
+    {
+        return DB::all(
+            "SELECT t.id,t.number,t.title,t.type,COUNT(c.id) total,SUM(".Workflow::categorySql('status','c')."='done') done
+                FROM tickets t
+                LEFT JOIN tickets c ON c.parent_id=t.id AND c.archived=0
+                WHERE t.project_id=? AND ".Workflow::categorySql('type')."='epic' AND t.archived=0
+                GROUP BY t.id
+                ORDER BY t.id DESC
+                LIMIT 5",
+            [$project],
+        );
+    }
+
+    /** "Blocks" relations inside a project, drawn as dependency arrows on the timeline. */
+    public static function blockingLinks(int $project): array
+    {
+        return DB::all(
+            "SELECT l.source_id,l.target_id
+                FROM ticket_links l
+                JOIN tickets t ON t.id=l.source_id
+                WHERE t.project_id=? AND l.relation='blocks'",
+            [$project],
+        );
     }
 }

@@ -3,10 +3,16 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * User profile pictures (table user_avatars) and the display name edited on the profile page.
+ * Avatar URLs embed the image digest (/avatars/<id>/<digest>), so a new picture gets a new URL.
+ * Digests are cached per request in $digests (null = no picture).
+ */
 final class UserAvatar
 {
     private static array $digests = [];
 
+    /** Loads the avatar digests of many users in batches of 500, so url() needs no query per user. */
     public static function prime(array $ids): void
     {
         $ids = array_values(array_filter(array_unique(array_map('intval',$ids)),fn($id)=>$id>0 && !array_key_exists($id,self::$digests)));
@@ -27,6 +33,7 @@ final class UserAvatar
         return self::$digests[$id] ? '/avatars/' . $id . '/' . self::$digests[$id] : null;
     }
 
+    /** Updates the user's name and replaces or removes the avatar ($image holds data, mime and digest). */
     public static function saveProfile(int $id, string $name, ?array $image, bool $remove): void
     {
         $name = trim($name);

@@ -1,3 +1,9 @@
+<?php /**
+ * Dialog #development-branch-ticket: link a Git branch to an open ticket that has no
+ * branch yet. Included by sections/development.php for every role except "viewer".
+ * No PHP variables (only csrf()); the form has no action: the ticket search, the
+ * options and the submission are handled by public/assets/development-branch-ticket.js.
+ */ ?>
 <dialog id="development-branch-ticket" class="dialog compact" aria-labelledby="branch-ticket-title">
   <header class="dialog-header">
     <div><h2 id="branch-ticket-title">Lier la branche à un ticket</h2><p class="help-text" data-branch-ticket-title></p></div>

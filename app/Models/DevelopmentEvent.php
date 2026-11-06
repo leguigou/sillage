@@ -4,13 +4,27 @@ namespace App\Models;
 use App\Core\DB;
 use App\Services\DevelopmentPayload;
 
+/**
+ * Stores Git provider observations (branches, commits, pull requests, builds, deployments) in
+ * development_events, keyed by (connection_id, external_key), and links them to tickets through
+ * development_event_tickets. development_events.ticket_id only keeps the first linked ticket.
+ *
+ * Ticket links are recomputed on every save from: ticket keys (e.g. ABC-12) in the event text,
+ * manual branch links (TicketBranch), other events sharing the same commit SHA, and verified
+ * deployment-to-PR proofs. Queries that resolve ticket links join project_connections so that a
+ * repository detached from a project stops exposing its events there. Writers lock all projects linked to the connection
+ * (lockProjects) to serialize concurrent webhook and sync deliveries. Payloads are normalized
+ * beforehand by App\Services\DevelopmentPayload.
+ */
 final class DevelopmentEvent
 {
+    /** Column list for event summaries; drops the bulky file and commit lists from metadata_json. */
     public static function summaryColumns(string $alias): string
     {
         if(!preg_match('/^[a-z]$/D',$alias)) throw new \InvalidArgumentException('Alias de lecture Git invalide.');
         return implode(',',array_map(fn($column)=>$alias.'.'.$column,['id','connection_id','ticket_id','external_key','kind','title','external_url','state','occurred_at','commit_sha'])).",JSON_REMOVE($alias.metadata_json,'$.details.files','$.details.commit_shas') AS metadata_json";
     }
+    /** Locks (FOR UPDATE, in id order) every project attached to the connection; fails if there is none. */
     public static function lockProjects(int $connection): array
     {
         $projects=DB::all('SELECT p.id,p.project_key
@@ -21,15 +35,23 @@ final class DevelopmentEvent
         if (!$projects) throw new \InvalidArgumentException('Cette connexion Git n’est liée à aucun projet.');
         return $projects;
     }
+    /**
+     * Upserts one normalized event, recomputes its ticket links and returns its id.
+     * $live is true for real-time deliveries (webhooks): only those post Git comments on tickets
+     * and run automation rules; history imports and re-saves only record the observation.
+     */
     public static function save(array $connection,array $event,bool $live=false): int
     {
         return DB::transaction(function() use($connection,$event,$live) {
             $projects=self::lockProjects((int)$connection['id']);
             $old=DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=? FOR UPDATE',[$connection['id'],$event['external_key']]);
             $oldMeta=$old?json_decode($old['metadata_json']??'{}',true,64,JSON_THROW_ON_ERROR):[];
+            // Out-of-order protection: ignore an older build attempt, and (unless this is a newer build
+            // attempt) ignore an event older than the stored one when both dates are known.
             $newAttempt=$event['kind']==='build' && (int)($event['metadata']['attempt']??1)>(int)($oldMeta['attempt']??1);
             if($old && $event['kind']==='build' && (int)($event['metadata']['attempt']??1)<(int)($oldMeta['attempt']??1)) return (int)$old['id'];
             if (!$newAttempt && $old && ($oldMeta['date_known']??true) && $event['metadata']['date_known'] && $old['occurred_at']>$event['occurred_at']) return (int)$old['id'];
+            // 1. Ticket keys mentioned in the event text, for each project attached to the connection.
             $tickets=[];
             foreach($projects as $project) {
                 $numbers=[];
@@ -40,6 +62,7 @@ final class DevelopmentEvent
                     FROM tickets
                     WHERE project_id=? AND number IN ('.implode(',',array_fill(0,count($numbers),'?')).') ORDER BY id',[$project['id'],...$numbers]),'id')];
             }
+            // 2. Manual branch links. A PR only counts when its source branch lives in this repository (not a fork).
             $branch=$event['metadata']['branch']??null;
             $localBranch=$event['kind']!=='pull_request' || strcasecmp((string)($event['metadata']['branch_repository']??''),$connection['repository'])===0;
             if ($localBranch && is_string($branch) && $branch!=='') {
@@ -50,6 +73,7 @@ final class DevelopmentEvent
                     WHERE b.connection_id=? AND b.external_key=?',[$connection['id'],DevelopmentPayload::branchKey($branch)]);
                 $tickets=array_values(array_unique([...$tickets,...array_column($manual,'ticket_id')]));
             }
+            // 3. Tickets already linked to a branch/commit/PR with the same SHA (or a PR whose merge SHA matches).
             if ($event['commit_sha'] && $event['kind']!=='branch') {
                 $linked=DB::all("SELECT DISTINCT l.ticket_id
                     FROM development_event_tickets l
@@ -59,6 +83,7 @@ final class DevelopmentEvent
                     WHERE e.connection_id=? AND (e.commit_sha=? OR (e.kind='pull_request' AND JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.merge_sha'))=?)) AND e.kind IN ('branch','commit','pull_request')",[$connection['id'],$event['commit_sha'],$event['commit_sha']]);
                 $tickets=array_values(array_unique([...$tickets,...array_column($linked,'ticket_id')]));
             }
+            // 4. For a known deployment: tickets of PRs proven to be part of it (see deploymentProof), for the same head SHA.
             if($old && $event['kind']==='deployment') {
                 $proven=DB::all('SELECT DISTINCT l.ticket_id
                     FROM development_deployment_prs d
@@ -69,6 +94,8 @@ final class DevelopmentEvent
                     WHERE d.deployment_event_id=? AND d.head_sha=?',[$connection['id'],$old['id'],$event['commit_sha']]);
                 $tickets=array_values(array_unique([...$tickets,...array_column($proven,'ticket_id')]));
             }
+            // Only https links to the provider's own host are stored as clickable URLs; anything else
+            // is kept as plain metadata (source_url) and external_url is stored empty.
             $url=parse_url($event['external_url']);
             $expected=$connection['provider']==='github'?'github.com':'bitbucket.org';
             $safe=($url['scheme']??'')==='https' && strtolower($url['host']??'')===$expected && !isset($url['user']) && !isset($url['pass']) && !isset($url['port']);
@@ -82,8 +109,10 @@ final class DevelopmentEvent
                 ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),ticket_id=VALUES(ticket_id),title=VALUES(title),external_url=VALUES(external_url),state=VALUES(state),occurred_at=VALUES(occurred_at),commit_sha=VALUES(commit_sha),metadata_json=VALUES(metadata_json)',[
                 $connection['id'],$tickets[0]??null,$event['external_key'],$event['kind'],$event['title'],$safe?$event['external_url']:'',$event['state'],$event['occurred_at'],$event['commit_sha'],json_encode($metadata,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),
             ]);
+            // LAST_INSERT_ID(id) above makes $id the existing row id on update. Links are then replaced wholesale.
             DB::run('DELETE FROM development_event_tickets WHERE event_id=?',[$id]);
             foreach($tickets as $ticket) DB::run('INSERT INTO development_event_tickets(event_id,ticket_id) VALUES(?,?)',[$id,$ticket]);
+            // Propagate this event's tickets to builds and deployments of the same commit or merge SHA.
             if(in_array($event['kind'],['branch','commit','pull_request'],true)) foreach(array_unique(array_filter([$event['commit_sha'],$event['metadata']['merge_sha']??null])) as $sha) {
                 DB::run("INSERT IGNORE INTO development_event_tickets(event_id,ticket_id) SELECT r.id,l.ticket_id
                     FROM development_events r
@@ -102,6 +131,11 @@ final class DevelopmentEvent
             return $id;
         });
     }
+    /**
+     * Records that deployment $deployment contains pull request $pr, then copies the PR's tickets to
+     * the deployment. Silently does nothing unless the deployment's commit is $head and the PR's merge
+     * SHA is $base (i.e. the comparison that produced the proof still matches the stored events).
+     */
     public static function deploymentProof(array $c,int $deployment,int $pr,string $base,string $head): void
     {
         DB::transaction(function() use($c,$deployment,$pr,$base,$head) {
@@ -123,6 +157,7 @@ final class DevelopmentEvent
                 WHERE id=?',[$deployment,$deployment]);
         });
     }
+    /** Returns [ticket_id => true] for tickets with an open pull request that GitMonitor reports as conflicting. */
     public static function conflictsForTickets(array $ids): array
     {
         if(!$ids) return [];$result=[];
@@ -136,6 +171,11 @@ final class DevelopmentEvent
         return $result;
     }
 
+    /**
+     * Stores a fetched PR detail snapshot and its commits. Rejected if a newer delivery changed the
+     * PR revision meanwhile, or if the PR is no longer linked to $ticket. The commits inherit the
+     * PR's ticket links.
+     */
     public static function savePullRequestDetails(array $connection,array $event,array $commits,array $details,int $ticket): void
     {
         DB::transaction(function() use($connection,$event,$commits,$details,$ticket) {
@@ -160,6 +200,10 @@ final class DevelopmentEvent
         });
     }
 
+    /**
+     * Links $ticket to already stored commits and PRs of $branch (case-sensitive match; PRs only
+     * when opened from this repository). Called after a manual branch link.
+     */
     public static function attachKnownBranch(array $connection,int $ticket,string $branch): void
     {
         $where="e.connection_id=? AND e.kind IN ('commit','pull_request') AND BINARY JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.branch'))=? AND (e.kind<>'pull_request' OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json,'$.branch_repository')))=LOWER(?))";
@@ -177,6 +221,10 @@ final class DevelopmentEvent
         return $event;
     }
 
+    /**
+     * Hydrates events and adds ticket_refs (key and title of each linked ticket, optionally limited
+     * to one project); ticket_id is overwritten with the first visible linked ticket.
+     */
     public static function withTickets(array $events, int $project = 0): array
     {
         if (!$events) return [];

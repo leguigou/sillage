@@ -3,13 +3,25 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
-/** Project-owned vocabulary, categories and transition policy. Legacy keys remain stable. */
+/**
+ * Project-owned vocabulary, categories and transition policy. Legacy keys remain stable.
+ *
+ * Each project can rename, reorder, recolor, add (max 30 per kind) or disable ticket statuses and
+ * types (table workflow_items) on top of the built-in Ticket::STATUSES/TYPES. Every item maps to a
+ * category (todo/progress/review/done, or paused, for statuses; a built-in type code for types),
+ * which is what rules such as completion or sub-task parents rely on. project_workflows holds the optional transition matrix
+ * ("restricted" mode) and a version used for optimistic concurrency.
+ * Invariants enforced by save(): the category of a built-in or used item is immutable; "todo",
+ * "paused" and "task", and items used by tickets, forms or rules, cannot be disabled.
+ * get() is cached per request; call reset() after taking the project lock to re-read fresh data.
+ */
 final class Workflow
 {
     public const CATEGORIES=['todo'=>'À faire','progress'=>'En cours','review'=>'En revue','done'=>'Terminé'];
     private static array $cache=[];
 
     public static function reset(): void { self::$cache=[]; }
+    /** Adds project-specific labels, categories, status color and allowed next statuses to a ticket row. */
     public static function decorate(array $ticket): array
     {
         $project=(int)$ticket['project_id'];
@@ -21,6 +33,10 @@ final class Workflow
         $ticket['status_options']=self::destinations($project,$ticket['status'],$ticket['paused_from_status']??null);
         return $ticket;
     }
+    /**
+     * Built-in items overlaid with the project's rows, sorted by position then code. With $project=0,
+     * returns the built-ins plus the custom items of all projects, labels prefixed by the project key.
+     */
     public static function get(int $project): array
     {
         if (isset(self::$cache[$project])) return self::$cache[$project];
@@ -58,18 +74,28 @@ final class Workflow
     public static function label(string $kind,int $project,string $code): string { return self::get($project)['items'][$kind][$code]['label']??$code; }
     public static function categoryLabels(string $kind,int $project,string $category): array { return array_column(array_filter(self::get($project)['items'][$kind],fn($row)=>$row['category']===$category),'label','code'); }
     public static function category(string $kind,int $project,string $code): string { return self::item($kind,$project,$code)['category']; }
+    /** Icon and color of an item; items without their own fall back to the installation's mark for their category. */
     public static function mark(string $kind,int $project,string $code): array
     {
         $row=self::item($kind,$project,$code);
         if ($row['icon']===null || $row['color']===null) return Appearance::mark('type',$row['category']);
         return ['icon'=>$row['icon'],'color'=>$row['color']];
     }
+    /**
+     * SQL expression giving the category of a ticket's status or type (table alias $alias), for use
+     * in queries: the project's workflow_items row if any, else the built-in mapping.
+     */
     public static function categorySql(string $kind='status',string $alias='t'): string
     {
         if (!in_array($kind,['status','type'],true) || !preg_match('/^[a-z][a-z0-9_]*$/D',$alias)) throw new \LogicException('Expression de catégorie invalide.');
         $fallback=$kind==='status'?"CASE $alias.status WHEN 'done' THEN 'done' WHEN 'paused' THEN 'paused' WHEN 'review' THEN 'review' WHEN 'progress' THEN 'progress' ELSE 'todo' END":"CASE $alias.type WHEN 'epic' THEN 'epic' WHEN 'subtask' THEN 'subtask' WHEN 'bug' THEN 'bug' WHEN 'story' THEN 'story' ELSE 'task' END";
         return "COALESCE((SELECT wi.category FROM workflow_items wi WHERE wi.project_id=$alias.project_id AND wi.kind='$kind' AND wi.code=$alias.$kind),$fallback)";
     }
+    /**
+     * Statuses a ticket may move to from $from. Unrestricted projects allow every enabled status.
+     * Restricted ones allow staying, pausing, returning to the pre-pause status, and the configured
+     * transitions of the effective status (the pre-pause status when paused).
+     */
     public static function destinations(int $project,string $from,?string $pausedFrom=null): array
     {
         $config=self::get($project);$labels=self::labels('status',$project,true);
@@ -82,6 +108,10 @@ final class Workflow
     {
         if (!isset(self::destinations($project,$from,$pausedFrom)[$to])) throw new \InvalidArgumentException('Ce passage de « '.self::label('status',$project,$from).' » à « '.self::label('status',$project,$to).' » n’est pas autorisé par le circuit du projet.');
     }
+    /**
+     * Applies one administrative action ('transitions', 'add_item' or 'save_item') to the project
+     * workflow under the project lock, checks and bumps the workflow version, and returns the new state.
+     */
     public static function save(int $project,array $input): array
     {
         return DB::transaction(function() use($project,$input) {
@@ -119,6 +149,7 @@ final class Workflow
                 $position=filter_var($input['position']??($previous['position']??0),FILTER_VALIDATE_INT,['options'=>['min_range'=>0,'max_range'=>999]]);
                 if ($position===false) throw new \InvalidArgumentException('Ordre compris entre 0 et 999 requis.');
                 $enabled=$action==='add_item' || (array_key_exists('enabled',$input)?!empty($input['enabled']):(bool)$previous['enabled']);
+                // A status also counts as used when paused tickets will resume to it.
                 $used=(int)DB::one('SELECT COUNT(*) n
                     FROM tickets
                     WHERE project_id=? AND '.($kind==='status'?'(status=? OR paused_from_status=?)':'type=?'),$kind==='status'?[$project,$code,$code]:[$project,$code])['n'];

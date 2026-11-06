@@ -2,6 +2,15 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * External request forms (table public_forms): an unauthenticated page at /f/<token> that creates
+ * tickets of a fixed type in one project, on behalf of the form's creator (reporter_id).
+ *
+ * Only the SHA-256 hash of the token is stored; the public URL is returned once, on creation or
+ * rotate(). The form's fields come from FIELDS ("title" is always present and required); a field
+ * may be shown only for one priority value (the only supported condition). Sub-task types are
+ * refused because such tickets need a parent. Updates keep the form in its original project.
+ */
 final class PublicForm
 {
     public const FIELDS = [
@@ -11,12 +20,14 @@ final class PublicForm
         'due_date' => 'Date souhaitée',
         'attachment' => 'Pièce jointe',
     ];
+    /** Creates (no id) or updates a form; on update, settings missing from $input keep their stored values. */
     public static function save(array $input, int $actor): array
     {
         return DB::transaction(function () use ($input, $actor) {
             $id = (int) ($input['id'] ?? 0);
             if ($id) {
                 $old = self::find($id, true);
+                // Rebuild the stored configuration in the input format so a partial update can merge into it.
                 if ((int) ($input['project_id'] ?? 0) !== (int) $old['project_id']) {
                     throw new \InvalidArgumentException(
                         'Le formulaire doit rester dans son projet.',
@@ -159,6 +170,7 @@ final class PublicForm
             return self::find($id);
         });
     }
+    /** Replaces the form's secret token, invalidating the previous public URL; returns the new URL. */
     public static function rotate(int $id): array
     {
         return DB::transaction(function () use ($id) {

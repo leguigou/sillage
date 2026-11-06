@@ -1,4 +1,13 @@
 <?php
+/**
+ * "Chronologie" (Gantt-like) section (/timeline), required by workspace.php.
+ * The visible period is computed by TimelineCalendar::build() from $filters['scale'] (weeks|months|quarters) and
+ * $filters['from']; each ticket with a start date gets a bar from TimelineCalendar::bar(). Positions are emitted as
+ * data-timeline-left/width attributes and applied by JavaScript.
+ * Unscheduled tickets get a "+ Planifier" button opening #schedule-dialog (handled in app.js); blocking links from
+ * Ticket::blockingLinks() are passed to JS as JSON (#timeline-dependencies) to draw dependency arrows.
+ * Expects $tickets (up to 1000), $filters, $baseQuery (from workspace.php) and $project.
+ */
 use App\Models\Ticket;
 use App\Services\TimelineCalendar;
 $calendar=TimelineCalendar::build((string)($filters['scale']??'weeks'),$filters['from']??null);
@@ -33,4 +42,4 @@ $scale=$calendar['scale']; $start=$calendar['start']; $days=$calendar['days']; $
 </div>
 <div class="timeline-legend"><?php foreach(App\Services\Filter::visibleStatuses($filters,(int)$project['id']) as $value=>$label): ?><span><i class="legend-dot status-<?= e($value) ?>"></i><?= e($label) ?></span><?php endforeach; ?><span><i class="timeline-today-key"></i>Aujourd’hui</span><span><i class="timeline-weekend-key"></i>Week-end</span><small><?= (int)($days/7) ?> semaines affichées. Survolez un jour ou une barre pour ses dates exactes.</small></div>
 <dialog id="schedule-dialog" class="dialog compact"><form class="stack" data-schedule-form><header class="dialog-header"><h2>Donner une date au prochain pas</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><input type="hidden" name="ticket_id"><label>Date de début<input type="date" name="start_date" required></label><label>Date d’échéance<input type="date" name="due_date" required></label><button class="button primary">Planifier</button></form></dialog>
-<?php $timelineLinks=App\Core\DB::all("SELECT l.source_id,l.target_id FROM ticket_links l JOIN tickets t ON t.id=l.source_id WHERE t.project_id=? AND l.relation='blocks'",[$project['id']]); ?><script type="application/json" id="timeline-dependencies"><?= json_encode($timelineLinks,JSON_HEX_TAG|JSON_HEX_AMP|JSON_THROW_ON_ERROR) ?></script>
+<?php $timelineLinks=App\Models\Ticket::blockingLinks((int)$project['id']); ?><script type="application/json" id="timeline-dependencies"><?= json_encode($timelineLinks,JSON_HEX_TAG|JSON_HEX_AMP|JSON_THROW_ON_ERROR) ?></script>

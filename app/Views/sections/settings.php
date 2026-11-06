@@ -1,3 +1,11 @@
+<?php /**
+ * "Paramètres" section (/settings), required by workspace.php. Mostly an assembly of partials:
+ * profile, company summary and member directory ($members) are always shown; workflow, appearance, company identity,
+ * LLM, application history and technical logs are admin only; e-mail preferences, MCP tokens ($mcpTokens, $mcpAudit),
+ * OAuth connections and teams ($teams, $teamMembers, $teamProjects, $accounts for admins) are shown to everyone.
+ * The shortcut links at the top differ between admins and other roles; settings.js uses data-settings-* attributes.
+ * Also contains the change-password dialog (POST /account/password).
+ */ ?>
 <div class="settings-page" data-settings-page>
 <nav class="settings-shortcuts" aria-label="Paramètres de l’espace" data-settings-tabs>
  <a class="button subtle" href="#profile">Mon profil</a>

@@ -1,3 +1,9 @@
+<?php /**
+ * Static step-by-step help for creating a GitHub fine-grained token and a Bitbucket Cloud
+ * API token (required scopes, webhook events, expected repository format). The Bitbucket
+ * block starts hidden; front-end JS switches blocks from the provider select
+ * (data-provider-guide). Included by connection-dialog.php. No PHP variables.
+ */ ?>
 <details class="provider-guide" id="provider-help-github" data-provider-guide="github" aria-labelledby="github-guide-title">
  <summary id="github-guide-title">Créer un jeton GitHub</summary>
  <ol>

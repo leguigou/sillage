@@ -2,6 +2,14 @@
 declare(strict_types=1);
 namespace App\Services;
 use App\Models\Ticket;
+/**
+ * Turns ticket list filters (form/query-string values and the JQL-like "jql" text) into a SQL WHERE fragment.
+ * where() returns [sql, params]: user values are only ever bound as "?" parameters; column names come from
+ * the FIELDS whitelist or hard-coded strings, never from input. The fragment uses the table aliases of
+ * Query::JOIN (t, p, a, u, tm), so it must be combined with that join.
+ * Used by Query (lists, counts, aggregates), ListLayout (saved-report validation) and the workspace views.
+ * Invalid input raises InvalidArgumentException with a French message meant for the user.
+ */
 final class Filter
 {
     private array $tokens = [];
@@ -9,6 +17,7 @@ final class Filter
     private int $depth = 0;
     private bool $mentionsPaused = false;
     private int $project = 0;
+    /** Query field name => SQL expression. The only column names the JQL parser can emit. */
     public const FIELDS = [
         'title' => 't.title',
         'status' => 't.status',
@@ -26,11 +35,16 @@ final class Filter
         'key' => "CONCAT(p.project_key,'-',t.number)",
         'labels' => 't.labels',
     ];
+    /** True when the input narrows the ticket set compared with an empty filter. */
     public static function active(array $input): bool
     {
         // Project selection and display options do not restrict the result set.
         return self::where(0, $input)[0] !== self::where(0, [])[0];
     }
+    /**
+     * Builds [where SQL joined with AND, bound parameters] for non-archived tickets of $project (0 = all projects).
+     * Status/type/priority values are checked against the project workflow before being bound.
+     */
     public static function where(int $project, array $input): array
     {
         $sql = ['t.archived=0'];
@@ -46,6 +60,7 @@ final class Filter
             array_push($params, ...array_fill(0, 3, '%' . $q . '%'));
         }
         $statuses = self::selectedStatuses($input);
+        // Every status unchecked means "match nothing", not "no status filter".
         if ($statuses === []) $sql[] = '1=0';
         elseif ($statuses !== null) $input['status'] = $statuses;
         foreach (['status', 'type', 'priority'] as $field) {
@@ -116,6 +131,7 @@ final class Filter
             $params[] = \App\Core\Security::date($input['due_before']);
         }
         $jqlPaused=false;
+        // The JQL text is parsed into its own parenthesised fragment and ANDed with the other filters.
         if (!empty($input['jql'])) {
             $parser=new self();$parser->project=$project;
             [$extra, $args] = $parser->parse((string) $input['jql']);
@@ -128,6 +144,10 @@ final class Filter
         elseif ($pause==='active') $sql[]="t.status<>'paused'";
         return [implode(' AND ', $sql), $params];
     }
+    /**
+     * Paused tickets are hidden by default ('active'). An explicit "pause" value wins; otherwise selecting
+     * the paused status, or naming it in JQL, switches to 'all' so the user's own criterion is not overridden.
+     */
     private static function resolvePauseMode(array $input,bool $jqlPaused): string
     {
         $mode=$input['pause']??'';
@@ -153,6 +173,7 @@ final class Filter
         // The empty form value survives a GET with no checked boxes.
         return array_values(array_unique(array_filter($values, static fn($item) => $item !== '')));
     }
+    /** Status columns/labels that can appear under the current filters (pause mode, hide_done, selection). */
     public static function visibleStatuses(array $input,int $project=0): array
     {
         $statuses=\App\Models\Workflow::labels('status',$project,true);$mode=self::pauseMode($input,$project);
@@ -162,6 +183,15 @@ final class Filter
         $selected=self::selectedStatuses($input);
         return $selected===null?$statuses:array_intersect_key($statuses,array_flip($selected));
     }
+    /**
+     * Parses a JQL-like query into [sql, params].
+     * Grammar (recursive descent, AND binds tighter than OR):
+     *   expression  := conjunction ("OR" conjunction)*
+     *   conjunction := term ("AND" term)*
+     *   term        := "(" expression ")" | field op value | field "IN" "(" value ("," value)* ")"
+     *                | field "IS" ["NOT"] "EMPTY"
+     * Sorting clauses (ORDER BY) are not supported and are rejected as trailing tokens.
+     */
     public function parse(string $query): array
     {
         if (strlen($query) > 3000) {
@@ -172,6 +202,9 @@ final class Filter
         $this->depth = 0;
         $this->mentionsPaused = false;
         $offset = 0;
+        // Tokenizer: anchored (\G) at the current offset, it reads one operator, parenthesis, comma,
+        // double- or single-quoted string (backslash escapes allowed) or bare word per iteration.
+        // Any other character stops parsing with an error instead of being skipped.
         while ($offset < strlen($query)) {
             if (
                 !preg_match(
@@ -255,6 +288,7 @@ final class Filter
         if (!isset(self::FIELDS[$field])) {
             throw new \InvalidArgumentException('Champ de requête inconnu : ' . $field);
         }
+        // Only whitelisted SQL expressions are interpolated; every value below is a bound parameter.
         $column = self::FIELDS[$field];
         $op = strtoupper($this->take());
         if ($op === 'IS') {
@@ -290,6 +324,7 @@ final class Filter
             throw new \InvalidArgumentException('Opérateur non pris en charge.');
         }
         $value = $this->value($field, $this->take());
+        // Labels are stored as a JSON array, so equality is a JSON_CONTAINS test on the encoded value.
         if ($field === 'labels') {
             if (!in_array($op, ['=', '!='], true)) {
                 throw new \InvalidArgumentException('Les étiquettes acceptent = ou !=.');
@@ -299,11 +334,16 @@ final class Filter
                 [json_encode($value, JSON_THROW_ON_ERROR)],
             ];
         }
+        // "~" is a substring match; % and _ typed by the user are not escaped and act as LIKE wildcards.
         return [
             "$column " . ($op === '~' ? 'LIKE' : $op) . ' ?',
             [$op === '~' ? '%' . $value . '%' : $value],
         ];
     }
+    /**
+     * Unquotes a value token and, for status/type/priority, maps a key or (case-insensitive) display label
+     * to the stored key. Any other value is returned as typed. Also records whether the paused status was named.
+     */
     private function value(string $field, string $raw): string
     {
         if (in_array($raw[0] ?? '', ['"', "'"], true)) {

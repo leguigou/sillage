@@ -3,8 +3,16 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Teams (table teams), their members (team_members) and the projects they take part in
+ * (team_projects). A ticket's team must participate in the ticket's project (checked by
+ * Ticket::validate and backed by a composite foreign key), so a team cannot be removed from a project
+ * while any ticket of that project, archived or not, still uses it. Team names are unique.
+ * Note that find() locks the team row (FOR UPDATE) when called inside a transaction.
+ */
 final class Team
 {
+    /** Deletes a team; its tickets lose the team (version bumped, change notifications queued) but keep their assignee. */
     public static function delete(int $id,?int $actor=null): void
     {
         DB::transaction(function () use ($id,$actor) {
@@ -60,6 +68,7 @@ final class Team
         return DB::all('SELECT t.* FROM teams t JOIN team_projects tp ON tp.team_id=t.id WHERE tp.project_id=? ORDER BY t.name,t.id',[$project]);
     }
 
+    /** Replaces the set of teams participating in a project with $ids (validated, deduplicated). */
     public static function setProjectTeams(int $project,array $ids): void
     {
         DB::transaction(function() use($project,$ids) {
@@ -85,6 +94,7 @@ final class Team
         });
     }
 
+    /** Adds or removes one team from a project, through setProjectTeams() so the same checks apply. */
     public static function projectMembership(int $team,int $project,bool $add): void
     {
         DB::transaction(function() use($team,$project,$add) {
@@ -95,6 +105,7 @@ final class Team
         });
     }
 
+    /** Adds (active, verified users only) or removes a team member; adding twice is a no-op. */
     public static function membership(int $team, int $user, bool $add): void
     {
         DB::transaction(function () use ($team, $user, $add) {
@@ -123,5 +134,15 @@ final class Team
                 DB::run('DELETE FROM team_members WHERE team_id=? AND user_id=?', [$team, $user]);
             }
         });
+    }
+
+    /** All teams, sorted by name, for selection lists. */
+    public static function options(): array
+    {
+        return DB::all(
+            'SELECT id,name
+                FROM teams
+                ORDER BY name,id',
+        );
     }
 }

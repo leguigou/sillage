@@ -1,3 +1,11 @@
+<?php /**
+ * Dialog #ticket-comment-dialog: add a comment (POST /tickets/{id}/comments) with a rich
+ * text composer, @mentions and pasted-image upload to the ticket attachments.
+ * Included by ticket.php when $canEdit. Expects $ticket and $members; members are emitted
+ * as the #mention-members JSON, limited to id, name and e-mail.
+ * The submitted fields are "body" and "body_format"; the contenteditable editor and its
+ * toolbar are driven by front-end JS (data-composer).
+ */ ?>
 <dialog id="ticket-comment-dialog" class="dialog ticket-comment-dialog" aria-labelledby="ticket-comment-title"><header class="dialog-header"><h2 id="ticket-comment-title">Commenter <?= e($ticket['key']) ?></h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
 <form method="post" action="/tickets/<?= (int)$ticket['id'] ?>/comments" class="stack"><?= csrf() ?><?= ticket_context() ?><input type="hidden" name="_return" value="<?= e(ticket_url((int)$ticket['id'])) ?>"><div class="rich-composer" data-composer data-upload-url="/tickets/<?= (int)$ticket['id'] ?>/attachments">
 <script type="application/json" id="mention-members"><?= json_encode(array_map(fn($person)=>array_intersect_key($person,array_flip(['id','name','email'])),$members),JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>

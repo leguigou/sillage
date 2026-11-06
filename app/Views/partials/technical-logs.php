@@ -1,3 +1,10 @@
+<?php /**
+ * Admin-only settings panel #technical-logs ("Journaux techniques"): filter form and an
+ * empty table. Rows are loaded as JSON from /administration/logs by
+ * public/assets/technical-logs.js. Included by sections/settings.php for admins only;
+ * needs no variable from the caller. Retention, channels and providers come from
+ * App\Services\TechnicalLog.
+ */ ?>
 <section class="panel" id="technical-logs" data-technical-logs>
  <div class="panel-header"><div><h2>Journaux techniques</h2><p>Appels API et MCP, webhooks, échanges GitHub, Bitbucket et fournisseurs IA.</p></div><?= icon('code') ?></div>
  <p class="help-text">Conservation : <?= App\Services\TechnicalLog::retention() ?> jours. Les appels sont enregistrés à partir de cette mise à jour. Les corps, jetons, cookies et paramètres d’URL ne sont pas conservés. Les dates suivent votre fuseau horaire ; les filtres de dates utilisent UTC.</p>

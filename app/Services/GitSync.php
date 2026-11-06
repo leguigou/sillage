@@ -3,8 +3,18 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 use App\Models\GitJob;
+/**
+ * Orchestrates the background Git synchronisation queue (git_sync_jobs). GitJob owns job storage,
+ * leases and generations; GitMonitor performs each job against the provider.
+ * - request(): queues a catch-up for one connection (repository PRs, pipelines, deployments, linked branches).
+ * - schedule(): queues request() for connections whose polling interval has elapsed.
+ * - webhook(): after a webhook was stored, queues the follow-up work it implies.
+ * - work(): the worker loop run from bin/console.php (CLI), within a job count and time budget.
+ * Job errors keep only controlled messages, never raw SQL or transport exception text.
+ */
 final class GitSync
 {
+    /** Queues a refresh of a PR event, but only if it is linked to at least one ticket. */
     public static function queuePullRequest(array $c,int $event): void
     {
         if(DB::one('SELECT 1
@@ -12,6 +22,11 @@ final class GitSync
             WHERE event_id=?
             LIMIT 1',[$event])) GitJob::enqueue((int)$c['id'],'pull_request','pr:'.$event,['event_id'=>$event]);
     }
+    /**
+     * Queues a catch-up of one connection (no-op when its sync is disabled). PRs are re-read from 10
+     * minutes before the repository watermark, or from 30 days back on first run. With $force=false, kinds
+     * that already have a pending/running job are left alone; with $force=true, failed jobs are reset too.
+     */
     public static function request(int $connection,bool $force=true): void
     {
         DB::run('INSERT IGNORE INTO git_sync_state(connection_id) VALUES(?)',[$connection]);
@@ -27,6 +42,7 @@ final class GitSync
             JOIN tickets t ON t.id=b.ticket_id
             JOIN project_connections pc ON pc.project_id=t.project_id AND pc.connection_id=b.connection_id
             WHERE b.connection_id=?',[$connection]) as $row) {
+            // Branch names are hashed to fit the job target format (GitJob accepts only [a-zA-Z0-9:_-]).
             $target=hash('sha256',$row['branch_name']);
             if($force || !DB::one("SELECT 1
                 FROM git_sync_jobs
@@ -44,6 +60,7 @@ final class GitSync
             WHERE s.enabled=1 AND (s.last_poll_at IS NULL OR TIMESTAMPDIFF(MINUTE,s.last_poll_at,UTC_TIMESTAMP())>=s.interval_minutes)
             ORDER BY COALESCE(s.last_poll_at,\'1970-01-01\'),s.connection_id
             LIMIT 100');
+        // Row lock plus compare of last_poll_at: if another worker polled this connection meanwhile, skip it.
         foreach($rows as $row) DB::transaction(function() use($row) {
             $state=DB::one('SELECT * FROM git_sync_state WHERE connection_id=? FOR UPDATE',[$row['connection_id']]);
             if($state['last_poll_at']!==$row['last_poll_at']) return;
@@ -52,6 +69,10 @@ final class GitSync
                 WHERE connection_id=?',[$row['connection_id']]);
         });
     }
+    /**
+     * Records the webhook time and queues follow-ups for already-stored events: PR refresh, deployment
+     * inclusion proof, CI checks of the commit, and a pipelines/deployments listing.
+     */
     public static function webhook(array $c,array $events): void
     {
         DB::run('INSERT INTO git_sync_state(connection_id,last_webhook_at)
@@ -65,6 +86,10 @@ final class GitSync
         }
         foreach(['pipelines','deployments'] as $kind) GitJob::enqueue((int)$c['id'],$kind,'repository',['page'=>1]);
     }
+    /**
+     * Claims and runs jobs until $limit jobs or $seconds have been used. Records a worker heartbeat
+     * (git_worker_state). Each job's technical log entries reuse the job's public request id, not its lease.
+     */
     public static function work(int $limit=20,int $seconds=45,bool $schedule=true): array
     {
         if($limit<1 || $limit>100 || $seconds<1 || $seconds>60) throw new \InvalidArgumentException('Budget de traitement Git invalide.');

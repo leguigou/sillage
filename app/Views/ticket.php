@@ -1,4 +1,13 @@
-<?php $canEdit=$user['role']!=='viewer'; $ticketBack=App\Services\TicketNavigation::back((int)$project['id']); ?>
+<?php
+/**
+ * Ticket detail page (/tickets/{id}, inside layout.php). Rendered by TicketController::show().
+ * Expects: $ticket, $project, $user plus the data consumed by the included partials ($comments, $history, $time,
+ * $links, $children, $parent, $attachments, development data from TicketDevelopment::data(), ...).
+ * This file is mostly a frame: tabs (overview, time, history, development), a main column and an aside, each filled by
+ * partials/ticket-*.php. Edit/comment dialogs are only included for non-viewers ($canEdit).
+ * The back link comes from TicketNavigation::back(): the view passed in ?return=, otherwise the project's list.
+ */
+$canEdit=$user['role']!=='viewer'; $ticketBack=App\Services\TicketNavigation::back((int)$project['id']); ?>
 <div class="ticket-detail" data-ticket-detail>
   <div class="ticket-navigation">
     <header class="ticket-heading">

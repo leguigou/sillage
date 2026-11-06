@@ -4,6 +4,13 @@ namespace App\Controllers;
 use App\Core\{Auth, DB};
 use App\Models\CompanyBranding;
 
+/**
+ * Company branding (name, subtitle, icon and logo) shown across the app.
+ *
+ * - POST /company (admin only): saves the form via App\Models\CompanyBranding,
+ *   with the optional logo validated by App\Services\ImageUpload.
+ * - GET /company/logo/{digest}: serves the stored logo, without authentication.
+ */
 final class CompanyController
 {
     public function save(): void

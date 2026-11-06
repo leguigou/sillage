@@ -5,10 +5,21 @@ namespace App\Models;
 use App\Core\DB;
 use App\Services\{Conversation, GitPullRequest, Notifications};
 
+/**
+ * Ticket comments generated from Git activity.
+ *
+ * observe() posts system comments (user_id NULL, shown as "Sillage") when a linked PR is opened or
+ * merged into the "staging" branch; ticket_git_messages records each one so a redelivered webhook
+ * never posts twice. publish() lets a user attach a test procedure to a PR merged into staging;
+ * ticket_test_procedures plus a per-form submission_key (issued by the server when the form opens)
+ * make a resubmitted form idempotent.
+ * Comment HTML is built from escaped values and passed through Conversation::clean().
+ */
 final class GitConversation
 {
     private const LIMITS = ['url'=>1000, 'preconditions'=>1000, 'steps'=>6000, 'expected'=>2000];
 
+    /** True for a pull request merged into a branch named "staging" (case-insensitive). */
     public static function canTest(array $event): bool
     {
         return $event['kind'] === 'pull_request'
@@ -18,6 +29,7 @@ final class GitConversation
 
     private static function prLink(array $connection, array $event): string
     {
+        // PR external keys look like "pr:<number>". Builds a provider URL when no safe URL was stored.
         $number = substr($event['external_key'], 3);
         $github = $connection['provider'] === 'github';
         $base = $github ? 'https://github.com/' : 'https://bitbucket.org/';
@@ -65,6 +77,7 @@ final class GitConversation
         }
     }
 
+    /** A ticket's comments (or one of them) with author name and, for Git-generated ones, their message kind and event. */
     public static function comments(int $ticket, ?int $comment = null): array
     {
         $sql = "SELECT c.*,COALESCE(u.name,'Sillage') name,g.message_kind,g.event_id git_event_id
@@ -75,6 +88,7 @@ final class GitConversation
             : DB::all($sql.' AND c.id=?', [$ticket, $comment]);
     }
 
+    /** Returns the PR a test procedure may be published for; the ticket must be active and the PR merged into staging. */
     public static function context(int $ticket, int $event): array
     {
         if (Ticket::find($ticket)['archived']) {
@@ -87,6 +101,10 @@ final class GitConversation
         return $pr;
     }
 
+    /**
+     * Publishes a test procedure as an HTML comment and returns the comment id. Retrying with the same
+     * submission_key and content returns the existing comment; the same key with different content fails.
+     */
     public static function publish(int $ticket, int $event, array $input, int $actor): int
     {
         $values = [];
@@ -114,6 +132,7 @@ final class GitConversation
         $project = (int)Ticket::find($ticket)['project_id'];
         return DB::transaction(function () use ($project, $ticket, $event, $actor, $values, $url, $nonce) {
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$project]);
+            // Re-check eligibility under the project lock, then detect a replayed submission.
             $pr = self::context($ticket, $event);
             $hash = hash('sha256', json_encode([$event, $actor, $values], JSON_THROW_ON_ERROR));
             $old = DB::one(

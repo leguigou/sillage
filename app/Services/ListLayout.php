@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 namespace App\Services;
+/**
+ * Validates list/report display settings: visible columns and their order, grouping, and up to three
+ * sort criteria (sort/direction, sort2/direction2, sort3/direction3). The keys of SORT_LABELS are the
+ * only sort names Query::tickets() accepts.
+ * settings() whitelists and normalises a complete saved configuration (filters included, checked by
+ * running Filter::where()) before it is stored in a saved view or in FilterMemory.
+ */
 final class ListLayout
 {
     public const COLUMNS=['type'=>'Type','key'=>'Clé','title'=>'Résumé','progress_percent'=>'Avancement','git'=>'Git','development'=>'Déploiement','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','status'=>'État','start'=>'Date de début','due'=>'Échéance','estimated_hours'=>'Temps estimé','labels'=>'Étiquettes','created'=>'Création','updated'=>'Modification'];
@@ -21,7 +28,9 @@ final class ListLayout
         }
         return $columns;
     }
+    /** All column keys: the selected ones first, in their chosen order, then the hidden ones. */
     public static function order(array $settings): array {$columns=self::columns($settings);return [...$columns,...array_diff(array_keys(self::COLUMNS),$columns)];}
+    /** Ordered [sort key => 'asc'|'desc'] map; defaults to the manual rank when no sort is given. */
     public static function sorts(array $settings): array
     {
         if(isset($settings['sort4'])) throw new \InvalidArgumentException('Trois critères de tri maximum.');
@@ -57,6 +66,7 @@ final class ListLayout
             unset($settings['show_progress']);
         }
         if(strlen(json_encode($settings,JSON_THROW_ON_ERROR))>16000) throw new \InvalidArgumentException('Configuration de rapport trop volumineuse.');
+        // Building the WHERE clause (result discarded) validates filter values and the JQL text.
         Filter::where($project,$settings);return $settings;
     }
 }

@@ -1,4 +1,16 @@
-<?php use App\Services\{DevelopmentPayload,GitPullRequest}; $branchSuggestion='feature/'.$ticket['key'].'-'.trim(substr(preg_replace('/[^a-z0-9]+/','-',strtolower((string)iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$ticket['title']))),0,60),'-'); ?>
+<?php
+/**
+ * Ticket page tab #development: linked repositories and their sync status
+ * (git-sync-status.php), counts per Git event kind, manual branch links, the Git timeline
+ * (git-timeline-event.php), the #git-files-dialog and, for non-viewers when the project has
+ * repositories, #ticket-branch-dialog to link an existing branch.
+ * Included by ticket.php, and rendered alone by TicketDevelopmentController::panel
+ * (GET /tickets/{id}/development) to refresh the tab.
+ * Expects $ticket, $project, $user and the variables from TicketDevelopment::data():
+ * $ticketRepositories, $primaryRepository, $ticketBranches, $events, $developmentCounts.
+ * $branchSuggestion is a suggested branch name: "feature/" + key + ASCII slug of the title.
+ */
+use App\Services\{DevelopmentPayload,GitPullRequest}; $branchSuggestion='feature/'.$ticket['key'].'-'.trim(substr(preg_replace('/[^a-z0-9]+/','-',strtolower((string)iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$ticket['title']))),0,60),'-'); ?>
 <section class="panel ticket-development" id="development" data-ticket-panel aria-labelledby="ticket-tab-development">
  <div class="panel-header"><div><h2>Développement</h2><p>Branches, commits et pull requests liés à <?= e($ticket['key']) ?>.</p></div><?= icon('code') ?></div>
  <?php if($ticketRepositories): ?><p class="help-text">Dépôts du projet : <?php foreach($ticketRepositories as $repo): ?><span class="pill neutral"><?= $repo['provider']==='github'?'GitHub':'Bitbucket' ?> · <?= e($repo['repository']) ?><?= $primaryRepository && $primaryRepository['id']===$repo['id']?' · principal':'' ?></span> <?php endforeach; ?></p><?php else: ?><p class="help-text">Aucun dépôt Git n’est lié à ce projet. Un administrateur peut en associer un depuis Développement ou les paramètres du projet.</p><?php endif; ?>

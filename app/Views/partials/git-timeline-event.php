@@ -1,4 +1,13 @@
-<?php $kind=$event['kind'];$meta=$event['metadata'];$stats=$meta['details']??null;$presentation=App\Services\TicketDevelopment::presentation($event); ?>
+<?php
+/**
+ * One card of the ticket's Git timeline (branch, commit, pull request, build or deployment).
+ * Included in a loop by ticket-development.php. Expects $event (development event row with
+ * decoded 'metadata'; PR file/commit stats in metadata 'details'), $user and $ticket.
+ * Icon, tone and label come from App\Services\TicketDevelopment::presentation(); merge
+ * conflict state from App\Services\GitMonitor::conflict(). Action buttons (refresh PR
+ * details, write a test procedure) are hidden for viewers.
+ */
+$kind=$event['kind'];$meta=$event['metadata'];$stats=$meta['details']??null;$presentation=App\Services\TicketDevelopment::presentation($event); ?>
 <article class="git-time-item git-tone-<?= e($presentation['tone']) ?>" data-git-event-kind="<?= e($kind) ?>">
  <span class="git-time-node" aria-hidden="true"><?= icon($presentation['icon']) ?></span>
  <div class="git-event-card ticket-development-event<?= $kind==='pull_request'?' git-pr-event':'' ?>"><div class="git-event-content">

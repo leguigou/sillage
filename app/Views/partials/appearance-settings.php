@@ -1,4 +1,13 @@
-<?php $appearance=App\Models\Appearance::get(); ?>
+<?php
+/**
+ * Admin-only settings panel #appearance ("Pictogrammes et couleurs"): workspace-wide
+ * icon/colour of every ticket type and priority. Display only; ticket data is unchanged.
+ * Included by sections/settings.php for admins only. Loads App\Models\Appearance::get()
+ * itself; expects $project (link to project settings and return URL).
+ * Renders one appearance-picker.php per entry with $pickerName = "marks[kind][key]" and
+ * posts everything to /appearance with the "version" field for optimistic locking.
+ */
+$appearance=App\Models\Appearance::get(); ?>
 <section class="panel appearance-settings" id="appearance">
  <div class="panel-header"><div><h2>Pictogrammes et couleurs</h2><p>Les mêmes repères dans les listes, tableaux et chronologies de tous les projets.</p></div><?= icon('grid') ?></div>
  <p class="help-text">L’identité de chaque projet se règle dans <button type="button" class="text-button" data-edit-project="<?= (int)$project['id'] ?>">les paramètres du projet</button>. Les réglages ci-dessous sont communs à tout l’espace.</p>

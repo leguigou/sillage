@@ -1,4 +1,13 @@
-<?php use App\Services\LlmProtocol; $llmProfiles=App\Models\LlmProfile::all(); ?>
+<?php
+/**
+ * Admin-only settings panel #llm ("Intelligence artificielle"): LLM profiles from
+ * App\Models\LlmProfile::all() with make-default / disable / delete forms
+ * (POST /llm/profiles/{id}/action), plus the #llm-config-dialog used to add or edit one.
+ * Included by sections/settings.php for admins only; needs no variable from the caller.
+ * The #llm-profile-data JSON (providers + profiles, LlmProfile public fields only) feeds
+ * llm.js, which tests the connection and saves the profile. API keys are never echoed.
+ */
+use App\Services\LlmProtocol; $llmProfiles=App\Models\LlmProfile::all(); ?>
 <section class="panel llm-settings" id="llm"><div class="panel-header"><div><h2>Intelligence artificielle</h2><p>Vos fournisseurs et modèles, au même endroit.</p></div></div>
 <p class="help-text">Plusieurs profils peuvent être enregistrés, y compris pour un même fournisseur. Un seul profil par défaut alimente les aides de l’espace. Les clés sont chiffrées et ne sont jamais réaffichées. Aucun ticket n’est envoyé automatiquement.</p>
 <div class="settings-toolbar"><button class="button primary" type="button" data-llm-new><?= icon('plus') ?>Ajouter un fournisseur</button></div>

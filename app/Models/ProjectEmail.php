@@ -3,6 +3,14 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Per-project e-mail notification settings (table project_email_settings): whether e-mails are
+ * enabled, whether the person who made the change is also notified, and for each ticket EVENTS key
+ * which RECIPIENTS roles receive a message, plus a list of explicitly selected users.
+ * A project without a settings row is disabled and uses defaults(). save() is version-checked under
+ * the project lock; disabling e-mails cancels the project's pending and failed messages in
+ * notification_outbox. The outbox itself is filled by App\Services\Notifications.
+ */
 final class ProjectEmail
 {
     public const EVENTS=[
@@ -24,10 +32,12 @@ final class ProjectEmail
         'followers'=>'Personnes qui suivent le ticket',
         'mentioned'=>'Personnes mentionnées (commentaires)',
     ];
+    /** Default recipient roles per event, used until the project saves its own rules. */
     public static function defaults(): array
     {
         return ['created'=>['assignee','team'],'updated'=>['followers'],'assigned'=>['assignee','team','followers'],'status'=>['reporter','assignee','followers'],'completed'=>['reporter','assignee','team','followers'],'commented'=>['reporter','assignee','followers','mentioned'],'archived'=>['followers']];
     }
+    /** Decoded settings of a project, or a disabled default configuration (version 0) when none were saved. */
     public static function get(int $project): array
     {
         $row=DB::one('SELECT * FROM project_email_settings WHERE project_id=?',[$project]);
@@ -65,5 +75,32 @@ final class ProjectEmail
                 SET state='cancelled',lease_token=NULL
                 WHERE project_id=? AND state IN ('pending','failed')",[$project]);
         });
+    }
+
+    /** Number of queued e-mails per delivery state for a project. */
+    public static function queueCounts(int $project): array
+    {
+        return DB::all(
+            'SELECT state,COUNT(*) n
+                FROM notification_outbox
+                WHERE project_id=?
+                GROUP BY state',
+            [$project],
+        );
+    }
+
+    /** The 20 latest e-mails queued for a project, with recipient and ticket number. */
+    public static function recentDeliveries(int $project): array
+    {
+        return DB::all(
+            'SELECT n.state,n.attempts,n.created_at,n.sent_at,n.last_error,u.name,t.number
+                FROM notification_outbox n
+                JOIN users u ON u.id=n.recipient_id
+                JOIN tickets t ON t.id=n.ticket_id
+                WHERE n.project_id=?
+                ORDER BY n.id DESC
+                LIMIT 20',
+            [$project],
+        );
     }
 }

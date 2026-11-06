@@ -3,6 +3,15 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\{DB,Security};
 
+/**
+ * Time tracking on tickets (table ticket_worklogs, soft-deleted with deleted=1).
+ *
+ * Spent hours are the sum of non-deleted worklogs; remaining hours are derived from the estimate
+ * and progress percentage. The *Sql() helpers return SQL fragments used in ticket queries.
+ * Logging time goes through Ticket::lock (project lock + version check), is refused on archived
+ * tickets, bumps the ticket version and writes a history entry.
+ * Viewers cannot log time; only the author or an administrator may change or delete an entry.
+ */
 final class TicketTime
 {
     public static function spentSql(string $alias='t'): string
@@ -25,6 +34,10 @@ final class TicketTime
             FROM ticket_worklogs
             WHERE ticket_id=? AND deleted=0',[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>DB::all("SELECT w.*,u.name FROM ticket_worklogs w JOIN users u ON u.id=w.user_id WHERE ticket_id=? AND deleted=0 ORDER BY worked_on DESC,id DESC LIMIT $limit OFFSET $offset",[$ticket])];
     }
+    /**
+     * Creates ($entry null), updates or soft-deletes ($delete) a worklog: 0.01 to 24 hours, dated
+     * today or earlier. Returns the worklog row and the refreshed ticket.
+     */
     public static function save(int $ticket,array $input,int $actor,int $version,?int $entry=null,bool $delete=false): array
     {
         return DB::transaction(function() use($ticket,$input,$actor,$version,$entry,$delete) {

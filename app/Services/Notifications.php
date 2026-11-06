@@ -4,11 +4,22 @@ namespace App\Services;
 use App\Core\{DB,Mailer,Company};
 use App\Models\{Ticket,ProjectEmail};
 
-/** Transactional outbox: only committed ticket changes can produce an email. */
+/**
+ * Transactional outbox: only committed ticket changes can produce an email.
+ * enqueue() must run inside the business transaction: it emits in-app notifications (TicketNotification)
+ * and, if email is enabled for the project, writes one notification_outbox row per recipient, resolved
+ * from the project's per-event rules (reporter, assignee, team, followers, mentioned users, etc.).
+ * Changes made within the same PHP process share a batch key and are merged into a single pending email
+ * per ticket and recipient. deliver() runs outside any transaction (normally from the bin/console.php
+ * worker; at request shutdown only in local development with the log transport) and sends through
+ * Mailer, with leases, retries and backoff.
+ * Emails contain the ticket title and a link; the recipient must be active, verified and opted in.
+ */
 final class Notifications
 {
     private static ?string $batch=null;
     private const FIELDS=\App\Models\TicketHistory::FIELDS+['spent_hours'=>'Temps passé'];
+    /** Derives notification events (assigned, status/completed, updated) from a before/after ticket diff and enqueues them. */
     public static function changed(array $before,array $after,?int $actor): void
     {
         $fields=[];
@@ -28,6 +39,7 @@ final class Notifications
         $config=ProjectEmail::get((int)$ticket['project_id']);
         if (!$config['enabled']) return;
         self::$batch??=bin2hex(random_bytes(16));
+        // A "created" email supersedes any pending email for the same ticket from this batch.
         if (in_array('created',$events,true)) DB::run("DELETE FROM notification_outbox
             WHERE batch_key=? AND ticket_id=? AND state='pending'",[self::$batch,$ticket['id']]);
         $wanted=[];
@@ -57,6 +69,7 @@ final class Notifications
             if (!$config['notify_actor'] && $actor===$id) continue;
             $person=DB::one('SELECT email,name FROM users WHERE id=? AND active=1 AND verified_at IS NOT NULL AND ticket_email_enabled=1',[$id]);
             if (!$person) continue;
+            // Merge into this batch's pending row for the recipient (locked) instead of sending several emails.
             $old=DB::one('SELECT id,events_json,fields_json
                 FROM notification_outbox
                 WHERE batch_key=? AND ticket_id=? AND recipient_id=? AND state=? FOR UPDATE',[self::$batch,$ticket['id'],$id,'pending']);
@@ -77,6 +90,14 @@ final class Notifications
                 VALUES(?,?,?,?,?,?,?,?,?)',[self::$batch,$ticket['id'],$ticket['project_id'],$id,$person['email'],json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body]);
         }
     }
+    /**
+     * Sends up to $limit queued emails and returns counts of sent/failed/cancelled.
+     * Each row is claimed with FOR UPDATE SKIP LOCKED and a random lease token, so concurrent workers never
+     * send the same row; later updates only apply if the lease token still matches. A row stuck in
+     * "sending" for 10 minutes is reclaimed, so an email may be sent twice after a crash (at-least-once).
+     * Failures retry with exponential backoff (1 min doubling, max 1 h) up to 5 attempts.
+     * Before sending, the recipient and project settings are re-checked; if no longer valid, the row is cancelled.
+     */
     public static function deliver(int $limit=50): array
     {
         if (DB::connection()->inTransaction()) throw new \RuntimeException('Envoi interdit avant validation de la transaction.');
@@ -117,6 +138,7 @@ final class Notifications
                     WHERE id=? AND lease_token=?",[$row['id'],$row['lease']]);
                 $result['sent']++;
             } catch(\Throwable) {
+                // The transport error itself is not stored; only a fixed, safe message.
                 $attempt=(int)$row['attempts']+1;
                 DB::run("UPDATE notification_outbox
                     SET state=?,available_at=?,last_error=?,lease_token=NULL

@@ -1,5 +1,14 @@
 <?php
 declare(strict_types=1);
+/**
+ * Route table for the browser-facing application, required by public/index.php after the session
+ * has been started. Each line maps an HTTP method and a path pattern ({name} matches one path
+ * segment and is passed positionally to the handler) to a controller method; the first match wins
+ * (see App\Core\Router). Every POST route is CSRF-checked by the router unless its fourth argument
+ * is false. Authentication and role checks are not declared here: each controller enforces them
+ * (a few routes, such as /login, /register and the public forms /f/{token}, are public by design).
+ * The MCP endpoint and the public OAuth endpoints are not in this table; index.php serves them first.
+ */
 use App\Core\Router;
 use App\Controllers\{
     AuthController,
@@ -135,6 +144,7 @@ $r->add('GET', '/export', [$transfer, 'export'])
 $r->add('POST', '/forms', [$forms, 'save'])
     ->add('POST', '/forms/{id}/toggle', [$forms, 'toggle'])
     ->add('POST', '/forms/{id}/rotate', [$forms, 'rotate']);
+// Public intake forms: reachable without an account, identified only by the secret link token.
 $r->add('GET', '/f/{token}', [$forms, 'show'])->add('POST', '/f/{token}', [$forms, 'submit']);
 $r->add('GET', '/development/{project}/branches/{event}/tickets', [$dev, 'branchCandidates']);
 $r->add('POST', '/development/{project}/branches/{event}/tickets', [$dev, 'linkBranch']);
@@ -144,5 +154,7 @@ $r->add('POST','/connections/{id}/webhook',[$dev,'webhookSetup']);
 $r->add('POST', '/connections', [$dev, 'connect'])
     ->add('POST', '/connections/{id}/sync', [$dev, 'sync'])
     ->add('POST', '/connections/{id}/delete', [$dev, 'disconnect']);
+// Git provider callbacks carry no session, so CSRF is disabled; DevelopmentController::webhook
+// authenticates them with the connection's HMAC signature (X-Hub-Signature-256) instead.
 $r->add('POST', '/webhooks/{id}', [$dev, 'webhook'], false);
 $r->dispatch();

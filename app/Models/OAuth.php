@@ -4,29 +4,47 @@ namespace App\Models;
 use App\Core\DB;
 use App\Mcp\OAuthError;
 
-/** Pre-registered OAuth clients only: no arbitrary remote metadata fetches or open registration. */
+/**
+ * Pre-registered OAuth clients only: no arbitrary remote metadata fetches or open registration.
+ *
+ * Authorization-code flow with mandatory PKCE (S256) that lets external assistants obtain MCP
+ * access tokens. Tables: oauth_clients (registered through createClient(), one exact redirect URI), oauth_codes
+ * (single-use, 5 minutes), oauth_grants (30-day absolute lifetime, optional rotating refresh token
+ * when "offline_access" is granted) and oauth_refresh_history (used refresh tokens; replaying one
+ * revokes the whole grant). Access tokens are ordinary McpToken rows tied to a grant and live at
+ * most 1 hour. Codes, secrets and refresh tokens are stored only as SHA-256 hashes. Every grant is
+ * bound to the user's auth_version, so a role or account change invalidates it. Protocol errors are
+ * raised as OAuthError with the RFC 6749 error code.
+ */
 final class OAuth
 {
     public const METHODS=['none','client_secret_post','client_secret_basic'];
     public static function issuer(): string { return rtrim(url(),'/'); }
+    /** Reads a request parameter that must be a string of at most 4096 bytes without control characters. */
     public static function text(array $data,string $key,string $default=''): string
     {
         $value=$data[$key]??$default;
         if (!is_string($value) || strlen($value)>4096 || preg_match('/[\x00-\x1f\x7f]/',$value)) throw new OAuthError('invalid_request');
         return $value;
     }
+    /** Parses a space-separated scope list: only MCP scopes plus offline_access, with at least one MCP scope. */
     public static function scopes(string $value): array
     {
         $scopes=array_values(array_unique(preg_split('/ +/',trim($value),-1,PREG_SPLIT_NO_EMPTY)));
         if (!$scopes || array_diff($scopes,[...array_keys(McpToken::SCOPES),'offline_access']) || !array_intersect($scopes,array_keys(McpToken::SCOPES))) throw new OAuthError('invalid_scope');
         return $scopes;
     }
+    /** RFC 8707 resource indicator: must designate this server's /mcp URL (scheme, host, effective port, path). */
     public static function resource(string $value): string
     {
         $parts=parse_url($value);$expected=parse_url(url('/mcp'));
         if (!$parts || isset($parts['query']) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass']) || strtolower($parts['scheme']??'')!==strtolower($expected['scheme']) || strtolower($parts['host']??'')!==strtolower($expected['host']) || ($parts['port']??(($parts['scheme']??'')==='https'?443:80))!==($expected['port']??($expected['scheme']==='https'?443:80)) || ($parts['path']??'')!==($expected['path']??'')) throw new OAuthError('invalid_target');
         return url('/mcp');
     }
+    /**
+     * Registers a client. The redirect URI must be HTTPS (plain http loopback is accepted only when
+     * APP_ENV=local). Returns the id and, for confidential clients, the raw secret, shown only once.
+     */
     public static function createClient(string $name,string $redirect,string $method): array
     {
         $name=trim($name);$parts=parse_url($redirect);
@@ -41,6 +59,7 @@ final class OAuth
     {
         return DB::one('SELECT * FROM oauth_clients WHERE id=?',[$id])??throw new OAuthError('invalid_client',401);
     }
+    /** Validates an authorization request (before the consent screen) and returns its normalized parameters. */
     public static function authorization(array $input): array
     {
         $client=self::client(self::text($input,'client_id'));
@@ -53,6 +72,10 @@ final class OAuth
         if (strlen($state)>2048) throw new OAuthError('invalid_request');
         return ['client_id'=>$client['id'],'client_name'=>$client['name'],'redirect_uri'=>$redirect,'challenge'=>$challenge,'state'=>$state,'resource'=>self::resource(self::text($input,'resource')),'scopes'=>self::scopes(self::text($input,'scope','read'))];
     }
+    /**
+     * Issues an authorization code after user consent. $scopes (the ones the user approved) must be a
+     * subset of the requested scopes and of what the user's role allows. Returns the raw code.
+     */
     public static function code(array $request,array $user,array $scopes): string
     {
         return DB::transaction(function() use($request,$user,$scopes) {
@@ -67,6 +90,10 @@ final class OAuth
             return $raw;
         });
     }
+    /**
+     * Authenticates the client at the token endpoint, via HTTP Basic, client_secret in the body, or
+     * none (public client). The method used must be the one the client was registered with.
+     */
     public static function authenticateClient(array $input,string $authorization): array
     {
         $id=self::text($input,'client_id');$secret=self::text($input,'client_secret');$method=$secret!==''?'client_secret_post':'none';
@@ -82,6 +109,7 @@ final class OAuth
         if ($client['auth_method']!==$method || ($method!=='none' && !hash_equals($client['secret_hash'],hash('sha256',$secret)))) throw new OAuthError('invalid_client',401);
         return $client;
     }
+    /** Issues an access token for a grant, valid 1 hour at most and never beyond the grant's expiry; purges the grant's expired tokens. */
     private static function access(array $grant,array $user,string $clientName): array
     {
         $seconds=min(3600,strtotime($grant['expires_at'].' UTC')-time());
@@ -92,11 +120,16 @@ final class OAuth
         DB::run('UPDATE mcp_tokens SET oauth_grant_id=? WHERE id=?',[$grant['id'],$token['id']]);
         return ['access_token'=>$token['key'],'token_type'=>'Bearer','expires_in'=>$seconds,'scope'=>implode(' ',$scopes)];
     }
+    /**
+     * Token endpoint, grant_type=authorization_code: checks the code against client, redirect URI,
+     * resource, expiry, PKCE verifier and the user's auth_version, consumes it, and creates the grant.
+     */
     public static function exchange(array $client,array $input): array
     {
         $resource=self::resource(self::text($input,'resource'));$raw=self::text($input,'code');$redirect=self::text($input,'redirect_uri');$verifier=self::text($input,'code_verifier');
         if (!preg_match('/^[a-f0-9]{64}$/D',$raw) || !preg_match('/^[A-Za-z0-9._~-]{43,128}$/D',$verifier)) throw new OAuthError('invalid_grant');
         return DB::transaction(function() use($client,$raw,$redirect,$verifier,$resource,$input) {
+            // Rows are locked in the same order as code() and refresh(): user, client, then code/grant.
             $hash=hash('sha256',$raw);$identity=DB::one('SELECT user_id FROM oauth_codes WHERE code_hash=?',[$hash]);
             if (!$identity) throw new OAuthError('invalid_grant');
             $user=DB::one('SELECT * FROM users WHERE id=? FOR UPDATE',[$identity['user_id']]);
@@ -115,6 +148,11 @@ final class OAuth
             return $result;
         });
     }
+    /**
+     * Token endpoint, grant_type=refresh_token. Each refresh token is single-use and replaced by a new
+     * one while offline_access stays granted (rotation); the grant's expiry is not extended. Scopes
+     * may only be narrowed, and the narrowing is persisted on the grant.
+     */
     public static function refresh(array $client,array $input): array
     {
         $resource=self::resource(self::text($input,'resource'));$raw=self::text($input,'refresh_token');
@@ -126,6 +164,9 @@ final class OAuth
             $liveClient=DB::one('SELECT name FROM oauth_clients WHERE id=? FOR UPDATE',[$client['id']]);
             $grant=DB::one('SELECT * FROM oauth_grants WHERE id=? FOR UPDATE',[$match[1]]);$hash=hash('sha256',$raw);
             if (!$grant || !$liveClient || $grant['client_id']!==$client['id'] || $grant['resource']!==$resource) throw new OAuthError('invalid_grant');
+            // Not the current refresh token. If it is a previously used one (replay), revoke the grant:
+            // the closure returns normally instead of throwing so the deletion is committed, and the
+            // error is raised after the transaction.
             if ($grant['refresh_hash']===null || !hash_equals($grant['refresh_hash'],$hash)) {
                 if (DB::one('SELECT token_hash
                     FROM oauth_refresh_history
@@ -149,6 +190,10 @@ final class OAuth
         if (isset($result['reused'])) throw new OAuthError('invalid_grant');
         return $result;
     }
+    /**
+     * RFC 7009 revocation: the token (current or past refresh token, or access token) of this client
+     * identifies a grant, which is deleted with its tokens. Unknown tokens are ignored silently.
+     */
     public static function revoke(array $client,string $raw): void
     {
         $hash=hash('sha256',$raw);
@@ -161,5 +206,28 @@ final class OAuth
                 LIMIT 1',[$client['id'],$hash,$hash,$hash]);
             if ($row) DB::run('DELETE FROM oauth_grants WHERE id=?',[$row['id']]);
         });
+    }
+
+    /** Registered OAuth clients, newest first (administration screen). */
+    public static function clients(): array
+    {
+        return DB::all(
+            'SELECT id,name,redirect_uri,auth_method
+                FROM oauth_clients
+                ORDER BY created_at DESC,id',
+        );
+    }
+
+    /** Access a user has granted to OAuth clients, newest first. */
+    public static function grantsForUser(int $user): array
+    {
+        return DB::all(
+            'SELECT g.id,g.scopes,g.expires_at,g.last_used_at,g.auth_version,c.name
+                FROM oauth_grants g
+                JOIN oauth_clients c ON c.id=g.client_id
+                WHERE g.user_id=?
+                ORDER BY g.created_at DESC,g.id',
+            [$user],
+        );
     }
 }

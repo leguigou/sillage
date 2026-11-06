@@ -3,7 +3,16 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 
-/** Metadata only: no bodies, query strings, headers, exceptions or credentials enter this boundary. */
+/**
+ * Metadata only: no bodies, query strings, headers, exceptions or credentials enter this boundary.
+ * Technical call log (technical_logs table), viewable by admins. Records incoming API/MCP/OAuth/webhook
+ * requests (beginIncoming() in public/index.php, written at shutdown) and outgoing integration calls
+ * (outgoing(), used by Development and LlmClient). All entries of one request or background job share a
+ * correlation id (requestId(), also sent as the X-Request-ID response header).
+ * Writes use a separate autocommit connection (DB::independent()) so entries survive a business
+ * rollback, and a logging failure never changes the business result or error (see AGENTS.md and
+ * docs/journaux-techniques.md). append() re-validates every field against whitelists before insert.
+ */
 final class TechnicalLog
 {
     public const CHANNELS=['api'=>'API / AJAX','mcp'=>'MCP','oauth'=>'OAuth MCP','development'=>'Développement Git','llm'=>'Intelligence artificielle'];
@@ -14,17 +23,24 @@ final class TechnicalLog
     private static bool $pruned=false;
     private static ?int $actor=null;
     public static function requestId(): string { return self::$requestId??=bin2hex(random_bytes(16)); }
+    /** CLI only: adopt a background job's public correlation id for the following log entries. */
     public static function background(string $id): void
     {
         if(PHP_SAPI!=='cli' || !preg_match('/^[a-f0-9]{32}$/D',$id)) throw new \LogicException('Contexte de journal de fond invalide.');
         self::$requestId=$id;self::$actor=null;
     }
     public static function actor(int $id): void { self::$actor=$id>0?$id:null; }
+    /** Retention in days from TECHNICAL_LOG_RETENTION_DAYS (1 to 365, default 30). */
     public static function retention(): int
     {
         $value=env('TECHNICAL_LOG_RETENTION_DAYS','30');
         return ctype_digit($value) && (int)$value>=1 && (int)$value<=365?(int)$value:30;
     }
+    /**
+     * Starts tracking the current HTTP request. The path is reduced to a fixed endpoint pattern
+     * (e.g. /webhooks/{id}, /api/*) so ids and parameters are never stored. Plain page loads are only
+     * kept if they turn out to be JSON responses (decided in endIncoming()).
+     */
     public static function beginIncoming(): void
     {
         if (self::$incoming!==null) return;
@@ -35,11 +51,13 @@ final class TechnicalLog
         header('X-Request-ID: '.self::requestId());
         register_shutdown_function([self::class,'endIncoming']);
     }
+    /** Lets the router, MCP server or webhook handler add controlled facts (whitelisted keys only) to the incoming entry. */
     public static function incoming(array $facts): void
     {
         if (self::$incoming===null) return;
         self::$incoming=array_replace(self::$incoming,array_intersect_key($facts,array_flip(['endpoint','channel','provider','operation','token_id','connection_id','error_code','failed'])));
     }
+    /** Shutdown handler: completes the incoming entry with the final HTTP status (500 after a fatal error) and writes it. */
     public static function endIncoming(): void
     {
         if (self::$incoming===null) return;
@@ -64,6 +82,7 @@ final class TechnicalLog
             throw $error;
         } finally { self::finish($entry); }
     }
+    /** Reduces a URL to scheme://host[:port]/path (no credentials, query or fragment), control characters removed. */
     public static function endpoint(string $url): string
     {
         $parts=parse_url($url);if ($parts===false) return '[adresse invalide]';
@@ -78,6 +97,10 @@ final class TechnicalLog
         try { self::append($entry); }
         catch(\Throwable) { error_log('Sillage : journal technique indisponible ; vérifier MySQL et les migrations.'); }
     }
+    /**
+     * Inserts one entry after normalising it: unknown channel/direction/outcome is rejected; unknown provider,
+     * method, operation or error code is blanked; numbers are clamped. Prunes expired rows once per process.
+     */
     public static function append(array $entry): int
     {
         $directions=['incoming','outgoing'];
@@ -98,12 +121,17 @@ final class TechnicalLog
         if (!self::$pruned) {self::$pruned=true;self::prune($db);}
         return $id;
     }
+    /** Deletes at most $limit entries older than the retention period; returns the number deleted. */
     public static function prune(?\PDO $db=null,int $limit=1000): int
     {
         $db??=DB::independent();$limit=max(1,min(10000,$limit));
         $statement=$db->prepare('DELETE FROM technical_logs
             WHERE created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL '.self::retention().' DAY) ORDER BY created_at,id LIMIT '.$limit);$statement->execute();return $statement->rowCount();
     }
+    /**
+     * One page (50 rows, newest first) for the admin log screen. Filters are checked against whitelists or
+     * strict formats and bound as parameters; paging is by keyset ("before" = last id seen), not OFFSET.
+     */
     public static function page(array $filters): array
     {
         $where=['l.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL '.self::retention().' DAY)'];$args=[];$clean=[];

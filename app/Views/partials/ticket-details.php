@@ -1,4 +1,12 @@
-<?php use App\Models\Ticket; ?>
+<?php
+/**
+ * Ticket page panels: #ticket-facts ("Informations": status, type, priority, people,
+ * progress, hours, dates, parent, labels, plus pause/resume for editors) and
+ * #ticket-following (follow/unfollow, state from App\Models\TicketFollow::get()).
+ * Included by ticket.php. Expects $ticket, $project, $parent (parent ticket or null),
+ * $user and $canEdit.
+ */
+use App\Models\Ticket; ?>
 <section class="panel ticket-facts" id="ticket-facts" data-ticket-live><div class="ticket-facts-heading"><h2>Informations</h2><?= blocked_badge((bool)$ticket['flagged']) ?></div><dl class="ticket-meta">
   <dt>État</dt><dd><?= status_badge($ticket['status'],(int)$project['id']) ?></dd>
   <dt>Type</dt><dd class="ticket-mark-label"><?= work_mark('type',$ticket['type'],(int)$project['id']) ?><?= e(\App\Models\Workflow::label('type',(int)$project['id'],$ticket['type'])) ?></dd>

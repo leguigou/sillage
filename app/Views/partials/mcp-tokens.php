@@ -1,4 +1,14 @@
-<?php use App\Models\McpToken;
+<?php
+/**
+ * Settings panel #mcp ("MCP et clés d'accès"), shown to every user: MCP server URL, form
+ * to create a personal MCP key (POST /mcp/tokens) with scopes limited by
+ * McpToken::availableScopes($user['role']), the user's keys with delete buttons, and the
+ * latest MCP audit entries. Included by sections/settings.php.
+ * Expects $user, $mcpTokens and $mcpAudit (loaded in WorkspaceController).
+ * A freshly generated key is read once from $_SESSION['new_mcp_key'] and removed from the
+ * session here, so it is displayed only once. copy_field() comes from Views/copy-field.php.
+ */
+use App\Models\McpToken;
 require_once ROOT.'/app/Views/copy-field.php';
 $newKey=$_SESSION['new_mcp_key']??null; unset($_SESSION['new_mcp_key']); ?>
 <section class="panel team-section" id="mcp">

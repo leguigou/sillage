@@ -2,8 +2,17 @@
 declare(strict_types=1);
 namespace App\Mcp;
 
+/**
+ * Tiny JSON Schema subset used to declare MCP tool inputs (Tools::catalog) and to validate the
+ * arguments of tools/call before any handler runs (Server::call).
+ * Supported keywords: type (string or list), enum, minLength/maxLength, minimum/maximum,
+ * properties/required/minProperties, items/minItems/maxItems. Unknown object properties are always
+ * rejected, whatever additionalProperties says. Other keywords (uniqueItems, description, ...) are
+ * published to clients but NOT enforced here; handlers and models must not rely on them.
+ */
 final class Schema
 {
+    /** Schema for a closed object: only the listed properties, $required ones mandatory. */
     public static function object(array $properties = [], array $required = []): array
     {
         return [
@@ -13,10 +22,16 @@ final class Schema
             'additionalProperties' => false,
         ];
     }
-    /** Validate the exact supported JSON Schema keywords and normalize objects once. */
+    /**
+     * Validate the exact supported JSON Schema keywords and normalize objects once.
+     * Input comes from json_decode without assoc mode (objects are stdClass); validated objects are
+     * returned as associative arrays, so handlers receive plain PHP arrays. Throws
+     * InvalidArgumentException with the failing path (e.g. "arguments.fields.title").
+     */
     public static function validate(mixed $value, array $schema, string $path = 'arguments'): mixed
     {
         $types = (array) ($schema['type'] ?? []);
+        // JSON has a single number type: accept 5.0 as the integer 5 when the schema expects an integer.
         if (
             in_array('integer', $types, true) &&
             is_float($value) &&

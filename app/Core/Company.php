@@ -3,6 +3,14 @@ declare(strict_types=1);
 namespace App\Core;
 use App\Models\CompanyBranding;
 
+/**
+ * Installation-wide company identity and sign-up policy. The display name comes from the branding
+ * saved in the database (CompanyBranding), falling back to COMPANY_NAME; the e-mail domain
+ * restriction comes from ALLOWED_DOMAINS and EMAIL_DOMAIN_RESTRICTION in .env.
+ * Misconfiguration fails loudly: settings() throws, and it is called at the start of every web and
+ * MCP request, so a broken policy stops the application instead of silently accepting any address.
+ * Also renders the small branding helpers used by the layout (logo or initial, subtitle, hints).
+ */
 final class Company
 {
     private static ?array $source = null;
@@ -16,6 +24,7 @@ final class Company
             env('ALLOWED_DOMAINS', env('ALLOWED_DOMAIN')),
             env('EMAIL_DOMAIN_RESTRICTION', 'true'),
         ];
+        // Re-parse only when an input changed (e.g. branding saved during this request).
         if (self::$source === $source) {
             return self::$settings;
         }
@@ -68,6 +77,7 @@ final class Company
         return mb_strtoupper(mb_substr(self::name(), 0, 1));
     }
 
+    /** HTML for the company mark: the uploaded logo if any, otherwise the chosen icon or the name's initial. */
     public static function mark(): string
     {
         $branding = CompanyBranding::get();
@@ -99,6 +109,7 @@ final class Company
         return 'prenom.nom@' . (self::settings()['domains'][0] ?? 'example.com');
     }
 
+    /** Exact match on the part after the last "@"; subdomains of an allowed domain are not accepted. */
     public static function allowsEmailDomain(string $email): bool
     {
         $settings = self::settings();

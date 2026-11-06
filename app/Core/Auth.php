@@ -1,11 +1,22 @@
 <?php
 declare(strict_types=1);
 namespace App\Core;
+/**
+ * Browser authentication: resolves the current user from the PHP session, falling back to the
+ * 30-day "remember me" cookie (PersistentLogin), and provides the role guards used by controllers
+ * (requireUser, editor, admin). Roles are admin > member > viewer (viewer is read-only).
+ * Invariant: a session is only valid while the account is active and verified and its
+ * auth_version still matches; bumping users.auth_version (password change, role change,
+ * deactivation) therefore logs the user out everywhere, including persistent logins.
+ * The user row is cached for the duration of one request.
+ */
 final class Auth
 {
     private static ?array $cached = null;
+    /** Current user row, or null; re-validated against the database on every request. */
     public static function user(): ?array
     {
+        // No session (expired or new browser): try to restore it from the remember-me cookie.
         if (!isset($_SESSION['user_id'])) {
             $cookie=(string)($_COOKIE[PersistentLogin::cookieName()]??'');
             if ($cookie==='') return null;
@@ -22,6 +33,8 @@ final class Auth
                 [(string)($_SESSION['remember_selector']??''),(int) $_SESSION['user_id']],
             );
         }
+        // remember_valid is false once the persistent credential tied to this session was revoked,
+        // expired or belongs to an older auth_version; the whole session dies with it.
         if (
             !self::$cached ||
             !self::$cached['active'] ||
@@ -70,6 +83,7 @@ final class Auth
         }
         return $u;
     }
+    /** Start a fresh session for a user whose password was just checked, and set the remember-me cookie. */
     public static function login(array $user): void
     {
         PersistentLogin::forget();
@@ -80,6 +94,7 @@ final class Auth
     }
     private static function establish(array $user,string $selector,int $expires): void
     {
+        // New session id on every privilege change prevents session fixation.
         session_regenerate_id(true);
         $_SESSION = [
             'user_id' => (int) $user['id'],

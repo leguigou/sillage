@@ -1,4 +1,12 @@
 <?php
+/**
+ * "Versions et livraisons" section (/releases), required by workspace.php.
+ * Unlike most sections it loads its own data from the query string: release index via Release::page()
+ * (?offset=, ?archived=), the selected release via Release::find() (?release=, must belong to $project, otherwise an
+ * InvalidArgumentException is thrown), its tickets via Query::tickets()/count() (?ticket_page=) and its delivery
+ * history via Release::deliveries() (?delivery_offset=). Pages are 50 items.
+ * Create/edit/delivery forms are shown to non-viewers only (POST /releases, POST /releases/{id}/deliveries).
+ */
 use App\Models\Release;
 $releaseOffset=max(0,(int)($_GET['offset']??0));$releaseArchived=!empty($_GET['archived']);
 $releasePage=Release::page((int)$project['id'],$releaseOffset,50,$releaseArchived);

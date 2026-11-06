@@ -4,13 +4,24 @@ namespace App\Services;
 use App\Core\DB;
 use App\Models\{DevelopmentEvent,TicketBranch};
 
-/** Reads exact PR membership, never the entire ancestry of a shared branch. */
+/**
+ * Reads exact PR membership, never the entire ancestry of a shared branch.
+ * Pull request details for a ticket: finds the PRs opened from a linked branch (branch()) and collects
+ * a complete snapshot of a PR's commits and changed files (sync()), saved through
+ * DevelopmentEvent::savePullRequestDetails. A snapshot is only saved when its file list is complete and
+ * the PR did not change during collection; otherwise the previous snapshot is kept and an error is
+ * raised. A truncated commit list is saved but flagged commits_complete=false.
+ * Also validates the Bitbucket URLs (diffstat redirect, commit pagination) before they are requested
+ * with the stored token. Called by TicketDevelopmentController, GitMonitor and Development.
+ */
 final class GitPullRequest
 {
+    /** Fingerprint of the PR fields that matter for details and merge checks; a change means re-sync. */
     public static function revision(array $event): string
     {
         return hash('sha256',json_encode([$event['external_key'],$event['state'],$event['commit_sha'],$event['metadata']['branch']??null,$event['metadata']['branch_repository']??null,$event['metadata']['target_branch']??null,$event['metadata']['target_sha']??null,$event['metadata']['merge_sha']??null,($event['metadata']['date_known']??true)?$event['occurred_at']:null],JSON_THROW_ON_ERROR));
     }
+    /** Normalises one diffstat entry (path, previous path, French status label, added/removed line counts). */
     public static function file(string $provider,array $item): array
     {
         $github=$provider==='github';
@@ -55,6 +66,7 @@ final class GitPullRequest
         }
         return 'diffstat/'.$spec.'?'.http_build_query($safe+['pagelen'=>100,'page'=>$page]);
     }
+    /** Loads a PR event only if it is linked to the ticket and its connection belongs to the ticket's project. */
     public static function eventForTicket(int $ticket,int $event): array
     {
         $row=DB::one("SELECT e.*
@@ -66,12 +78,17 @@ final class GitPullRequest
         if(!$row) throw new \InvalidArgumentException('Cette pull request n’est pas liée au projet et au ticket.');
         return DevelopmentEvent::hydrate($row);
     }
+    /** Accepts a Bitbucket "next" commits URL only if it targets this exact PR's commits endpoint; returns it as a relative resource. */
     public static function commitResource(string $url,string $repository,int $pr): string
     {
         $parts=parse_url($url);$expected='/2.0/repositories/'.$repository.'/pullrequests/'.$pr.'/commits';
         if(!$parts || ($parts['scheme']??'')!=='https' || ($parts['host']??'')!=='api.bitbucket.org' || ($parts['path']??'')!==$expected || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['fragment']) || empty($parts['query']) || strlen($url)>4096 || preg_match('/[\x00-\x20\x7f]/',$url)) throw new \InvalidArgumentException('Pagination des commits Bitbucket refusée.');
         return 'pullrequests/'.$pr.'/commits?'.$parts['query'];
     }
+    /**
+     * Fetches one page within a shared 20-second budget measured from $started.
+     * Returns [rows, hasMore, Bitbucket "next" URL or null].
+     */
     private static function page(array $connection,string $resource,int $page,int $size,float $started,bool $files=false,int $pr=0): array
     {
         $left=20-(microtime(true)-$started);
@@ -82,6 +99,10 @@ final class GitPullRequest
         if(!$github && isset($data['next']) && !is_string($data['next'])) throw new \InvalidArgumentException('Pagination Git invalide.');
         return [$rows,$github?count($rows)===$size:!empty($data['next']),$github?null:($data['next']??null)];
     }
+    /**
+     * Scans one page (20) of PRs whose source is the linked branch and saves the matching ones.
+     * The save runs in a transaction that re-checks the branch link still exists.
+     */
     public static function branch(int $ticket,int $link,int $page): array
     {
         if($page<1 || $page>10000) throw new \InvalidArgumentException('Page de pull requests invalide.');
@@ -105,6 +126,11 @@ final class GitPullRequest
         });
         return ['ok'=>true,'pull_requests'=>$ids,'has_more'=>$more,'next_page'=>$page+1,'scanned'=>count($rows)];
     }
+    /**
+     * Collects all commits (up to 10 pages) and changed files (up to 10 pages) of a ticket's PR and saves
+     * the snapshot. $initial is a PR payload the caller already fetched, to avoid a second request.
+     * Memory is bounded to about 4 MB of retained data; duplicates across pages abort the sync.
+     */
     public static function sync(int $ticket,int $eventId,?array $initial=null): array
     {
         if(PHP_SAPI!=='cli' && function_exists('set_time_limit')) @set_time_limit(30);
@@ -118,6 +144,7 @@ final class GitPullRequest
         $expected=$github?($raw['commits']??null):null;
         if($expected!==null && (!is_int($expected) || $expected<0)) throw new \InvalidArgumentException('Nombre de commits Git invalide.');
         $commitResource=$base.'/commits?pagelen=100';$seenCommitPages=[];
+        // GitHub pages by number; Bitbucket follows its validated "next" URL (see commitResource()).
         for($page=1;$page<=10;$page++) {
             if($github) $commitResource=$base.'/commits?per_page=100&page='.$page;
             if(isset($seenCommitPages[$commitResource])) throw new \InvalidArgumentException('Le fournisseur répète une page de commits.');
@@ -125,6 +152,7 @@ final class GitPullRequest
             [$rows,$more,$next]=self::page($c,$commitResource,$page,100,$started);
             foreach($rows as $row) {
                 if(!is_array($row)) throw new \InvalidArgumentException('Commit de pull request invalide.');
+                // Commits are attributed to the PR's branch only when that branch lives in this repository (not a fork).
                 $commit=DevelopmentPayload::object($c['provider'],'commit',$row,$c['repository'],false,strcasecmp((string)($event['metadata']['branch_repository']??''),$c['repository'])===0?$event['metadata']['branch']:null);
                 if(isset($commits[$commit['external_key']])) throw new \InvalidArgumentException('Le fournisseur répète un commit dans la pagination. Réessayez.');
                 $retainedBytes+=strlen(json_encode($commit,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE));
@@ -138,6 +166,7 @@ final class GitPullRequest
         for($page=1;$page<=10;$page++) {
             [$rows,$more]=self::page($c,'',$page,100,$started,true,(int)$number);
             foreach($rows as $row) {if(!is_array($row)) throw new \InvalidArgumentException('Statistiques de fichier invalides.');$file=self::file($c['provider'],$row);if(isset($files[$file['path']])) throw new \InvalidArgumentException('Le fournisseur répète un fichier dans la pagination. Réessayez.');$retainedBytes+=strlen(json_encode($file,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE));if($retainedBytes>4*1024*1024) throw new \InvalidArgumentException('Les détails de cette pull request sont trop volumineux. Consultez le fournisseur.');$files[$file['path']]=$file;}
+            // GitHub announces the file count, which allows stopping as soon as every file has been read.
             if($github && ($raw['changed_files']??null)===count($files)) {$filesComplete=true;break;}
             if(!$more) {$filesComplete=true;break;}
         }

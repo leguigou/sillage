@@ -5,8 +5,26 @@ use App\Core\{Auth,DB,Security,View};
 use App\Models\{OAuth,McpToken};
 use App\Mcp\OAuthError;
 
+/**
+ * OAuth 2 authorization server used to connect external MCP clients (AI tools)
+ * to a user's Sillage account (authorization code + PKCE, refresh tokens).
+ *
+ * - publicEndpoint(): machine-to-machine endpoints called directly from
+ *   public/index.php, outside the router and without session/CSRF:
+ *   /.well-known/* metadata, POST /oauth/token and POST /oauth/revoke.
+ * - GET /oauth/authorize: validates the client request, sends anonymous users
+ *   to /login (then back here), and shows the consent screen.
+ * - POST /oauth/authorize: the user allows or denies; redirects to the client.
+ * - POST /oauth/clients, /oauth/clients/{id}/delete (admin): register/remove clients.
+ * - POST /oauth/grants/{id}/revoke (signed-in user, own grants only).
+ * Protocol logic lives in App\Models\OAuth; scopes come from App\Models\McpToken.
+ */
 final class OAuthController
 {
+    /**
+     * Serves the OAuth discovery documents and the token/revoke endpoints as JSON.
+     * POST bodies must be form-encoded and at most 16 KB; rate-limited per IP.
+     */
     public static function publicEndpoint(string $path): never
     {
         header('Cache-Control: no-store');header('Pragma: no-cache');header('X-Content-Type-Options: nosniff');
@@ -49,6 +67,8 @@ final class OAuthController
             $_SESSION['oauth_after_login']='/oauth/authorize?'.http_build_query($_GET,'','&',PHP_QUERY_RFC3986);
             redirect('/login');
         }
+        // The validated request is stored server-side under a random nonce (valid
+        // 10 min, tied to this user); the consent form only posts back the nonce.
         $nonce=bin2hex(random_bytes(24));
         $pending=array_filter($_SESSION['oauth_consents']??[],fn($entry)=>$entry['expires']>=time());
         // Bound temporary session storage while allowing several client windows to coexist.
@@ -57,8 +77,10 @@ final class OAuthController
         $_SESSION['oauth_consents']=$pending;
         $this->renderConsent($request,$user,$nonce);
     }
+    /** Consent page; only scopes allowed for the user's role (plus offline_access) can be granted. */
     private function renderConsent(array $request,array $user,string $nonce,?string $error=null): void
     {
+        // The CSP must allow the form to redirect to the client's callback URL.
         Security::contentSecurityPolicy($request['redirect_uri']);
         header('Referrer-Policy: no-referrer');
         $available=array_values(array_intersect($request['scopes'],[...McpToken::availableScopes($user['role']),'offline_access']));
@@ -69,6 +91,11 @@ final class OAuthController
         http_response_code(422);
         View::render('oauth-error',['guest'=>true,'title'=>'Autorisation à relancer','consentError'=>$message]);
     }
+    /**
+     * Handles the consent form: on "allow" issues an authorization code, on
+     * "deny" returns access_denied, then redirects to the client's redirect_uri
+     * (taken from the stored, already validated request, never from the form).
+     */
     public function consent(): void
     {
         $user=Auth::user();
@@ -99,11 +126,13 @@ final class OAuthController
         header('Referrer-Policy: no-referrer');
         header('Location: '.$request['redirect_uri'].(str_contains($request['redirect_uri'],'?')?'&':'?').http_build_query($params,'','&',PHP_QUERY_RFC3986),true,303);exit;
     }
+    /** Registers an OAuth client; its credentials are shown once on /settings via the session. */
     public function createClient(): void
     {
         Auth::admin();$_SESSION['new_oauth_client']=OAuth::createClient((string)($_POST['name']??''),(string)($_POST['redirect_uri']??''),(string)($_POST['auth_method']??''));
         redirect('/settings#oauth');
     }
+    /** Deletes a client; its grants and tokens go with it through ON DELETE CASCADE foreign keys. */
     public function deleteClient(string $id): void
     {
         Auth::admin();DB::run('DELETE FROM oauth_clients WHERE id=?',[$id]);

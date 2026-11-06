@@ -3,10 +3,20 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Closing rules for tickets: the resolution (why a ticket was closed) and the optional approval
+ * step (columns validation_state, validated_by, validated_at, validation_note on tickets).
+ *
+ * A resolution exists only while the status is in the "done" category (default "completed").
+ * When a project sets require_ticket_validation, a ticket can only move to "done" once approved.
+ * Approval is reset to "pending" by any content change or by reopening. Ticket::validate() calls
+ * resolution(), Ticket::create()/update() call prepare(); review() is the approve/reject action.
+ */
 final class TicketClosure
 {
     public const RESOLUTIONS=['completed'=>'Réalisé','fixed'=>'Corrigé','duplicate'=>'Doublon','rejected'=>'Rejeté','cannot_reproduce'=>'Non reproductible'];
     public const VALIDATIONS=['pending'=>'À valider','approved'=>'Validé','rejected'=>'À reprendre'];
+    /** Validated resolution for the target status: null unless the status is "done"-like, "completed" when unspecified. */
     public static function resolution(array $input,int $project,string $status): ?string
     {
         $resolution=$input['resolution']??null;
@@ -14,7 +24,11 @@ final class TicketClosure
         if ($resolution!==null && (!is_string($resolution) || !isset(self::RESOLUTIONS[$resolution]))) throw new \InvalidArgumentException('Résolution de clôture invalide.');
         return Workflow::category('status',$project,$status)==='done'?($resolution??'completed'):null;
     }
-    /** Content changes invalidate approval; status-only transitions preserve it. */
+    /**
+     * Content changes invalidate approval; status-only transitions preserve it.
+     * Returns the approval columns to store, and throws if the new status is "done" while the project
+     * requires an approval the ticket does not have. $old is null for a new ticket.
+     */
     public static function prepare(?array $old,array $data,int $project): array
     {
         $state=$old['validation_state']??'pending';$by=$old['validated_by']??null;$at=$old['validated_at']??null;$note=$old['validation_note']??null;
@@ -25,6 +39,10 @@ final class TicketClosure
         if (Workflow::category('status',$project,$data['status'])==='done' && Project::find($project)['require_ticket_validation'] && $state!=='approved') throw new \InvalidArgumentException('Ce projet exige une validation avant la clôture. Enregistrez les modifications, faites valider le ticket, puis terminez-le.');
         return ['validation_state'=>$state,'validated_by'=>$by,'validated_at'=>$at,'validation_note'=>$note];
     }
+    /**
+     * Approves or rejects (note required) an open, active ticket. Reserved to non-viewer accounts.
+     * The version check happens in Ticket::lock(), under the project lock.
+     */
     public static function review(int $ticket,bool $approved,string $note,int $actor,int $version): array
     {
         return DB::transaction(function() use($ticket,$approved,$note,$actor,$version) {

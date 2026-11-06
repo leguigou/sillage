@@ -3,9 +3,17 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
-/** Personal inbox entries are committed atomically with the corresponding ticket event. */
+/**
+ * Personal inbox entries are committed atomically with the corresponding ticket event.
+ *
+ * In-app notifications (table ticket_notifications). Recipients of an event are the reporter, the
+ * assignee (and previous assignee), followers and mentioned users, minus the actor and inactive or
+ * unverified accounts. source_key (comment id, or event names + ticket version) together with the
+ * unique key (user_id, ticket_id, source_key) makes a repeated emit harmless.
+ */
 final class TicketNotification
 {
+    /** Creates inbox entries for one ticket event; must be called inside the business transaction. */
     public static function emit(array $ticket,array $events,?int $actor,array $mentions=[],?int $comment=null,?int $previousAssignee=null): void
     {
         if (!DB::connection()->inTransaction()) throw new \LogicException('Une notification doit appartenir à une transaction métier.');
@@ -22,6 +30,7 @@ final class TicketNotification
     public static function unread(int $user): int { return (int)DB::one('SELECT COUNT(*) n
         FROM ticket_notifications
         WHERE user_id=? AND read_at IS NULL',[$user])['n']; }
+    /** One page (30 entries, newest first) of the user's inbox; out-of-range page numbers are clamped. */
     public static function page(int $user,bool $onlyUnread=false,int $page=1): array
     {
         $where='n.user_id=?'.($onlyUnread?' AND n.read_at IS NULL':'');$size=30;
@@ -36,6 +45,7 @@ final class TicketNotification
         foreach ($rows as &$row) $row['events']=json_decode($row['events_json'],true,32,JSON_THROW_ON_ERROR);
         return ['rows'=>$rows,'total'=>$total,'page'=>$page,'pages'=>max(1,(int)ceil($total/$size)),'unread'=>self::unread($user)];
     }
+    /** Marks one of the user's notifications read or unread; returns it with the new unread count. */
     public static function mark(int $id,int $user,bool $read): array
     {
         return DB::transaction(function() use($id,$user,$read) {

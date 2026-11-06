@@ -1,4 +1,13 @@
-<?php use App\Services\ListLayout; $reportOrder=ListLayout::order($filters);$reportColumns=ListLayout::columns($filters); ?>
+<?php
+/**
+ * One personal report (saved view) dialog: name, status filter (status-filter.php), up to
+ * three sort criteria, grouping, hierarchy and column selection/order; posts to /views.
+ * Included (once or twice) by personal-report.php. Expects $reportDialogId (dialog id),
+ * $reportCreate (true = create mode), $activeView (report being edited, or null),
+ * $filters, $baseQuery and $project. The current $baseQuery is stored as JSON in the
+ * "settings" field; "revision" (SavedView::revision()) guards against concurrent edits.
+ */
+use App\Services\ListLayout; $reportOrder=ListLayout::order($filters);$reportColumns=ListLayout::columns($filters); ?>
 <dialog id="<?= e($reportDialogId) ?>" class="dialog personal-report-dialog" aria-labelledby="<?= e($reportDialogId) ?>-title"><form method="post" action="/views" class="stack" data-personal-report <?= $reportCreate?'data-report-create':'' ?>><?= csrf() ?>
 <input type="hidden" name="project_id" value="<?= (int)$project['id'] ?>"><input type="hidden" name="settings" value="<?= e(json_encode($baseQuery,JSON_THROW_ON_ERROR)) ?>"><input type="hidden" name="report_options" value="1"><input type="hidden" name="view_id" value="<?= (int)($activeView['id']??0) ?>"><input type="hidden" name="revision" value="<?= $activeView?e(App\Models\SavedView::revision($activeView)):'' ?>"><textarea name="column_order" hidden data-report-order><?= e(json_encode($reportOrder,JSON_THROW_ON_ERROR)) ?></textarea>
 <header class="dialog-header"><div><h2 id="<?= e($reportDialogId) ?>-title"><?= $reportCreate?'Créer un rapport':'Modifier mon rapport' ?></h2><p class="help-text">Personnel, enregistré dans votre compte pour ce projet.</p></div><button type="button" data-close class="icon-button" aria-label="Fermer"><?= icon('close') ?></button></header>

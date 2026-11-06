@@ -1,3 +1,10 @@
+<?php /**
+ * Ticket page panel #ticket-closure ("Clôture et livraison"): resolution, validation state,
+ * target release and its per-environment delivery state. Editors can approve the ticket or
+ * request rework (POST /tickets/{id}/validation) while it is open and not archived.
+ * Included by ticket.php. Expects $ticket, $project, $targetRelease (release with
+ * 'delivery_state', or null) and $canEdit.
+ */ ?>
 <section class="panel ticket-closure" id="ticket-closure" data-ticket-live><h3>Clôture et livraison</h3><dl class="ticket-meta"><dt>Résolution</dt><dd><?= e(App\Models\TicketClosure::RESOLUTIONS[$ticket['resolution']]??'Ticket ouvert') ?></dd><dt>Validation</dt><dd><span class="validation-badge validation-<?= e($ticket['validation_state']) ?>"><?= e(App\Models\TicketClosure::VALIDATIONS[$ticket['validation_state']]) ?></span></dd><?php if($ticket['validated_by']): ?><dt>Contrôlé par</dt><dd><?= e($ticket['validator_name']) ?><small><?= e($ticket['validated_at']) ?> UTC</small></dd><?php endif; ?><dt>Version cible</dt><dd><?php if($targetRelease): ?><a href="/releases?project=<?= (int)$project['id'] ?>&release=<?= (int)$targetRelease['id'] ?>"><?= e($targetRelease['name']) ?></a><?php else: ?>Aucune<?php endif; ?></dd></dl>
 <?php if($ticket['validation_note']): ?><p class="tracking-text"><?= e($ticket['validation_note']) ?></p><?php endif; ?>
 <?php if($ticket['require_ticket_validation']): ?><p class="help-text">Validation obligatoire avant la clôture dans ce projet.</p><?php endif; ?>

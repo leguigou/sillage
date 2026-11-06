@@ -3,6 +3,12 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Administrative management of user accounts (table users): role and active flag.
+ * Invariants: at least one active, verified administrator always remains, and administrators
+ * cannot demote or deactivate themselves. Any role or activation change bumps users.auth_version,
+ * which invalidates MCP keys and OAuth grants, and revokes the user's persistent logins.
+ */
 final class User
 {
     public const ROLES = [
@@ -11,6 +17,7 @@ final class User
         'viewer' => 'Lecture seule',
     ];
 
+    /** Sets a user's role and active flag on behalf of administrator $actor. */
     public static function manage(int $id, string $role, bool $active, int $actor): void
     {
         if (!isset(self::ROLES[$role])) {
@@ -52,5 +59,16 @@ final class User
                 \App\Core\PersistentLogin::revokeAll($id);
             }
         });
+    }
+
+    /** Whether the user accepts ticket e-mails (row with ticket_email_enabled, or null). */
+    public static function emailPreference(int $id): ?array
+    {
+        return DB::one(
+            'SELECT ticket_email_enabled
+                FROM users
+                WHERE id=?',
+            [$id],
+        );
     }
 }

@@ -3,8 +3,19 @@ declare(strict_types=1);
 namespace App\Services;
 use App\Core\DB;
 use App\Models\{DevelopmentEvent,GitJob,TicketBranch};
+/**
+ * Executes one background Git job (from the git_sync_jobs queue run by GitSync::work) by polling the
+ * provider: repository PR catch-up, PRs of linked branches, a single PR refresh (details + merge
+ * check), CI checks/statuses for a commit, pipelines, deployments, and deployment-to-PR inclusion proofs.
+ * execute() returns null when the job is done, or ['payload' => ..., 'delay' => seconds] to continue it
+ * (next page, or a retry while mergeability is still being computed).
+ * It only collects provider facts; persistence and ticket matching belong to DevelopmentEvent, and
+ * queue leases to GitJob. Lookups of ticket-linked PRs and branches re-check that the connection is
+ * still linked to the ticket's project (project_connections).
+ */
 final class GitMonitor
 {
+    /** Fetches one list page and returns [rows, hasMore]; GitHub has no "next" link here, so a full page means "maybe more". */
     public static function rows(array $c,string $resource,?string $field=null,int $size=25): array
     {
         $data=Development::request($c,$resource,8);$github=$c['provider']==='github';$rows=$github?($field===null?$data:($data[$field]??null)):($data['values']??null);
@@ -12,18 +23,28 @@ final class GitMonitor
         foreach($rows as $row) if(!is_array($row)) throw new \InvalidArgumentException('Observation Git invalide.');
         return [$rows,$github?count($rows)===$size:!empty($data['next'])];
     }
+    /** Stores a polled (non-live) event; a deployment with a commit also queues its PR inclusion check. */
     public static function save(array $c,array $event): int
     {
         $id=DevelopmentEvent::save($c,$event,false);
         if($event['kind']==='deployment' && $event['commit_sha']) GitJob::enqueue((int)$c['id'],'deployment_links','deployment:'.$id,['event_id'=>$id,'after'=>0]);
         return $id;
     }
+    /**
+     * Conflict status for display: only trusted while the PR is open, the check was made on the PR's
+     * current revision, and it is less than 15 minutes old; otherwise conflict is null (unknown).
+     */
     public static function conflict(array $event): array
     {
         $check=$event['metadata']['merge_check']??null;
         $fresh=$event['state']==='open' && $check && ($check['revision']??'')===GitPullRequest::revision($event) && ($check['checked_at']??'')>=gmdate('Y-m-d H:i:s',time()-900);
         return ['conflict'=>$fresh?($check['conflict']??null):null,'checked_at'=>$check['checked_at']??null];
     }
+    /**
+     * Computes the conflict state of an open PR (GitHub: from the PR payload; Bitbucket: extra call to
+     * the mergeability checks endpoint) and stores it in metadata.merge_check. The write is skipped if the
+     * stored PR has moved to another revision meanwhile, so a stale result never overwrites a newer one.
+     */
     private static function mergeCheck(array $c,array $event,array $raw): ?bool
     {
         $conflict=$event['state']==='open'?($c['provider']==='github'?DevelopmentRunPayload::conflict('github',$raw):DevelopmentRunPayload::conflict('bitbucket',Development::request($c,'pullrequests/'.substr($event['external_key'],3).'/mergeability/checks',8))):null;
@@ -36,6 +57,12 @@ final class GitMonitor
             DB::run('UPDATE development_events SET metadata_json=? WHERE id=?',[json_encode($meta,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),$row['id']]);
         });return $conflict;
     }
+    /**
+     * Refreshes one PR linked to a ticket: re-reads it from the provider, saves it, re-syncs its
+     * commits/files when its revision changed, queues CI checks for its head and merge commits, then
+     * runs the merge check. Mergeability may not be computed yet on the provider side, so an unknown
+     * result on an open PR is retried up to 3 times, 30 seconds apart.
+     */
     public static function pullRequest(array $c,array $p): ?array
     {
         $row=DB::one("SELECT e.*
@@ -63,6 +90,7 @@ final class GitMonitor
         if($event['state']==='open' && $conflict===null && ($p['merge_retry']??0)<3) return ['payload'=>['event_id'=>$row['id'],'merge_retry'=>($p['merge_retry']??0)+1],'delay'=>30];
         return null;
     }
+    /** Dispatches a claimed job by kind; each paged kind handles one page per run (100 pages max). */
     public static function execute(array $c,array $job): ?array
     {
         $p=$job['payload'];$page=(int)($p['page']??1);$github=$c['provider']==='github';
@@ -82,6 +110,8 @@ final class GitMonitor
         }
         if($job['kind']==='repository') {
             $resource=$github?'pulls?state=all&sort=updated&direction=desc&per_page=50&page='.$page:'pullrequests?state=OPEN&state=MERGED&state=DECLINED&state=SUPERSEDED&sort=-updated_on&pagelen=50&page='.$page;
+            // PRs come newest-updated first; paging stops once the page's oldest PR is older than the
+            // "since" watermark set by GitSync::request().
             [$rows,$more]=self::rows($c,$resource,null,50);$oldest=null;
             foreach($rows as $raw) {$event=DevelopmentPayload::object($c['provider'],'pull_request',$raw,$c['repository']);$id=self::save($c,$event);GitSync::queuePullRequest($c,$id);if($event['metadata']['date_known']) $oldest=$event['occurred_at'];}
             if($more && (!$oldest || $oldest>=($p['since']??'1970'))) return ['payload'=>array_replace($p,['page'=>$page+1])];
@@ -102,6 +132,7 @@ final class GitMonitor
         }
         if($job['kind']==='deployments') {
             [$rows,$more]=self::rows($c,'deployments?'.($github?'per_page':'pagelen').'=25&page='.$page);
+            // A GitHub deployment's state lives in a separate statuses endpoint, so each one becomes its own job.
             foreach($rows as $raw) {
                 if($github) {if(!is_int($raw['id']??null) || $raw['id']<1) throw new \InvalidArgumentException('Déploiement sans identité.');GitJob::enqueue((int)$c['id'],'deployment','deployment:'.$raw['id'],['id'=>$raw['id']]);}
                 else self::save($c,DevelopmentRunPayload::object('bitbucket','deployment',$raw,$c['repository']));
@@ -111,12 +142,18 @@ final class GitMonitor
         if($job['kind']==='deployment') {
             $id=filter_var($p['id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);if(!$id || !$github) throw new \InvalidArgumentException('Déploiement GitHub invalide.');
             $raw=Development::request($c,'deployments/'.$id,8);if(($raw['id']??null)!==$id) throw new \InvalidArgumentException('Identité du déploiement différente.');
+            // Only the first status (the most recent one, per GitHub's ordering) is used.
             [$statuses]=self::rows($c,'deployments/'.$id.'/statuses?per_page=1',null,1);
             self::save($c,DevelopmentRunPayload::object('github','deployment',$raw,$c['repository'],$statuses[0]??[]));return null;
         }
         if($job['kind']==='deployment_links') return self::deploymentLinks($c,$p);
         throw new \InvalidArgumentException('Traitement Git inconnu.');
     }
+    /**
+     * Proves which merged, ticket-linked PRs a deployment contains: the PR's merge commit must be an
+     * ancestor of (or equal to) the deployed commit, checked with the provider's compare/merge-base API.
+     * Works through 5 PRs per run, resuming after the last PR id via the job payload.
+     */
     private static function deploymentLinks(array $c,array $p): ?array
     {
         $deployment=DB::one("SELECT *

@@ -2,11 +2,19 @@
 declare(strict_types=1);
 namespace App\Services;
 
-/** Shipped release notes describe this copy of the application, without requiring Git in production. */
+/**
+ * Shipped release notes describe this copy of the application, without requiring Git in production.
+ * Loads and validates resources/application-history.json (the software changelog maintained per AGENTS.md)
+ * for the "application history" view; `php bin/console.php history:check` runs the same validation.
+ * Rules enforced: schema 1, entries newest first, each with either a semantic version or a full 40-char
+ * Git SHA (older, unnumbered revisions), a known category, a date, and a non-empty list of changes;
+ * the first entry must be current_version. Dates are shown in Europe/Paris time.
+ */
 final class ApplicationHistory
 {
     public const CATEGORIES=['features'=>'Fonctionnalités','fixes'=>'Corrections','interface'=>'Interface','deployment'=>'Installation et déploiement','docs'=>'Documentation et validation'];
     private static ?array $catalog=null;
+    /** Validated history, read once per process; throws if the file is unreadable, not JSON, or breaks a rule. */
     public static function catalog(): array
     {
         if (self::$catalog!==null) return self::$catalog;
@@ -33,6 +41,7 @@ final class ApplicationHistory
             }
             foreach(['title'=>160,'summary'=>600] as $field=>$limit) if (!is_string($entry[$field]??null) || trim($entry[$field])==='' || mb_strlen($entry[$field])>$limit) throw new \InvalidArgumentException('Titre ou résumé d’historique invalide.');
             if (!is_string($entry['category']??null) || !isset(self::CATEGORIES[$entry['category']])) throw new \InvalidArgumentException('Catégorie d’historique invalide.');
+            // Accepts a plain date (Y-m-d, read as Paris midnight) or a full ATOM timestamp.
             $rawDate=$entry['date']??null;
             $format=is_string($rawDate) && strlen($rawDate)===10?'!Y-m-d':\DateTimeInterface::ATOM;
             $date=is_string($rawDate)?\DateTimeImmutable::createFromFormat($format,$rawDate,new \DateTimeZone('Europe/Paris')):false;
@@ -46,6 +55,7 @@ final class ApplicationHistory
         if (($entries[0]['version']??null)!==$document['current_version']) throw new \InvalidArgumentException('La première entrée doit décrire la version courante.');
         return ['current_version'=>$document['current_version'],'entries'=>$entries];
     }
+    /** Semantic Versioning 2.0 string (major.minor.patch, optional -prerelease and +build). */
     private static function version(mixed $value): bool
     {
         return is_string($value) && strlen($value)<=80 && (bool)preg_match('/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/D',$value);

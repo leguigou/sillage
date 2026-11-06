@@ -1,4 +1,12 @@
 <?php
+/**
+ * Global HTML helper functions used by every template (not a page, outputs nothing by itself).
+ * Loaded with require_once by View::render(), layout.php, guest.php and by controllers that return HTML fragments
+ * (e.g. WorkspaceController::projectSettings, TicketPeopleController, TicketDevelopmentController).
+ * All helpers return HTML strings and escape their dynamic values with e().
+ */
+
+/** Inline SVG icon from the built-in set below; unknown names fall back to the 'grid' icon. */
 function icon(string $name, string $class=''): string {
     $paths=[
         'github'=>'<path fill="currentColor" stroke="none" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.3c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1 1.8 2.8 1.3 3.4 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.3-3.2-.1-.3-.6-1.6.1-3.3 0 0 1-.3 3.3 1.2A11.5 11.5 0 0 1 12 6c1 0 2 .1 3 .4 2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 3 .1 3.3.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/>',
@@ -64,8 +72,10 @@ function icon(string $name, string $class=''): string {
     ];
     return '<svg class="icon '.e($class).'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'.($paths[$name]??$paths['grid']).'</svg>';
 }
+/** User avatar: uploaded photo via UserAvatar::url() (batch-primed in View::render) or the person's initials. */
 function avatar(?string $name, string $extra='', ?int $userId=null): string { $image=\App\Models\UserAvatar::url($userId); $parts=preg_split('/\s+/u',trim($name??'')); $initials=$name?mb_substr($parts[0],0,1).(count($parts)>1?mb_substr(end($parts),0,1):''):'–'; return '<span class="avatar '.e($extra).'" title="'.e($name??'Non assigné').'">'.($image?'<img class="avatar-image" src="'.e($image).'" alt="'.e($name).'">':e($initials)).'</span>'; }
 
+/** "Bloqué" badge for flagged tickets; empty string when not blocked. */
 function blocked_badge(bool $blocked): string { return $blocked?'<span class="blocked-badge" title="Un obstacle empêche d’avancer sur ce ticket">'.icon('flag').'<span>Bloqué</span></span>':''; }
 
 /** Render the same persisted project identity in each view; no position-based palette. */
@@ -78,6 +88,7 @@ function project_mark(array $project,string $variant='compact'): string {
     return '<span class="project-mark '.($tile?'project-tile':'project-symbol').'" data-project-id="'.(int)$project['id'].'" data-mark-icon="'.e($symbol).'" data-project-color="'.e(strtolower($color)).'" aria-hidden="true">'.icon($symbol).'</span>';
 }
 
+/** Icon badge for a ticket type ($kind='type', per-project workflow mark when $project is given) or a priority ($kind='priority'). */
 function work_mark(string $kind,string $key,int $project=0, ?string $shortLabel=null): string {
     $mark=$kind==='type'&&$project?\App\Models\Workflow::mark('type',$project,$key):\App\Models\Appearance::mark($kind,$key);
     $labels=$kind==='type'?\App\Models\Workflow::labels('type',$project):\App\Models\Ticket::PRIORITIES;
@@ -86,6 +97,7 @@ function work_mark(string $kind,string $key,int $project=0, ?string $shortLabel=
     return '<span class="work-mark '.($kind==='type'?'type-icon':'priority-mark').'" data-mark-kind="'.e($kind).'" data-mark-key="'.e($key).'" data-mark-icon="'.e($mark['icon']).'" data-mark-color="'.e($mark['color']).'" role="img" aria-label="'.e($labels[$key]).'" title="'.e($labels[$key]).'">'.$content.'</span>';
 }
 
+/** Coloured status pill using the project's workflow label and colour for status $key. */
 function status_badge(string $key,int $project): string {
     $color=\App\Models\Workflow::mark('status',$project,$key)['color'];
     return '<span class="pill workflow-status" data-status-color="'.e($color).'"><span class="status-dot" aria-hidden="true"></span><span class="status-label">'.e(\App\Models\Workflow::label('status',$project,$key)).'</span></span>';

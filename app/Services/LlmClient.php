@@ -2,6 +2,16 @@
 declare(strict_types=1);
 namespace App\Services;
 
+/**
+ * HTTP client for the configured LLM provider (OpenAI, Anthropic, Gemini, DeepSeek, Grok, or a local
+ * LM Studio / Ollama server). Used by LlmController and the LlmProfile model to list models and
+ * generate text; the wire formats themselves live in LlmProtocol.
+ * Because the base URL is configurable in Sillage, calls are guarded against SSRF (server-side request forgery): the host is resolved and
+ * every address checked (private/loopback only for local providers), curl is pinned to the checked
+ * address, plain HTTP is refused for public addresses, and proxies/redirects are disabled.
+ * Responses are capped at 2 MB. Calls are logged through TechnicalLog::outgoing() (metadata only;
+ * the API key travels in a header and is never logged).
+ */
 final class LlmClient
 {
     /** DNS is checked on every call, then pinned for the transfer (no proxy/redirect). */
@@ -25,6 +35,7 @@ final class LlmClient
         }
         return array_values(array_unique($ips));
     }
+    /** GET (no body) or POST JSON to base_url.$path; returns the decoded JSON or throws a French InvalidArgumentException. */
     public static function request(array $config,string $path,?array $body=null): array
     {
         return TechnicalLog::outgoing('llm',$config['provider'],$body===null?'GET':'POST',$config['base_url'].$path,function(array &$trace) use($config,$path,$body): array {
@@ -43,6 +54,7 @@ final class LlmClient
                 if (strlen($response)+strlen($chunk)>2*1024*1024) { $tooLarge=true;return 0; }
                 $response.=$chunk;return strlen($chunk);
             }];
+            // Pin the host name to the address validated above, so a second DNS answer cannot redirect the call (DNS rebinding).
             if (!filter_var(trim($host,'[]'),FILTER_VALIDATE_IP)) $options[CURLOPT_RESOLVE]=[$host.':'.$port.':'.(str_contains($ips[0],':')?'['.$ips[0].']':$ips[0])];
             if ($body!==null) { $options[CURLOPT_POST]=true;$options[CURLOPT_POSTFIELDS]=json_encode($body,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);$trace['request_bytes']=strlen($options[CURLOPT_POSTFIELDS]); }
             if (PHP_OS_FAMILY==='Windows' && defined('CURLSSLOPT_NATIVE_CA')) $options[CURLOPT_SSL_OPTIONS]=CURLSSLOPT_NATIVE_CA;
@@ -59,6 +71,7 @@ final class LlmClient
         });
     }
 
+    /** Lists available models across at most 10 pages / 20 seconds, de-duplicated and sorted by id. */
     public static function discover(array $config): array
     {
         $models=[];$cursor='';$seen=[];$started=microtime(true);
@@ -73,6 +86,7 @@ final class LlmClient
         }
         throw new \InvalidArgumentException('Catalogue de modèles trop grand (10 pages maximum). Utilisez un point d’accès au catalogue réduit.');
     }
+    /** One non-streaming completion: system prompt + user input in, plain text out. */
     public static function generate(array $config,string $model,string $system,string $input): string
     {
         [$path,$body]=LlmProtocol::generation($config['provider'],$model,$system,$input);

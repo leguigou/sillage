@@ -1,3 +1,9 @@
+<?php /**
+ * Dialog #board-column-settings: personal look of one board column (background colour
+ * and opacity, width, card density). Included by sections/board.php.
+ * Static markup with no PHP variables: the form has no action and nothing is sent to the
+ * server; public/assets/board-columns.js fills it and saves the values in localStorage.
+ */ ?>
 <dialog id="board-column-settings" class="dialog compact">
  <header class="dialog-header"><h2 data-column-settings-title>Personnaliser la colonne</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>
  <form class="stack" data-column-settings-form>

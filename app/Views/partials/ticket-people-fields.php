@@ -1,3 +1,11 @@
+<?php /**
+ * Inner fields of the "Personnes et équipe" dialog: main assignee, responsible team and
+ * collaborators, plus csrf and the optimistic-lock "version". Rendered only by
+ * TicketPeopleController (GET/POST /tickets/{id}/people) and returned as the 'html' JSON
+ * field; ticket-people.js injects it into the form of #ticket-people-dialog
+ * (sections/board.php). Expects $t, $user, $people, $members and $teams.
+ * Read-only for viewers and archived tickets.
+ */ ?>
 <?= csrf() ?><input type="hidden" name="version" value="<?= (int)$t['version'] ?>">
 <?php $readOnly=$user['role']==='viewer'||$t['archived'];$selected=array_map('intval',array_column($people,'id')); ?>
 <p class="help-text">Affectez le travail à un responsable principal, à des collaborateurs et, si besoin, à une équipe responsable. L’ajout ne change pas les droits d’accès au projet.</p>

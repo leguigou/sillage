@@ -5,8 +5,22 @@ use App\Core\{Auth,Security};
 use App\Models\{LlmProfile,Project};
 use App\Services\{LlmClient,TicketAssistant};
 
+/**
+ * LLM (AI text assistant) provider profiles and the assistant endpoint.
+ *
+ * - POST /llm/profiles/test (admin): tests a provider configuration and lists
+ *   its models; the verified configuration is kept in the session for 10 min.
+ * - POST /llm/profiles (admin): saves a profile, only if it was just tested
+ *   (the "proof" returned by the test must be sent back).
+ * - POST /llm/profiles/{id}/action (admin): profile action handled by
+ *   App\Models\LlmProfile::action().
+ * - POST /llm/assist (signed-in users): draft/rewrite/summarize text (editors
+ *   only) or answer a question from matching tickets ("search", read-only
+ *   accounts allowed). Rate-limited per user.
+ */
 final class LlmController
 {
+    /** Tests connection to a candidate LLM provider and returns its available models (JSON). */
     public function probe(): void
     {
         $user=Auth::admin();Security::limit('llm-probe-'.$user['id'],20,600);
@@ -21,6 +35,8 @@ final class LlmController
     }
     public function save(): void
     {
+        // Only a configuration that passed probe() in this session, less than
+        // 10 minutes ago, can be saved; the proof is compared in constant time.
         Auth::admin();$candidate=$_SESSION['llm_verified']??null;
         if (!$candidate || $candidate['expires']<time() || !hash_equals($candidate['proof'],(string)($_POST['proof']??''))) throw new \InvalidArgumentException('Test de connexion absent ou expiré. Testez à nouveau.');
         $id=LlmProfile::saveVerified($candidate,$_POST);
@@ -32,12 +48,18 @@ final class LlmController
         Auth::admin();LlmProfile::action((int)$id,(int)($_POST['version']??0),(string)($_POST['action']??''));
         flash('Configuration LLM mise à jour.');redirect('/settings#llm');
     }
+    /**
+     * Sends user text (and, in "search" mode, excerpts of matching tickets) to
+     * the default LLM profile and returns the generated text as JSON.
+     */
     public function assist(): void
     {
         $user=Auth::requireUser();
         $mode=(string)($_POST['mode']??'');
         if (!in_array($mode,['draft','rewrite','summarize','search'],true)) throw new \InvalidArgumentException('Aide LLM inconnue.');
+        // Writing helpers are not available to read-only accounts; "search" is.
         if ($mode!=='search') Auth::editor();
+        // 30 requests per user per 10 min.
         Security::limit('llm-assist-'.$user['id'],30,600);
         $profile=LlmProfile::current()??throw new \InvalidArgumentException('Aucun fournisseur LLM par défaut activé.');
         // Bind the displayed recipient to this request, so a default change cannot silently redirect ticket content.
@@ -48,6 +70,8 @@ final class LlmController
         if ($project) Project::find($project);
         $sources=[];$total=0;
         if ($mode==='search') {
+            // Tickets are found by a local lexical search first; if nothing
+            // matches, nothing is sent to the LLM ("sent" => false).
             $found=TicketAssistant::retrieve($project,$text);$total=$found['total'];
             foreach($found['tickets'] as $ticket) $sources[]=['id'=>$ticket['id'],'key'=>$ticket['ticket_key'],'title'=>$ticket['title']];
             if (!$sources) json_response(['ok'=>true,'text'=>'Aucun ticket ne correspond aux mots recherchés. Essayez un sujet plus précis ou une clé de ticket.','sources'=>[],'total'=>0,'sent'=>false]);

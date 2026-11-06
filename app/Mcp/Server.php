@@ -4,8 +4,20 @@ namespace App\Mcp;
 use App\Core\{Company, DB, Security};
 use App\Models\McpToken;
 
+/**
+ * MCP (Model Context Protocol) endpoint at POST /mcp, letting AI clients use Sillage through
+ * JSON-RPC 2.0. Called directly by public/index.php, before and without any PHP session.
+ * Stateless "Streamable HTTP" subset: one JSON request per POST, one JSON response, no SSE stream.
+ * Pipeline in handle(): transport guard (Endpoint) -> bearer token (McpToken, personal key or
+ * OAuth-issued, scopes capped by the user's role) -> method/protocol-version/Accept/Content-Type
+ * checks -> rate limit per token and client IP (240/min) -> 1 MB body cap -> JSON-RPC validation -> dispatch.
+ * Supported methods: initialize, ping, tools/list, tools/call (tools are defined in Tools).
+ * Errors: HTTP status codes for transport/auth failures, JSON-RPC error objects otherwise, and
+ * tool-level failures as a normal result with isError=true.
+ */
 final class Server
 {
+    /** Protocol revisions accepted in the MCP-Protocol-Version header, newest first. */
     public const VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
     private static function send(array $body, int $status = 200): never
     {
@@ -44,6 +56,8 @@ final class Server
                 ? $match[1]
                 : '';
             $user = McpToken::authenticate($raw);
+            // The WWW-Authenticate challenge points OAuth-capable clients to the protected-resource
+            // metadata (RFC 9728) so they can discover the authorization server and log in.
             if (!$user) {
                 header('WWW-Authenticate: Bearer realm="Sillage MCP", resource_metadata="'.url('/.well-known/oauth-protected-resource/mcp').'", scope="read"');
                 self::send(['error' => 'Clé MCP absente, expirée, supprimée ou invalidée.'], 401);
@@ -55,6 +69,7 @@ final class Server
                 header('Allow: POST');
                 self::send(['error' => 'Transport sans flux SSE persistant : utilisez POST.'], 405);
             }
+            // Clients that omit the header are assumed to speak the oldest supported revision.
             $version = $_SERVER['HTTP_MCP_PROTOCOL_VERSION'] ?? '2025-03-26';
             if (!in_array($version, self::VERSIONS, true)) {
                 self::send(
@@ -73,6 +88,7 @@ final class Server
             }
             Security::limit('mcp:' . $user['token_id'], 240, 60);
             McpToken::touch((int) $user['token_id']);
+            // Read at most 1 MB + 1 byte: getting the extra byte proves the body is over the limit.
             $input = fopen('php://input', 'rb');
             $body = stream_get_contents($input, 1048577);
             fclose($input);
@@ -101,6 +117,8 @@ final class Server
             if (!($params instanceof \stdClass)) {
                 self::rpcError($requestId, -32602, 'params doit être un objet.');
             }
+            // A request without "id" is a JSON-RPC notification (e.g. notifications/initialized):
+            // acknowledged with 202 and no body, nothing is executed.
             if (!property_exists($request, 'id')) {
                 http_response_code(202);
                 exit();
@@ -117,6 +135,7 @@ final class Server
             }
             self::send(['jsonrpc' => '2.0', 'id' => $requestId, 'result' => $result]);
         } catch (\InvalidArgumentException $e) {
+            // Validation messages are written for the client; other exceptions stay in the server log only.
             self::rpcError($requestId, -32602, $e->getMessage());
         } catch (\Throwable $e) {
             error_log('[MCP] ' . get_class($e) . ': ' . $e->getMessage());
@@ -128,6 +147,7 @@ final class Server
             );
         }
     }
+    /** MCP handshake: echo the client's protocol version if supported, otherwise offer the newest one. */
     private static function initialize(\stdClass $params): array
     {
         if (
@@ -163,6 +183,13 @@ final class Server
             ),
         ];
     }
+    /**
+     * tools/call: check the tool is in this token's catalog, validate arguments against its schema,
+     * then run the handler in a transaction that re-checks the token under a row lock.
+     * InvalidArgumentException from a handler becomes an isError result (its partial writes undone
+     * via the savepoint) while the audit row is still committed; any other exception rolls back
+     * everything, audit included, and becomes a JSON-RPC internal error.
+     */
     private static function call(\stdClass $params, string $raw, array $initialUser): array
     {
         if (!isset($params->name) || !is_string($params->name)) {

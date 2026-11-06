@@ -4,8 +4,21 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Models\{TicketTime,TicketClosure,Release};
 
+/**
+ * Delivery tracking actions: time spent, closure validation and releases.
+ *
+ * - POST /tickets/{id}/time: add, edit or delete a time entry (App\Models\TicketTime).
+ * - POST /tickets/{id}/validation: approve or reject a ticket awaiting
+ *   validation (App\Models\TicketClosure).
+ * - POST /releases: create/update a release (version); POST
+ *   /releases/{id}/deliveries: record its deployment to an environment with
+ *   an outcome and a Git/build reference (App\Models\Release).
+ * Editors only (read-only accounts are refused). The models handle validation
+ * and optimistic locking through the posted "version".
+ */
 final class TrackingController
 {
+    /** JSON answer for AJAX callers (Accept: application/json), otherwise flash + redirect. */
     private function reply(string $path,array $result): void
     {
         if (str_contains($_SERVER['HTTP_ACCEPT']??'','application/json')) json_response(['ok'=>true]+$result);

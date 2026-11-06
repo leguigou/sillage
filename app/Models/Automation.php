@@ -3,6 +3,16 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
 
+/**
+ * Per-project automation rules (table automation_rules) and their execution log (automation_runs).
+ *
+ * A rule listens to one EVENTS key, matches the ticket against simple equality CONDITIONS and then
+ * applies ACTIONS (field changes and/or an automatic comment) through Ticket::patch()/comment().
+ * Condition and action values are validated with Ticket::validate() so rules accept exactly the
+ * values a manual edit would accept. Rules are capped at 200 per project, edited with optimistic versioning, and
+ * the project row is locked while saving or deleting them.
+ * run() is called by Ticket (ticket.*) and DevelopmentEvent (development.*) inside their transaction.
+ */
 final class Automation
 {
     public const EVENTS = [
@@ -40,11 +50,16 @@ final class Automation
         unset($r['conditions_json'], $r['actions_json']);
         return $r;
     }
+    /**
+     * Creates (no id) or updates (id + version) a rule after validating it.
+     * $actor is recorded as created_by on creation only; it is the fallback actor when the rule runs.
+     */
     public static function save(array $input, int $actor): array
     {
         return DB::transaction(function () use ($input, $actor) {
             $project = (int) ($input['project_id'] ?? 0);
             Project::find($project);
+            // The project row lock serializes rule changes, so the 200-rule cap below cannot be raced.
             DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE', [$project]);
             $id = (int) ($input['id'] ?? 0);
             $old = $id ? self::find($id) : null;
@@ -142,6 +157,7 @@ final class Automation
                 (int) ($input['enabled'] ?? true),
             ];
             if ($id) {
+                // Optimistic concurrency: zero affected rows means the client edited a stale version.
                 $s = DB::run(
                     'UPDATE automation_rules SET name=?,trigger_event=?,conditions_json=?,actions_json=?,enabled=?,version=version+1 WHERE id=? AND version=?',
                     [...$args, $id, (int) ($input['version'] ?? 0)],
@@ -160,6 +176,7 @@ final class Automation
             return self::find($id);
         });
     }
+    /** Toggles a rule on/off by re-saving it unchanged through save(), so validation and versioning apply. */
     public static function enabled(int $id, bool $enabled, int $version): array
     {
         $r = self::find($id);
@@ -192,6 +209,15 @@ final class Automation
             }
         });
     }
+    /**
+     * Applies the project's enabled rules for $event to one ticket, in rule id order.
+     *
+     * Must run inside the caller's transaction (it uses a SAVEPOINT). Each matching rule is applied
+     * with automation disabled (Ticket::patch(..., false)), so rules never trigger other rules. A rule
+     * whose actions are rejected (InvalidArgumentException) is rolled back to its savepoint alone and
+     * logged as failed; other exceptions abort the whole caller transaction. Every evaluated matching
+     * rule is logged in automation_runs. $context carries development_* values for Git conditions.
+     */
     public static function run(
         string $event,
         int $ticket,
@@ -200,6 +226,7 @@ final class Automation
         array $context = [],
     ): void {
         $current = Ticket::find($ticket);
+        // A status change on ticket.updated also fires rules listening to ticket.status_changed.
         $events = [$event];
         if ($event === 'ticket.updated' && $statusChanged) {
             $events[] = 'ticket.status_changed';
@@ -260,6 +287,7 @@ final class Automation
                 $message = mb_substr($e->getMessage(), 0, 500);
             }
             DB::run('RELEASE SAVEPOINT sillage_automation');
+            // Re-read so later rules see the new field values and the bumped version.
             if ($success && $changes) {
                 $current = Ticket::find($ticket);
             }

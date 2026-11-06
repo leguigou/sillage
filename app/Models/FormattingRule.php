@@ -2,6 +2,12 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * Per-project conditional formatting rules (table formatting_rules): each rule associates a color
+ * and a title with one value of a ticket field (status, priority, type or flagged), for display in
+ * ticket lists. Values are checked against the project's active workflow vocabulary; Workflow refuses
+ * to disable a status or type still referenced by such a rule. Rules are only created or deleted.
+ */
 final class FormattingRule
 {
     public static function save(array $input): int

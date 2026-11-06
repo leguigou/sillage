@@ -2,8 +2,15 @@
 declare(strict_types=1);
 namespace App\Services;
 
+/**
+ * Validates an uploaded image (company logo in CompanyController, user avatar in WorkspaceController)
+ * and returns its bytes, MIME type and SHA-256 digest. The type is detected from the file content
+ * (finfo + getimagesize must agree), never from the client-supplied name or MIME type.
+ * Limits: PNG, JPEG or WebP, at most 2 MB and 4096 x 4096 pixels.
+ */
 final class ImageUpload
 {
+    /** Validates a $_FILES entry; returns null when no file was sent. */
     public static function fromUpload(array $file, string $label = 'L’image'): ?array
     {
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;

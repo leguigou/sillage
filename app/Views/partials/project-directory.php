@@ -1,3 +1,10 @@
+<?php /**
+ * Settings panel #project-directory ("Les projets"): links to every project, the current one
+ * marked. Admins also get "Créer un projet" (opens #project-dialog) and per-project
+ * "Modifier" buttons (data-edit-project: app.js fetches GET /projects/{id}/settings, which
+ * renders project-settings.php). Included by sections/settings.php.
+ * Expects $projects, $project and $user.
+ */ ?>
 <section class="panel" id="project-directory">
  <div class="panel-header"><div><h2>Les projets</h2><p>Un cap pour chaque initiative.</p></div></div>
  <?php if($user['role']==='admin'): ?><div class="settings-toolbar"><button class="button primary" data-open="project-dialog"><?= icon('plus') ?>Créer un projet</button></div><?php endif; ?>

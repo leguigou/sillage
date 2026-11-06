@@ -1,4 +1,15 @@
-<?php /* Empty name = project fields; otherwise a complete nested form key. */
+<?php
+/**
+ * Icon + colour picker fieldset (a "work mark"): one pictogram from Appearance::ICONS
+ * and one colour from Appearance::PALETTE or a free <input type="color">.
+ * Included by dialogs.php and initial-project.php (new project), project-settings.php,
+ * workflow-settings.php (status/type items) and appearance-settings.php (types/priorities).
+ * Expects $pickerName (field-name prefix, see the note below), $pickerMark
+ * (['icon'=>..., 'color'=>...], the current value) and $pickerLabel (fieldset legend).
+ * The palette swatches are buttons without a name: front-end JS (app.js) applies the
+ * chosen swatch; only the radio icon input and the color input are submitted.
+ */
+/* Empty name = project fields; otherwise a complete nested form key. */
 $pickerIconName=$pickerName===''?'icon':$pickerName.'[icon]';
 $pickerColorName=$pickerName===''?'color':$pickerName.'[color]'; ?>
 <fieldset class="appearance-picker" data-appearance-picker>

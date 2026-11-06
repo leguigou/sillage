@@ -4,8 +4,22 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Models\Automation;
 
+/**
+ * Automation rules ("when <event> on a ticket matching <conditions>, apply
+ * <actions>"), managed from the /automation screen.
+ *
+ * - POST /automation: create or update a rule.
+ * - POST /automation/{id}/toggle: enable/disable a rule.
+ * - POST /automation/{id}/delete.
+ * Admin only. The controller only maps form fields to arrays; validation,
+ * optimistic locking ("version") and storage are in App\Models\Automation.
+ */
 final class AutomationController
 {
+    /**
+     * Creates or updates a rule (id=0 means create). Empty form fields are
+     * skipped; "none" for assignee means "unassigned" (null).
+     */
     public function save(): void
     {
         $u = Auth::admin();
@@ -42,6 +56,8 @@ final class AutomationController
                         ? $value === '1'
                         : $value);
         }
+        // Explicit checkboxes are needed to clear the estimate or replace labels,
+        // since an empty field above means "do not touch this field".
         if (!empty($_POST['clear_hours'])) {
             $actions['estimated_hours'] = null;
         }

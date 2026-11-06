@@ -1,5 +1,13 @@
 <?php
 declare(strict_types=1);
+/**
+ * Database backup: `php bin/backup.php [directory]` writes a mysqldump of DB_DATABASE to a new
+ * sillage-<UTC timestamp>-<random>.sql file (default directory storage/backups). deploy/activate.sh
+ * runs it before migrations, so a non-zero exit aborts the deployment.
+ * Credentials are passed to mysqldump through a temporary 0600 option file, never on the command
+ * line (where other local users could read them); TLS settings mirror App\Core\DB. Temporary files,
+ * and the partial dump on failure, are removed in the finally block.
+ */
 if (PHP_SAPI !== 'cli') {
     exit();
 }
@@ -12,6 +20,7 @@ if (!is_dir($directory) && !mkdir($directory, 0700, true)) {
 $name = $directory . '/sillage-' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.sql';
 $credentials = tempnam(sys_get_temp_dir(), 'sillage-db-');
 chmod($credentials, 0600);
+// Double-quote and escape values for the MySQL option-file syntax.
 $quote = fn(string $s) => '"' .
     str_replace(['\\', "\"", "\n", "\r"], ['\\\\', "\\\"", "\\n", "\\r"], $s) .
     '"';
@@ -34,12 +43,15 @@ $binary = env(
         ? ROOT . '/.runtime/mysql-8.4.13-winx64/bin/mysqldump.exe'
         : 'mysqldump',
 );
+// 'x' mode refuses to overwrite an existing file; mysqldump writes straight into this handle.
 $out = fopen($name, 'xb');
 chmod($name, 0600);
 $errors = tempnam(sys_get_temp_dir(), 'sillage-dump-');
 $process = null;
 $success = false;
 try {
+    // Array form: no shell is involved. --single-transaction gives a consistent InnoDB snapshot
+    // without locking tables, so the application can keep running during the dump.
     $process = proc_open(
         [
             $binary,

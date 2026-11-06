@@ -2,8 +2,19 @@
 declare(strict_types=1);
 namespace App\Services;
 use App\Core\{DB, Security};
+/**
+ * HTTP client for the GitHub and Bitbucket Cloud REST APIs (plus GitHub GraphQL for the branch catalog).
+ * Every outgoing call goes through http(), which is wrapped in TechnicalLog::outgoing() and records only
+ * transport facts (status, sizes, curl error code), never the URL query, headers, token or body.
+ * Security rules: the API host is fixed per provider; the repository path is validated by repository();
+ * the token is decrypted from the connection only for the call; redirects are never followed by curl
+ * (a Bitbucket diffstat redirect is validated, then requested as a new call) and pagination URLs
+ * returned by the provider are not followed blindly with the credential. Provider errors become controlled French messages (GitAccessException for HTTP status).
+ * Used by the development controllers and by GitMonitor, GitPullRequest, GitBranchCatalog and GitAccessTest.
+ */
 final class Development
 {
+    /** Normalises a repository given as "owner/name", an https URL or a git@ SSH address into "owner/name". */
     public static function repository(string $provider, string $value): string
     {
         $host = match ($provider) {
@@ -25,6 +36,7 @@ final class Development
         return $value;
     }
 
+    /** GET on a repository-relative resource (e.g. "pulls?state=all") using the connection's stored token. */
     public static function request(array $c, string $resource, int $timeout = 20): array
     {
         $repo = self::repository($c['provider'], $c['repository']);
@@ -32,6 +44,7 @@ final class Development
         return self::http($c['provider'], Security::decrypt($c['secret_cipher']), $path, $timeout,isset($c['id'])?['connection_id'=>(int)$c['id']]:[]);
     }
 
+    /** Shape check only (length, no whitespace); validity is confirmed by an actual API call. */
     public static function accessToken(string $token): string
     {
         $token = trim($token);
@@ -41,12 +54,14 @@ final class Development
         return $token;
     }
 
+    /** Throws unless the token can read both the repository and its pull requests. */
     public static function verifyConnection(array $connection): void
     {
         self::request($connection, '', 8);
         self::request($connection, $connection['provider'] === 'github' ? 'pulls?state=all&per_page=1' : 'pullrequests?state=OPEN&pagelen=1', 8);
     }
 
+    /** Lists one page (100 items) of repositories visible to a token not yet saved, for the connection form. */
     public static function discover(string $provider, string $token, int $page, string $workspace = ''): array
     {
         if ($page < 1 || $page > 10000) throw new \InvalidArgumentException('Page de dépôts invalide.');
@@ -62,6 +77,7 @@ final class Development
         return self::repositoryPage($provider, self::http($provider, $token, $path, 8), $page);
     }
 
+    /** Validates a provider repository listing and reduces it to normalised names and visibility. */
     public static function repositoryPage(string $provider, array $data, int $page): array
     {
         if (!in_array($provider,['github','bitbucket'],true)) throw new \InvalidArgumentException('Fournisseur invalide.');
@@ -82,6 +98,12 @@ final class Development
         return ['repositories'=>$repositories,'page'=>$page,'has_more'=>$more];
     }
 
+    /**
+     * Single transport for all provider calls: GET, or POST with a JSON payload (only used for GraphQL).
+     * With $diffstatRedirect, a 302 response returns ['_diffstat_redirect' => Location] for the caller to
+     * validate (GitPullRequest::diffstatResource) instead of following it automatically.
+     * $trace is the TechnicalLog entry being filled; only sizes, HTTP status and curl errno are added to it.
+     */
     private static function http(string $provider, string $token, string $path, int $timeout,array $context=[],?array $payload=null,bool $diffstatRedirect=false): array
     {
         $base = match ($provider) { 'github'=>'https://api.github.com', 'bitbucket'=>'https://api.bitbucket.org', default=>throw new \InvalidArgumentException('Fournisseur invalide.') };
@@ -100,6 +122,7 @@ final class Development
                 CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
                 CURLOPT_PROTOCOLS_STR => 'https',
             ]);
+            // Capture the Location header only (bounded length); other headers are ignored.
             if($diffstatRedirect) curl_setopt($ch,CURLOPT_HEADERFUNCTION,static function($handle,string $line) use(&$location): int {
                 if(strncasecmp($line,'Location:',9)===0) $location=strlen($line)<=8192?trim(substr($line,9)):null;
                 return strlen($line);
@@ -109,6 +132,7 @@ final class Development
                 curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$encoded,CURLOPT_HTTPHEADER=>['Accept: application/json','Content-Type: application/json','Authorization: Bearer '.$token]]);
                 $trace['request_bytes']=strlen($encoded);
             }
+            // On Windows, let curl use the system certificate store instead of a CA bundle file.
             if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
                 curl_setopt($ch, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
             }
@@ -145,11 +169,16 @@ final class Development
             if (!is_array($data)) {
                 throw new \InvalidArgumentException('Réponse du fournisseur invalide.');
             }
+            // GraphQL reports errors inside a 200 response.
             if($payload!==null && !empty($data['errors'])) throw new \InvalidArgumentException('GitHub a refusé le catalogue GraphQL. Vérifiez les droits de lecture du contenu et du dépôt.');
             return $data;
         },$context);
     }
 
+    /**
+     * One page (100 entries) of changed files for a pull request. Bitbucket may answer the diffstat call
+     * with a 302 to a revision-based URL, which is validated before being requested with the token.
+     */
     public static function pullRequestFiles(array $connection,int $number,int $page,int $timeout): array
     {
         if($number<1 || $page<1 || $page>10) throw new \InvalidArgumentException('Page de fichiers Git invalide.');
@@ -160,6 +189,7 @@ final class Development
         return $data;
     }
 
+    /** Manual sync of one page (50 items) of branches, commits or pull requests; returns the number saved. */
     public static function sync(array $c, string $kind = 'pull_request', int $page = 1): int
     {
         if (!in_array($kind,['branch','commit','pull_request'],true) || $page<1 || $page>10000) throw new \InvalidArgumentException('Type ou page de synchronisation invalide.');
@@ -181,6 +211,10 @@ final class Development
         return count($events);
     }
 
+    /**
+     * One GraphQL page (100 refs) of GitHub branches with their last commit date, used by GitBranchCatalog.
+     * User input (owner, repository, search, cursor) is passed as GraphQL variables, never spliced into the query text.
+     */
     public static function githubBranchRefs(array $connection,string $search,?string $cursor,int $timeout): array
     {
         if($connection['provider']!=='github') throw new \InvalidArgumentException('Ce catalogue est réservé à GitHub.');
@@ -190,6 +224,7 @@ query SillageBranches($owner:String!,$repository:String!,$after:String,$search:S
 GQL;
         return self::http('github',Security::decrypt($connection['secret_cipher']),'/graphql',$timeout,['connection_id'=>$connection['id']],['query'=>$query,'variables'=>['owner'=>$owner,'repository'=>$repo,'after'=>$cursor,'search'=>$search===''?null:$search]]);
     }
+    /** Fetches one branch by exact name and returns it as a development event; throws if the provider returns another name. */
     public static function branch(array $connection,string $name): array
     {
         $name=DevelopmentPayload::branchName($name);

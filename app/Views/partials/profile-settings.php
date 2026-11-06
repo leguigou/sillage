@@ -1,3 +1,8 @@
+<?php /**
+ * Settings panel #profile ("Votre profil"), shown to every user: display name and avatar
+ * upload/removal, posted as multipart/form-data to /account; the e-mail is read-only.
+ * Also opens #password-dialog. Included by sections/settings.php. Expects $user.
+ */ ?>
 <section class="panel" id="profile">
  <div class="panel-header"><div><h2>Votre profil</h2><p>Le visage derrière les prochaines idées.</p></div><?= avatar($user['name'],'',(int)$user['id']) ?></div>
  <form action="/account" method="post" enctype="multipart/form-data" class="stack settings-form" data-avatar-form>

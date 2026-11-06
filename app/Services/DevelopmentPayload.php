@@ -2,13 +2,22 @@
 declare(strict_types=1);
 namespace App\Services;
 
-/** Provider payloads are interpreted once, before persistence or automation. */
+/**
+ * Provider payloads are interpreted once, before persistence or automation.
+ * Converts raw GitHub/Bitbucket JSON (API responses and webhook bodies) for branches, commits and pull
+ * requests into one normalised "development event" array (external_key, kind, title, url, state,
+ * occurred_at in UTC, commit_sha, metadata, references, trigger). It owns branch name validation, branch
+ * keys and SHA normalisation; matching events to tickets belongs to the DevelopmentEvent model.
+ * CI and deployment payloads are delegated to DevelopmentRunPayload. No I/O happens here.
+ */
 final class DevelopmentPayload
 {
     public const KINDS = ['branch'=>'Branches','commit'=>'Commits','pull_request'=>'Pull requests','build'=>'Tests et pipelines','deployment'=>'Déploiements'];
     public const STATES = ['active'=>'Active','deleted'=>'Supprimée','committed'=>'Enregistré','open'=>'Ouverte','merged'=>'Fusionnée','closed'=>'Fermée','declined'=>'Refusée','unknown'=>'État non fourni','success'=>'Réussi','failure'=>'Échec','pending'=>'En attente','waiting'=>'En attente de lancement','running'=>'En cours','cancelled'=>'Annulé','skipped'=>'Ignoré','inactive'=>'Inactif'];
+    /** Stable external key for a branch; hashed so any valid name fits the key column. */
     public static function branchKey(string $name): string {return 'branch:'.hash('sha256',$name);}
 
+    /** Validates a short branch name against Git ref-name rules (no control chars, "..", "@{", ".lock", etc.). */
     public static function branchName(mixed $name): string
     {
         if (!is_string($name) || $name==='' || mb_strlen($name)>1000 || preg_match('/[\x00-\x20\x7f~^:?*\[\\\\]/u',$name) || str_contains($name,'..') || str_contains($name,'@{') || str_contains($name,'//') || str_starts_with($name,'/') || str_ends_with($name,'/') || str_ends_with($name,'.') || $name==='@') throw new \InvalidArgumentException('Indiquez le nom exact d’une branche Git valide, sans URL ni préfixe refs/heads/.');
@@ -23,10 +32,16 @@ final class DevelopmentPayload
         if (mb_strlen((string)$value)>$max) throw new \InvalidArgumentException('Donnée de développement trop longue.');
         return (string)$value;
     }
+    /** Lower-cased SHA-1 (40) or SHA-256 (64) hex id, or null when invalid or all zeros (Git's "no commit"). */
     public static function sha(mixed $sha): ?string
     {
         return is_string($sha) && preg_match('/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/iD',$sha) && trim($sha,'0')!=='' ? strtolower($sha) : null;
     }
+    /**
+     * Builds the normalised event array. A missing or unparsable date is replaced by "now" and flagged
+     * with metadata.date_known=false so the UI does not present it as a real event time.
+     * Titles over 500 characters are truncated, with the full text kept in metadata.full_title.
+     */
     public static function event(string $kind,string $key,string $title,string $url,string $state,mixed $date,?string $branch=null,?string $sha=null,?string $trigger=null): array
     {
         if ($key==='' || strlen($key)>190 || !isset(self::KINDS[$kind])) throw new \InvalidArgumentException('Identité de développement invalide.');
@@ -38,7 +53,13 @@ final class DevelopmentPayload
             'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger];
         $event['references']=self::references($event);return $event;
     }
+    /** Text searched for ticket references: the full title followed by the branch name. */
     public static function references(array $event): string {return ($event['metadata']['full_title']??$event['title'])."\n".($event['metadata']['branch']??'');}
+    /**
+     * Normalises one branch, commit or pull request item. Field names differ between providers, hence the
+     * "github ?? bitbucket" fallbacks. $live marks webhook data: only then is an automation trigger set
+     * (branch created, commit pushed, PR opened or merged), so a catch-up sync never replays automations.
+     */
     public static function object(string $provider,string $kind,array $item,string $repository,bool $live=false,?string $branch=null,?string $action=null): array
     {
         if (!in_array($provider,['github','bitbucket'],true)) throw new \InvalidArgumentException('Fournisseur inconnu.');
@@ -66,12 +87,18 @@ final class DevelopmentPayload
             $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;
             $event['metadata']['target_branch']=self::text($item['base']['ref']??$item['destination']['branch']['name']??'')?:null;
             $event['metadata']['target_sha']=self::sha($item['base']['sha']??$item['destination']['commit']['hash']??null);
+            // Bitbucket list payloads carry no mergeability; it is checked separately (GitMonitor).
             $event['metadata']['merge_conflict']=$github?DevelopmentRunPayload::conflict('github',$item):null;
             $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);return $event;
         }
         throw new \InvalidArgumentException('Type de suivi inconnu.');
     }
 
+    /**
+     * Expands one webhook delivery ($event = GitHub X-GitHub-Event or Bitbucket X-Event-Key value) into a
+     * list of normalised events: CI runs/statuses/deployments, the pull request, and branch/commit events
+     * from pushes. Oversized pushes are rejected and must be caught up with a manual sync.
+     */
     public static function webhook(string $provider,string $event,array $data,string $repository): array
     {
         $events=[];

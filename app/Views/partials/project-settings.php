@@ -1,3 +1,11 @@
+<?php /**
+ * Admin "edit project" dialog #project-settings-dialog, posted to /projects/{id}/update:
+ * validation requirement, name, description, icon/colour (appearance-picker.php), main Git
+ * repository and teams (project-teams.php). The project key is shown read-only.
+ * Rendered on its own by WorkspaceController::projectSettings (GET /projects/{id}/settings,
+ * admins only) and fetched by app.js when a data-edit-project button is clicked.
+ * Expects $project, $repositoryCatalog (all repository connections) and $teams.
+ */ ?>
 <dialog id="project-settings-dialog" class="dialog compact" aria-labelledby="project-settings-title"><form action="/projects/<?= (int)$project['id'] ?>/update" method="post" class="stack">
  <?= csrf() ?><input type="hidden" name="_return" value="/?project=<?= (int)$project['id'] ?>">
  <header class="dialog-header"><h2 id="project-settings-title">Modifier <?= e($project['name']) ?></h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header>

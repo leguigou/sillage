@@ -1,4 +1,13 @@
-<?php use App\Models\{Automation,Ticket}; $rule=$editingRule; $conditions=$rule['conditions']??[]; $actions=$rule['actions']??[]; ?>
+<?php
+/**
+ * "Automatisations" section (/automation), required by workspace.php.
+ * Three panels: the project's rules ($automationRules, each loaded with Automation::find()), an admin-only editor form
+ * (POST /automation; prefilled from $editingRule when the URL has ?edit={id}) and the 30 latest runs ($automationRuns).
+ * Conditions/actions are stored as arrays; an explicit null value (e.g. assignee_id) means "Non assigné" / clear,
+ * which is why the template uses array_key_exists() instead of isset().
+ * Also uses $project, $user and $members (assignee choices).
+ */
+use App\Models\{Automation,Ticket}; $rule=$editingRule; $conditions=$rule['conditions']??[]; $actions=$rule['actions']??[]; ?>
 <section class="panel"><div class="panel-header"><div><h2>Des règles qui font avancer le travail</h2><p>Appliquez des actions à la création/modification d’un ticket ou lors d’un événement Git reçu par webhook signé.</p></div><span class="pill soft"><?= count($automationRules) ?> règles</span></div>
 <p class="help-text">Les règles s’exécutent dans l’ordre de création, une fois par événement. Leurs actions ne redéclenchent pas d’autres règles. Une erreur métier est inscrite dans le journal sans annuler le ticket.</p>
 <?php foreach($automationRules as $r): ?><article class="automation-row"><div><strong><?= e($r['name']) ?></strong><p><?= e(Automation::EVENTS[$r['trigger_event']]) ?> · <?= $r['enabled']?'Active':'En pause' ?></p><small><?= count($r['conditions']) ?> condition(s) · <?= count($r['actions']) ?> action(s)</small></div><?php if($user['role']==='admin'): ?><div class="button-row"><a class="button subtle small-button" href="/automation?project=<?= (int)$project['id'] ?>&edit=<?= (int)$r['id'] ?>#automation-editor">Modifier</a><form method="post" action="/automation/<?= (int)$r['id'] ?>/toggle"><?= csrf() ?><input type="hidden" name="version" value="<?= (int)$r['version'] ?>"><input type="hidden" name="_return" value="/automation"><button class="button subtle small-button"><?= $r['enabled']?'Suspendre':'Activer' ?></button></form><form method="post" action="/automation/<?= (int)$r['id'] ?>/delete"><?= csrf() ?><input type="hidden" name="version" value="<?= (int)$r['version'] ?>"><input type="hidden" name="_return" value="/automation"><button class="text-button danger" data-confirm="Supprimer cette automatisation ?">Supprimer</button></form></div><?php endif; ?></article><?php endforeach; if(!$automationRules): ?><p class="muted">Exemple : quand un bug est créé, le passer en priorité haute et l’assigner à la personne choisie.</p><?php endif; ?></section>

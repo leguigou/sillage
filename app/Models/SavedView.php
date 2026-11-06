@@ -2,8 +2,15 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\DB;
+/**
+ * Personal saved ticket-list views ("rapports personnels", table saved_views), private to one user
+ * and one project. Settings are normalized by App\Services\ListLayout before storage.
+ * Instead of a version number, optimistic concurrency uses revision(), a hash of the stored
+ * name and settings that the client must send back when updating.
+ */
 final class SavedView
 {
+    /** Concurrency token for a stored view: SHA-256 of its name and JSON settings. */
     public static function revision(array $row): string {return hash('sha256',$row['name']."\0".$row['settings']);}
     public static function save(int $user, int $project, string $name, array $settings,int $id=0,?string $revision=null): int
     {

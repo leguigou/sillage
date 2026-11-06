@@ -4,8 +4,27 @@ namespace App\Controllers;
 use App\Core\{Auth, DB, Security};
 use App\Models\Project;
 use App\Services\Development;
+/**
+ * Git repository connections (GitHub / Bitbucket) and the incoming webhook,
+ * behind the /development screen.
+ *
+ * Admin only (connection management, JSON or form posts):
+ * - POST /connections/repositories: list repositories visible with a token.
+ * - POST /connections: connect a repository to a project (or attach an existing
+ *   shared connection for the same repository).
+ * - POST /connections/{id}/update (replace token), /test-access (diagnostics),
+ *   /webhook (show webhook URL and secret), /sync (manual paginated import),
+ *   /delete (detach from one project).
+ * Editors: GET/POST /development/{project}/branches/{event}/tickets to search
+ * tickets and link an observed branch to one.
+ * Public: POST /webhooks/{id}, registered without CSRF and authenticated by an
+ * HMAC signature instead (see webhook()).
+ * Access tokens and webhook secrets are stored encrypted (Security::encrypt).
+ * Provider calls are in App\Services\Development.
+ */
 final class DevelopmentController
 {
+    /** JSON list of tickets that the branch observed in event {event} can be linked to (search ?q=). */
     public function branchCandidates(string $project, string $event): void
     {
         $user = Auth::editor();
@@ -28,6 +47,11 @@ final class DevelopmentController
         json_response(['ticket'=>$linked + ['url'=>ticket_url($ticket).'#development']]);
     }
 
+    /**
+     * Runs access diagnostics for connection {id} (which must be linked to the
+     * posted project). If a token is posted, it is tested as a draft without
+     * being saved; otherwise the stored token is used.
+     */
     public function testAccess(string $id): void
     {
         $user=Auth::admin();Security::limit('git-access-test:'.$user['id'],10,60);
@@ -43,6 +67,7 @@ final class DevelopmentController
         header('Cache-Control: no-store');
         json_response(['checks'=>\App\Services\GitAccessTest::run($connection),'credential'=>$token===''?'saved':'draft','request_id'=>\App\Services\TechnicalLog::requestId()]);
     }
+    /** Returns the webhook URL and the decrypted webhook secret of connection {id}, to configure the provider. */
     public function webhookSetup(string $id): void
     {
         $user=Auth::admin();Security::limit('webhook-setup:'.$user['id'],30,60);
@@ -51,6 +76,11 @@ final class DevelopmentController
         header('Cache-Control: no-store');
         json_response(['url'=>url('/webhooks/'.$connection['id']),'secret'=>Security::decrypt($connection['webhook_cipher'])]);
     }
+    /**
+     * Replaces the access token of connection {id} after verifying it against
+     * the provider. An empty token keeps the current one. The UPDATE only
+     * succeeds if the stored token did not change meanwhile (concurrent edit check).
+     */
     public function update(string $id): void
     {
         Auth::admin();
@@ -71,6 +101,7 @@ final class DevelopmentController
         redirect('/development?project=' . \App\Models\RepositoryConnection::contextProject((int)$id,(int)($_POST['project_id']??0)));
     }
 
+    /** Lists repositories reachable with the posted token (paginated), flagging those already linked to the project. */
     public function repositories(): void
     {
         Auth::admin();
@@ -96,6 +127,8 @@ final class DevelopmentController
         $provider = (string) ($_POST['provider'] ?? '');
         $repo = Development::repository($provider, (string) ($_POST['repository'] ?? ''));
         $token = Development::accessToken((string) ($_POST['token'] ?? ''));
+        // One connection per repository is shared between projects: if it already
+        // exists, link it to this project and keep its existing token.
         $shared = DB::one('SELECT id FROM connections WHERE provider=? AND repository=? ORDER BY id LIMIT 1',[$provider,$repo]);
         if ($shared) {
             \App\Models\RepositoryConnection::attach($pid,(int)$shared['id']);
@@ -112,11 +145,13 @@ final class DevelopmentController
             [$pid, $provider, $repo, $cipher, Security::encrypt($hook)],
         );
         \App\Models\RepositoryConnection::attach($pid,$id);
+        // The plain webhook secret is put in the session so the next page can display it.
         $_SESSION['webhook_setups'][] = ['repository'=>$repo,'url' => url('/webhooks/' . $id), 'secret' => $hook];
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) json_response(['ok'=>true,'existing'=>false,'repository'=>$repo,'id'=>$id]);
         flash('Dépôt connecté. Configurez le webhook avec le secret affiché une seule fois.');
         redirect('/development?project=' . $pid);
     }
+    /** Imports one page (max 50) of branches, commits or pull requests from the provider. */
     public function sync(string $id): void
     {
         Auth::admin();
@@ -130,6 +165,7 @@ final class DevelopmentController
         flash($n . ' éléments synchronisés · '.\App\Services\DevelopmentPayload::KINDS[$kind].' · page '.$page.' (50 maximum par page).');
         redirect('/development?project=' . \App\Models\RepositoryConnection::contextProject((int)$id,(int)($_POST['project_id']??0)));
     }
+    /** Detaches connection {id} from one project (the posted one, or a project it is linked to). */
     public function disconnect(string $id): void
     {
         Auth::admin();
@@ -141,6 +177,13 @@ final class DevelopmentController
         );
         redirect('/development?project='.$project);
     }
+    /**
+     * Receives push / pull request / CI events from the Git provider.
+     * No user session: the request is trusted only if its HMAC-SHA256 signature
+     * (X-Hub-Signature-256 or X-Hub-Signature header) matches the body signed
+     * with this connection's webhook secret, and the payload's repository
+     * matches the connection. Body limited to 1 MB, 120 calls/min per IP.
+     */
     public function webhook(string $id): void
     {
         Security::limit('webhook', 120, 60);
@@ -159,6 +202,7 @@ final class DevelopmentController
         $signature =
             $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? ($_SERVER['HTTP_X_HUB_SIGNATURE'] ?? '');
         $expected = 'sha256=' . hash_hmac('sha256', $body, Security::decrypt($c['webhook_cipher']));
+        // Constant-time comparison to avoid leaking the expected signature through timing.
         if (!hash_equals($expected, $signature)) {
             json_response(['error' => 'Signature invalid'], 401);
         }
@@ -171,6 +215,8 @@ final class DevelopmentController
             json_response(['error' => 'Repository mismatch'], 403);
         }
         try {
+            // Event name: X-GitHub-Event (GitHub) or X-Event-Key (Bitbucket). Only
+            // known names are written to the technical log.
             $event=(string)($_SERVER['HTTP_X_GITHUB_EVENT']??$_SERVER['HTTP_X_EVENT_KEY']??'');
             \App\Services\TechnicalLog::incoming(['operation'=>in_array($event,['push','create','delete','pull_request','repo:push','pullrequest:created','pullrequest:updated','pullrequest:fulfilled','pullrequest:rejected','workflow_run','check_run','check_suite','deployment_status','status','repo:commit_status_created','repo:commit_status_updated'],true)?$event:'unknown_event']);
             $events=\App\Services\DevelopmentPayload::webhook($c['provider'],$event,$data,$c['repository']);

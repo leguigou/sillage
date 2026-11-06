@@ -2,7 +2,14 @@
 declare(strict_types=1);
 namespace App\Core;
 
-/** Thirty-day bearer credential, independent of ephemeral PHP session storage. */
+/**
+ * Thirty-day bearer credential, independent of ephemeral PHP session storage.
+ * "Remember me" cookie in selector:validator form. The random selector is the lookup key in
+ * persistent_logins; only an HMAC of the validator (keyed with APP_KEY) is stored, so a database
+ * leak does not yield usable cookies, and the comparison is constant-time (hash_equals).
+ * A credential is bound to the user's auth_version and dies when it changes. Used by Auth, which
+ * issues one at login, restores sessions from it and revokes it at logout.
+ */
 final class PersistentLogin
 {
     public const LIFETIME=30*86400;
@@ -14,6 +21,11 @@ final class PersistentLogin
     {
         return hash_hmac('sha256',self::cookieName().':'.$validator,env('APP_KEY'));
     }
+    /**
+     * Create a credential (optionally replacing $replaceSelector) if the account is still active, verified
+     * and at the same auth_version; returns the cookie value, selector and expiry, or null.
+     * Also purges a bounded batch of expired rows.
+     */
     public static function issue(array $user,int $expires,?string $replaceSelector=null): ?array
     {
         return DB::transaction(function() use($user,$expires,$replaceSelector) {
@@ -27,6 +39,7 @@ final class PersistentLogin
             return ['cookie'=>$selector.':'.$validator,'selector'=>$selector,'expires'=>$expires];
         });
     }
+    /** Validate a cookie value and return the user row, selector and expiry; stale credentials are deleted. */
     public static function restore(string $cookie): ?array
     {
         $parts=self::parse($cookie);
@@ -67,9 +80,11 @@ final class PersistentLogin
     public static function setCookie(string $value,int $expires): void
     {
         setcookie(self::cookieName(),$value,['expires'=>$expires,'path'=>'/','secure'=>env('SESSION_SECURE','true')==='true','httponly'=>true,'samesite'=>'Lax']);
+        // Mirror the change into $_COOKIE so later code in this same request sees the new state.
         if ($value==='') unset($_COOKIE[self::cookieName()]);
         else $_COOKIE[self::cookieName()]=$value;
     }
+    /** Revoke the credential carried by the current request's cookie and clear the cookie. */
     public static function forget(): void
     {
         self::revoke((string)($_COOKIE[self::cookieName()]??''));

@@ -1,3 +1,11 @@
+<?php /**
+ * Sign-in page shared by four modes: login, register, forgot (request a reset link) and reset (choose a new password).
+ * Rendered by AuthController::page() through View::render('auth') with guest=true, so it is wrapped by guest.php.
+ * Expects: $mode ('login'|'register'|'forgot'|'reset') which picks the visible fields, the POST target "/{mode}"
+ * and the button label; $title (heading chosen per mode by the controller).
+ * In reset mode the token is copied from $_GET['token'] into a hidden field (escaped with e()).
+ * Left column is decorative marketing art; the developer note at the bottom only shows when APP_ENV=local.
+ */ ?>
 <main class="auth-grid"><section class="auth-story"><span class="pill soft"><span class="live-dot"></span> Moins de friction. Plus d’élan.</span><h1>Les bonnes idées<br>méritent un <em>sillage.</em></h1><p>Du premier signal au dernier détail.<br>Un espace clair pour faire avancer le travail.</p><div class="auth-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="float-card float-one"><?= work_mark('type','task') ?><div><strong>Une équipe. Un cap.</strong><small>Chaque détail trouve sa place</small></div><span class="mini-status">En cours</span></div><div class="float-card float-two"><span class="spark-tile"><?= icon('spark') ?></span><div><strong>Le prochain pas, simplement.</strong><small>Une vision partagée, du début à la fin.</small></div></div><div class="orbit-core"><?= icon('arrow') ?></div></div><div class="story-proof"><span class="avatar lavender">CM</span><span class="avatar mint">LB</span><span class="avatar peach">HP</span><small>Un espace pour votre équipe <?= e(App\Core\Company::name()) ?>.</small></div></section>
 <section class="auth-panel"><div class="auth-card"><span class="eyebrow">VOTRE ESPACE, EN MIEUX</span><h2><?= e($title) ?></h2><p><?= $mode==='register'?'Créez votre compte avec votre adresse professionnelle.':($mode==='forgot'?'Nous vous enverrons un lien pour choisir un nouveau mot de passe.':($mode==='reset'?'Choisissez un mot de passe unique pour votre compte.':'Connectez-vous pour retrouver le fil de vos projets.')) ?></p>
 <form method="post" action="/<?= e($mode) ?>" class="stack"><?= csrf() ?><input type="hidden" name="_return" value="/<?= e($mode) ?>">

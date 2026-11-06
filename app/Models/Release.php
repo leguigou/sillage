@@ -3,7 +3,15 @@ declare(strict_types=1);
 namespace App\Models;
 use App\Core\{DB,Security};
 
-/** A successful production delivery is explicit; a merged PR never implies deployment. */
+/**
+ * A successful production delivery is explicit; a merged PR never implies deployment.
+ *
+ * Project versions (table releases) that tickets can target (tickets.release_id), and the delivery
+ * log (release_deliveries): each declaration records environment, outcome and a Git/build
+ * reference. The delivery state of a release is the latest declaration per environment.
+ * Release names are unique per project. Writes lock the project row and check the release version;
+ * archived releases accept no deliveries and cannot be newly targeted by tickets.
+ */
 final class Release
 {
     public const ENVIRONMENTS=['staging'=>'Préproduction','production'=>'Production'];
@@ -15,6 +23,7 @@ final class Release
         $row['delivery_state']=self::deliveryState($id);
         return $row;
     }
+    /** Latest delivery row per environment (null when none was declared). */
     public static function deliveryState(int $id): array
     {
         return self::states([$id])[$id];
@@ -37,6 +46,7 @@ final class Release
             FROM releases
             WHERE project_id=? AND archived=?',[$project,(int)$archived])['n'],'offset'=>$offset,'limit'=>$limit,'releases'=>$rows];
     }
+    /** Creates or updates a release; on update the submitted version must match (checked under the project lock). */
     public static function save(int $project,array $input,int $actor,?int $id=null): array
     {
         return DB::transaction(function() use($project,$input,$actor,$id) {
@@ -59,9 +69,11 @@ final class Release
             return self::find($id);
         });
     }
+    /** Declares a delivery (environment, outcome, reference) for an active release and bumps its version. */
     public static function deliver(int $id,array $input,int $actor,int $version): array
     {
         return DB::transaction(function() use($id,$input,$actor,$version) {
+            // Read once to find the project, lock it, then re-read so the version check is reliable.
             $old=self::find($id);DB::one('SELECT id FROM projects WHERE id=? FOR UPDATE',[$old['project_id']]);$old=self::find($id);
             if ((int)$old['version']!==$version) throw new \InvalidArgumentException('Cette version a changé. Rechargez-la avant de déclarer une livraison.');
             if ($old['archived']) throw new \InvalidArgumentException('Restaurez la version avant de déclarer une livraison.');
@@ -82,6 +94,10 @@ final class Release
             FROM release_deliveries
             WHERE release_id=?',[$id])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>DB::all("SELECT d.*,u.name actor_name FROM release_deliveries d JOIN users u ON u.id=d.actor_id WHERE release_id=? ORDER BY id DESC LIMIT $limit OFFSET $offset",[$id])];
     }
+    /**
+     * Validates a ticket's target release: it must belong to the project and be active, except that
+     * ticket $self may keep the archived release it already targets.
+     */
     public static function validateTarget(mixed $value,int $project,?int $self): ?int
     {
         if ($value===null || $value==='') return null;
@@ -91,5 +107,29 @@ final class Release
         $previous=$self?DB::one('SELECT release_id FROM tickets WHERE id=?',[$self])['release_id']??null:null;
         if ((int)$release['project_id']!==$project || ($release['archived'] && (int)$previous!==(int)$value)) throw new \InvalidArgumentException('La version cible doit appartenir au projet et être active.');
         return (int)$value;
+    }
+
+    /** Every version of a project, archived ones included, for the list filter. */
+    public static function options(int $project): array
+    {
+        return DB::all(
+            'SELECT id,name
+                FROM releases
+                WHERE project_id=?
+                ORDER BY name,id',
+            [$project],
+        );
+    }
+
+    /** Versions a ticket may target: active ones, plus its current one even when archived. */
+    public static function assignable(int $project, int $current): array
+    {
+        return DB::all(
+            'SELECT id,name,archived
+                FROM releases
+                WHERE project_id=? AND (archived=0 OR id=?)
+                ORDER BY name,id',
+            [$project, $current],
+        );
     }
 }

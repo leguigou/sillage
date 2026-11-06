@@ -1,3 +1,10 @@
+<?php /**
+ * Ticket page tab #time ("Suivi du temps", hidden until its tab is selected): estimate,
+ * time spent and remaining work, an add-time form and the paginated time entries
+ * (POST /tickets/{id}/time). An entry can be edited or deleted by its author or an admin.
+ * Included by ticket.php. Expects $ticket, $time (entries, total, limit, offset), $user
+ * and $canEdit.
+ */ ?>
 <section id="time" class="panel tracking-panel" data-ticket-panel data-ticket-live aria-labelledby="ticket-tab-time" hidden>
  <div class="panel-header"><div><h2>Suivi du temps</h2><p>Le temps passé est indépendant de l’avancement manuel.</p></div><?= icon('clock') ?></div>
  <div class="tracking-metrics"><div><small>Estimation totale</small><strong><?= e(App\Core\View::hours($ticket['estimated_hours'])) ?></strong></div><div><small>Temps passé</small><strong><?= e(App\Core\View::hours($ticket['spent_hours'])) ?></strong></div><div><small>Reste à faire · <?= (int)$ticket['progress_percent'] ?> %</small><strong><?= e(App\Core\View::hours($ticket['remaining_hours'])) ?></strong></div></div>

@@ -4,6 +4,16 @@ namespace App\Models;
 use App\Core\{DB,Security};
 use App\Services\{LlmProtocol,LlmClient};
 
+/**
+ * Connection profiles for external LLM providers (table llm_profiles) and the installation default
+ * (llm_settings row id=1, default_profile_id).
+ *
+ * API keys are stored encrypted (Security::encrypt) and never returned by the listing queries
+ * (PUBLIC_FIELDS). Saving is two-step: candidate() builds the encrypted configuration so the caller
+ * can test the connection and list models, then saveVerified() stores it with one of those models.
+ * Every change is version-checked and serialized by locking the llm_settings row. generate() refuses
+ * to run if the profile changed since the caller loaded it. Protocol details live in LlmProtocol/LlmClient.
+ */
 final class LlmProfile
 {
     private const PUBLIC_FIELDS='p.id,p.name,p.provider,p.base_url,p.model,p.enabled,p.version,p.verified_at,p.last_used_at';
@@ -13,10 +23,15 @@ final class LlmProfile
             FROM llm_profiles p CROSS JOIN llm_settings s
             ORDER BY p.name,p.id');
     }
+    /** The default profile, or null when none is set or it is disabled. */
     public static function current(): ?array
     {
         return DB::one('SELECT '.self::PUBLIC_FIELDS.' FROM llm_profiles p JOIN llm_settings s ON s.default_profile_id=p.id WHERE s.id=1 AND p.enabled=1');
     }
+    /**
+     * Validates provider/URL/key input into an unsaved configuration (key encrypted). An empty key
+     * reuses the stored one only if provider and URL are unchanged, so a saved key is never sent to a new endpoint.
+     */
     public static function candidate(array $input): array
     {
         $id=(int)($input['id']??0);
@@ -29,6 +44,7 @@ final class LlmProfile
         $config=LlmProtocol::configuration($provider,$url,$token);
         return ['id'=>$id,'version'=>(int)($old['version']??0),'provider'=>$provider,'base_url'=>$config['base_url'],'secret_cipher'=>Security::encrypt($config['token'])];
     }
+    /** Stores a tested candidate; $candidate['models'] must hold the models returned by the connection test. */
     public static function saveVerified(array $candidate,array $input): int
     {
         $name=trim((string)($input['name']??''));$model=(string)($input['model']??'');
@@ -52,6 +68,7 @@ final class LlmProfile
             return $id;
         });
     }
+    /** 'default' enables the profile and makes it the default; 'disable' also clears it as default; 'delete' removes it. */
     public static function action(int $id,int $version,string $action): void
     {
         if (!in_array($action,['default','disable','delete'],true)) throw new \InvalidArgumentException('Action LLM invalide.');
@@ -69,6 +86,7 @@ final class LlmProfile
             }
         });
     }
+    /** Sends one prompt with the enabled profile matching $profile's id and version; returns the generated text. */
     public static function generate(array $profile,string $system,string $input): string
     {
         $row=DB::one('SELECT provider,base_url,secret_cipher,model,version FROM llm_profiles WHERE id=? AND enabled=1',[$profile['id']]);

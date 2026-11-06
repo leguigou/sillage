@@ -1,4 +1,13 @@
-<?php $applicationHistory=App\Services\ApplicationHistory::catalog();$historyEntries=$applicationHistory['entries'];$oldestHistory=$historyEntries[array_key_last($historyEntries)]; ?>
+<?php
+/**
+ * Admin-only settings panel #application-history ("Versions et améliorations"): the
+ * changelog of the Sillage software itself (not the releases of user projects).
+ * Included by sections/settings.php for admins only; needs no variable from the caller.
+ * Data comes from App\Services\ApplicationHistory::catalog(); entries are assumed to be
+ * newest first and non-empty (the oldest is read with array_key_last()).
+ * Search and category filtering are client-side (data-history-* hooks, application-history.js).
+ */
+$applicationHistory=App\Services\ApplicationHistory::catalog();$historyEntries=$applicationHistory['entries'];$oldestHistory=$historyEntries[array_key_last($historyEntries)]; ?>
 <section class="panel" id="application-history">
  <div class="panel-header"><div><h2>Versions et améliorations</h2><p>Les évolutions du logiciel Sillage et les fonctionnalités apportées à votre espace.</p></div><?= icon('clock') ?></div>
  <div class="settings-history-summary">

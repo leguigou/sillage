@@ -1,8 +1,16 @@
 <?php
 declare(strict_types=1);
 namespace App\Mcp;
+/**
+ * Transport-level guard shared by the MCP endpoint (Server::handle) and the public OAuth endpoints
+ * (OAuthController::publicEndpoint), checked before any authentication.
+ * It requires HTTPS for APP_URL (plain HTTP is tolerated only for a local install reached from
+ * loopback), a Host header matching APP_URL's origin, and, when the client sends an Origin header,
+ * that same origin. The Host/Origin checks protect against DNS rebinding and cross-site browser calls.
+ */
 final class Endpoint
 {
+    /** Normalised "scheme://host:port" (default port filled in), or null for anything that is not a bare http(s) origin. */
     private static function origin(string $url): ?string
     {
         $p = parse_url($url);
@@ -23,6 +31,7 @@ final class Endpoint
             ':' .
             ($p['port'] ?? (strtolower($p['scheme']) === 'https' ? 443 : 80));
     }
+    /** Null when the request may proceed, otherwise ['message' => ..., 'status' => HTTP code] to send back. */
     public static function error(): ?array
     {
             $base = url();

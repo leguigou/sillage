@@ -1,4 +1,12 @@
-<?php $branding = App\Models\CompanyBranding::get(); ?>
+<?php
+/**
+ * Admin-only settings panel #company ("Identité de l'entreprise"): company name, subtitle,
+ * fallback initial/symbol and logo upload, posted as multipart/form-data to /company.
+ * Included by sections/settings.php for admins only; needs no variable from the caller.
+ * Loads App\Models\CompanyBranding::get() itself ("version" = optimistic locking);
+ * the current name and mark come from App\Core\Company. Applies to the whole installation.
+ */
+$branding = App\Models\CompanyBranding::get(); ?>
 <section class="panel company-settings" id="company">
  <div class="panel-header"><div><h2>Identité de l’entreprise</h2><p>Personnalisez votre espace et les pages de connexion.</p></div><span class="company-icon company-preview"><?= App\Core\Company::mark() ?></span></div>
  <form method="post" action="/company" enctype="multipart/form-data" class="stack settings-form" data-company-form>
