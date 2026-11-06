@@ -52,10 +52,12 @@ final class Wiki
         return $folder;
     }
 
-    private static function ensureFree(string $path, ?int $except = null): void
+    /** $onDisk = false when indexing a file that already exists (scans): only the index is checked. */
+    private static function ensureFree(string $path, ?int $except = null, bool $onDisk = true): void
     {
         $existing = WikiPage::byPathKey(WikiStorage::key($path));
         if ($existing && (int) $existing['id'] !== $except) throw new \InvalidArgumentException('Une page porte déjà ce nom dans ce dossier.');
+        if (!$onDisk) return;
         $exceptName = null;
         if ($except !== null) { $current = WikiPage::find($except, true);if (WikiStorage::parent($current['path']) === WikiStorage::parent($path)) $exceptName = WikiStorage::name($current['path']); }
         if (WikiStorage::nameTaken(WikiStorage::parent($path), WikiStorage::name($path), $exceptName)) throw new \InvalidArgumentException('Un fichier ou dossier porte déjà ce nom dans ce dossier.');
@@ -75,7 +77,7 @@ final class Wiki
     /** Inserts a new page row + first revision, then writes its file (shared by create() and scans). */
     private static function insert(?array $user, string $path, string $content, string $action, bool $writeFile = true): int
     {
-        self::ensureFree($path);
+        self::ensureFree($path, null, $writeFile);
         $derived = self::derived($path, $content);$author = self::author($user);
         $temp = $writeFile ? WikiStorage::prepare($path, $content) : null;
         try {
@@ -344,6 +346,7 @@ final class Wiki
     public static function rebuild(string $directory): int
     {
         if (is_dir($directory) && array_diff(scandir($directory) ?: [], ['.', '..'])) throw new \InvalidArgumentException('Le dossier de reconstruction doit être vide.');
+        $previous = WikiStorage::root();
         WikiStorage::useRoot($directory);
         try {
             $count = 0;
@@ -360,7 +363,7 @@ final class Wiki
             }
             return $count;
         } finally {
-            WikiStorage::useRoot(null);
+            WikiStorage::useRoot($previous);
         }
     }
 

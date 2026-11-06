@@ -92,6 +92,7 @@ try {
         }
         check(!$unsafe, 'injection neutralisée : ' . $attack);
     }
+    check(!str_contains(strtolower(WikiRenderer::render('[x](javascript:alert(1)) [y](JAVASCRIPT:x)')['html']), 'href="javascript'), 'liens javascript neutralisés retirés du rendu');
     check(WikiRenderer::title("```\n# pas un titre\n```\n# Vrai titre\n") === 'Vrai titre', 'titre ignoré dans un bloc de code');
     check(WikiRenderer::title("Texte\n") === null, 'page sans titre de niveau 1');
 

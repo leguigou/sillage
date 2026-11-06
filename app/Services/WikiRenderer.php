@@ -56,7 +56,9 @@ final class WikiRenderer
                 if ($match[1] === '2' || $match[1] === '3') $toc[] = ['level' => (int) $match[1], 'id' => $id, 'text' => $text];
             } elseif ($tag === 'a') {
                 $href = $element->getAttribute('href');
-                if (preg_match('#^https?://#i', $href)) {
+                // Parsedown's safe mode turns "javascript:" into a harmless "javascript%3A" relative link; drop it.
+                if (preg_match('/^\s*[a-z][a-z0-9+.\-]*%3a/i', $href)) $element->removeAttribute('href');
+                elseif (preg_match('#^https?://#i', $href)) {
                     $element->setAttribute('target', '_blank');
                     $element->setAttribute('rel', 'noopener noreferrer');
                 }
