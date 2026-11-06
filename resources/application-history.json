@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.20.1",
+  "current_version": "1.21.0",
   "entries": [
+    {
+      "version": "1.21.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Lignes plus denses et priorités P1 à P5",
+      "summary": "La liste affiche davantage de tickets à l’écran et distingue mieux les statuts.",
+      "changes": [
+        "Les marges et contrôles de chaque ligne sont réduits.",
+        "Les statuts utilisent leur couleur de fond avec un texte contrasté.",
+        "La roue crantée de Priorité propose un code de P1 à P5, une icône seule ou une icône avec son libellé."
+      ]
+    },
     {
       "version": "1.20.1",
       "date": "2026-11-06",

@@ -78,10 +78,12 @@ function project_mark(array $project,string $variant='compact'): string {
     return '<span class="project-mark '.($tile?'project-tile':'project-symbol').'" data-project-id="'.(int)$project['id'].'" data-mark-icon="'.e($symbol).'" data-project-color="'.e(strtolower($color)).'" aria-hidden="true">'.icon($symbol).'</span>';
 }
 
-function work_mark(string $kind,string $key,int $project=0): string {
+function work_mark(string $kind,string $key,int $project=0, ?string $shortLabel=null): string {
     $mark=$kind==='type'&&$project?\App\Models\Workflow::mark('type',$project,$key):\App\Models\Appearance::mark($kind,$key);
     $labels=$kind==='type'?\App\Models\Workflow::labels('type',$project):\App\Models\Ticket::PRIORITIES;
-    return '<span class="work-mark '.($kind==='type'?'type-icon':'priority-mark').'" data-mark-kind="'.e($kind).'" data-mark-key="'.e($key).'" data-mark-icon="'.e($mark['icon']).'" data-mark-color="'.e($mark['color']).'" role="img" aria-label="'.e($labels[$key]).'" title="'.e($labels[$key]).'">'.icon($mark['icon']).'</span>';
+    $content = icon($mark['icon']);
+    if ($shortLabel !== null) $content .= '<span class="mark-short-label" aria-hidden="true">'.e($shortLabel).'</span>';
+    return '<span class="work-mark '.($kind==='type'?'type-icon':'priority-mark').'" data-mark-kind="'.e($kind).'" data-mark-key="'.e($key).'" data-mark-icon="'.e($mark['icon']).'" data-mark-color="'.e($mark['color']).'" role="img" aria-label="'.e($labels[$key]).'" title="'.e($labels[$key]).'">'.$content.'</span>';
 }
 
 function status_badge(string $key,int $project): string {

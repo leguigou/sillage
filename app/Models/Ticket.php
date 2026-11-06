@@ -25,6 +25,13 @@ final class Ticket
         'low' => 'Basse',
         'lowest' => 'Très basse',
     ];
+    public const PRIORITY_CODES = [
+        'highest' => 'P1',
+        'high' => 'P2',
+        'medium' => 'P3',
+        'low' => 'P4',
+        'lowest' => 'P5',
+    ];
     public static function find(int $id): array
     {
         $t = DB::one(

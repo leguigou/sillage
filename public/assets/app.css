@@ -1202,10 +1202,10 @@ progress::-moz-progress-bar {
   font-size: 11px;
 }
 .ticket-table th {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 10px;
   color: var(--muted);
-  padding: 14px 12px;
+  padding: 6px 8px;
   background: var(--surface-soft);
   border-bottom: 1px solid var(--line);
 }
@@ -1219,7 +1219,7 @@ progress::-moz-progress-bar {
   height: 11px;
 }
 .ticket-table td {
-  padding: 14px 12px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--line);
   max-width: 250px;
 }
@@ -2784,7 +2784,7 @@ label small {
   box-shadow: none;
 }
 .ticket-table .cell-select {
-  padding: 5px 9px;
+  padding: 3px 6px;
   border: 1px solid var(--line);
   background: var(--surface-soft);
   border-radius: 999px;
@@ -2794,12 +2794,15 @@ label small {
   font-size: 10px;
 }
 .ticket-table .status-select {
-  padding: 5px 9px;
-  border: 1px solid var(--status-outline,var(--line));
-  border-radius: 999px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
   width: auto;
-  max-width: 140px;
-  font-size: 10px;
+  max-width: 170px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--status-color, var(--surface-soft));
+  color: var(--mark-ink, var(--text));
 }
 .bulk-bar select,
 .bulk-bar input {
@@ -3541,14 +3544,14 @@ section[aria-busy='true'] { cursor: progress; }
 .pill.workflow-status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:600;line-height:1.3;max-width:100%;white-space:normal}
 .workflow-status .status-dot{width:6px;height:6px;border-radius:50%;background:var(--status-color);flex:none}
 .workflow-status .status-label{min-width:0;overflow-wrap:anywhere}
-.ticket-progress{display:grid;justify-items:start;gap:4px;min-width:96px}
+.ticket-progress{display:grid;justify-items:start;gap:1px;min-width:96px}
 .ticket-progress-meter{display:flex;align-items:center;gap:6px;width:96px}
 .ticket-progress progress{display:block;appearance:none;-webkit-appearance:none;flex:1;min-width:45px;width:60px;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--line);color:var(--accent)}
 .ticket-progress progress::-webkit-progress-bar{background:var(--line);border-radius:999px}
 .ticket-progress progress::-webkit-progress-value{background:var(--accent);border-radius:999px}
 .ticket-progress progress::-moz-progress-bar{background:var(--accent);border-radius:999px}
 .ticket-progress [data-progress-percent]{min-width:26px;text-align:right;font-size:10px;font-variant-numeric:tabular-nums;color:var(--text)}
-.ticket-progress [data-progress-estimate]{font-size:10px;line-height:1.4;color:var(--subtle);white-space:nowrap}
+.ticket-progress [data-progress-estimate]{font-size:10px;line-height:1.2;color:var(--subtle);white-space:nowrap}
 .legend-dot[data-status-color]{background:var(--status-color)}.timeline-bar[data-status-color]{background:var(--status-color);color:var(--mark-ink,#fff)}
 .mention{color:var(--accent);background:var(--accent-soft);padding:1px 5px;border-radius:5px;white-space:nowrap}
 .mention-suggestions{border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;max-height:260px;overflow:auto;background:var(--surface);margin:8px 0}
@@ -3689,12 +3692,16 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table th .list-label-settings{display:inline-flex;vertical-align:middle;width:22px;height:22px;padding:4px;margin-left:0;flex-shrink:0;color:var(--muted)}
 .ticket-table th .list-label-settings .icon{width:13px;height:13px}
 .ticket-table th .list-label-settings:hover{color:var(--accent);background:var(--accent-soft)}
-.ticket-table.priority-icon-only .cell-priority{position:relative;display:inline-flex;gap:0;min-width:22px;min-height:24px;border-radius:5px}
-.ticket-table.priority-icon-only .cell-priority .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
-.ticket-table.priority-icon-only .cell-priority:focus-within{outline:2px solid var(--accent);outline-offset:3px}
+.ticket-table.priority-compact .cell-priority{position:relative;display:inline-flex;gap:0;min-width:22px;min-height:21px;border-radius:5px}
+.ticket-table.priority-compact .cell-priority .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
+.ticket-table.priority-compact .cell-priority:focus-within{outline:2px solid var(--accent);outline-offset:3px}
+.mark-short-label{display:none}
+.ticket-table.priority-code-only .priority-mark{width:auto;min-width:24px;padding-inline:4px;font-size:11px;font-weight:700}
+.ticket-table.priority-code-only .priority-mark > .icon{display:none}
+.ticket-table.priority-code-only .priority-mark > .mark-short-label{display:inline}
 .ticket-table [data-type-label]{font-size:11px;white-space:nowrap}
 .assignee-avatar-display{display:none}
-.ticket-table.assignee-avatar-only .cell-assignee{position:relative;display:inline-flex;min-width:30px;min-height:30px;border-radius:50%;align-items:center;justify-content:center}
+.ticket-table.assignee-avatar-only .cell-assignee{position:relative;display:inline-flex;min-width:22px;min-height:22px;border-radius:50%;align-items:center;justify-content:center}
 .ticket-table.assignee-avatar-only .assignee-avatar-display{display:inline-flex;pointer-events:none}
 .ticket-table.assignee-avatar-only .cell-assignee .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
 .ticket-table.assignee-avatar-only .cell-assignee:focus-within{outline:2px solid var(--accent);outline-offset:3px}
@@ -3748,3 +3755,11 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .status-filter{margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;min-inline-size:0}
 .status-filter legend{padding-inline:5px;font-weight:600}
 .status-filter-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px 12px}
+
+/* Keep the list row height set by its contents, including the two progress lines. */
+.ticket-table [data-ticket-menu-button]{width:24px;height:24px;padding:3px}
+.ticket-table .ticket-git-link{width:22px;height:22px}
+.ticket-table .assignee-avatar-display .avatar{width:22px;height:22px}
+.ticket-table .deployment-badge{padding:2px 5px;border-radius:5px;gap:4px}
+.ticket-table .deployment-badge > .icon{width:14px;height:14px}
+.ticket-table .merge-conflict-badge{padding:2px 4px}
