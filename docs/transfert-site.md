@@ -45,6 +45,7 @@ L’archive n’est jamais exécutée comme du SQL : chaque valeur est insérée
   - mettre à jour `APP_URL` ;
   - mettre à jour l’URL des **webhooks** chez GitHub ou Bitbucket (`/webhooks/<numéro>`, numéros inchangés) ;
   - reconfigurer les **clients OAuth** (ChatGPT ou autre client MCP), dont les autorisations dépendent de l’adresse du serveur.
+- **Wiki** : les pages et tout leur historique sont dans la base transférée, mais pas les fichiers `.md`. Les recréer depuis l’historique, le dossier du wiki étant vide : `php bin/console.php wiki:rebuild storage/wiki` (ou le chemin de `WIKI_PATH`). Voir [wiki.md](wiki.md).
 - Vérifier quelques tickets, pièces jointes et paramètres, puis **supprimer le fichier zip** des deux serveurs.
 
 ## Ce qui n’est pas transféré
@@ -57,6 +58,7 @@ L’archive n’est jamais exécutée comme du SQL : chaque valeur est insérée
 | Journaux techniques | Diagnostic propre au site d’origine. |
 | Codes OAuth en cours d’échange | Durée de quelques minutes. |
 | État du processus de synchronisation Git | Recréé par le nouveau site. |
+| Fichiers `.md` du wiki | Recréés par `wiki:rebuild` à partir de l’historique transféré. |
 
 ## Sécurité
 

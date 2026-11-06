@@ -1,0 +1,17 @@
+{
+  "source": "tools/wiki-editor",
+  "crepe": "7.22.3",
+  "esbuild": "0.25.10",
+  "files": [
+    {
+      "name": "wiki-editor.js",
+      "bytes": 1198824,
+      "sha256": "0893ddf9dfe5570514f6431655e5de3c8c1c41983ba0816e69b8618e8cdaf90d"
+    },
+    {
+      "name": "wiki-editor.css",
+      "bytes": 23581,
+      "sha256": "6a31cd509fb1418bebcd788fc5f573bee3c1e18d8326d85daeb26e4b5e707cc4"
+    }
+  ]
+}

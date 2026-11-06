@@ -1,0 +1,133 @@
+<?php
+/**
+ * Wiki screens (/wiki…), rendered by WikiController inside layout.php. $mode selects the main area:
+ * home (root or ?folder), search, page, edit, history, revision, diff, deleted, scan.
+ * Always available: $navigation (folder tree with pages, Wiki::navigation()), $folders (all folder
+ * paths), $canEdit, $user. Page modes also receive $page (wiki_pages row).
+ * Forms are plain POSTs with a _return path, except the editor which public/assets/wiki.js saves with
+ * fetch (409 on conflict). Content HTML comes from WikiRenderer (Parsedown safe mode + DOM cleanup).
+ */
+use App\Models\{WikiPage, WikiRevision};
+use App\Services\{WikiStorage, TextDiff};
+
+$wikiDate = fn(?string $utc) => $utc ? '<time datetime="' . e(str_replace(' ', 'T', $utc) . 'Z') . '" data-wiki-date>' . e(date('d/m/Y H:i', strtotime($utc . ' UTC'))) . ' UTC</time>' : '';
+$wikiFolderUrl = fn(string $folder) => '/wiki' . ($folder !== '' ? '?folder=' . rawurlencode($folder) : '');
+$wikiCrumbs = function (string $path, bool $file = false) use ($wikiFolderUrl): string {
+    $html = '<nav class="wiki-crumbs" aria-label="Emplacement"><a href="/wiki">Wiki</a>';
+    $parts = $path === '' ? [] : explode('/', $path);
+    if ($file) array_pop($parts);
+    $current = '';
+    foreach ($parts as $part) { $current = WikiStorage::join($current, $part);$html .= icon('chevron') . '<a href="' . e($wikiFolderUrl($current)) . '">' . e($part) . '</a>'; }
+    return $html . '</nav>';
+};
+$wikiFolderOptions = function (string $selected = '') use ($folders): string {
+    $html = '<option value=""' . ($selected === '' ? ' selected' : '') . '>Wiki (racine)</option>';
+    foreach ($folders as $folder) $html .= '<option value="' . e($folder) . '"' . ($folder === $selected ? ' selected' : '') . '>' . e(str_replace('/', ' › ', $folder)) . '</option>';
+    return $html;
+};
+$wikiCurrent = isset($page) && is_array($page) ? (int) $page['id'] : 0;
+$wikiTree = function (array $node, string $active, int $depth = 0) use (&$wikiTree, $wikiFolderUrl, $wikiCurrent): string {
+    $html = '<ul class="wiki-tree-list" role="' . ($depth === 0 ? 'tree' : 'group') . '">';
+    foreach ($node['folders'] as $folder) {
+        $open = $active === $folder['path'] || str_starts_with($active . '/', $folder['path'] . '/');
+        $html .= '<li role="treeitem" aria-expanded="' . ($open ? 'true' : 'false') . '"><details' . ($open ? ' open' : '') . '><summary><a class="wiki-tree-folder' . ($active === $folder['path'] && !$wikiCurrent ? ' active' : '') . '" href="' . e($wikiFolderUrl($folder['path'])) . '">' . icon('folder') . '<span>' . e($folder['name']) . '</span></a></summary>' . $wikiTree($folder, $active, $depth + 1) . '</details></li>';
+    }
+    foreach ($node['pages'] as $item) {
+        $current = $wikiCurrent === (int) $item['id'];
+        $html .= '<li role="treeitem"><a class="wiki-tree-page' . ($current ? ' active' : '') . '" href="/wiki/pages/' . (int) $item['id'] . '"' . ($current ? ' aria-current="page"' : '') . '>' . icon('book') . '<span>' . e($item['title']) . '</span></a></li>';
+    }
+    return $html . '</ul>';
+};
+$activeFolder = $wikiCurrent ? WikiStorage::parent($page['path']) : ($folder ?? '');
+$wikiReturn = $_SERVER['REQUEST_URI'] ?? '/wiki';
+?>
+<div class="wiki-layout" data-wiki>
+<aside class="panel wiki-sidebar" aria-label="Arborescence du wiki">
+  <form method="get" action="/wiki/search" class="wiki-search" role="search"><label class="sr-only" for="wiki-search-input">Rechercher dans le wiki</label><input id="wiki-search-input" type="search" name="q" value="<?= e($query ?? '') ?>" placeholder="Rechercher dans le wiki…" maxlength="200" required><button class="icon-button" aria-label="Rechercher"><?= icon('search') ?></button></form>
+  <?php if ($canEdit): ?><div class="wiki-sidebar-actions"><button type="button" class="button primary" data-open="wiki-page-dialog"><?= icon('plus') ?>Nouvelle page</button><button type="button" class="button subtle" data-open="wiki-folder-dialog"><?= icon('folder') ?>Nouveau dossier</button></div><?php endif; ?>
+  <div class="wiki-tree"><a class="wiki-tree-root<?= ($mode === 'home' && $activeFolder === '') ? ' active' : '' ?>" href="/wiki"><?= icon('book') ?><span>Accueil du wiki</span></a><?= $wikiTree($navigation, $activeFolder) ?></div>
+  <?php if ($user['role'] === 'admin'): ?><div class="wiki-admin"><a href="/wiki/deleted">Pages supprimées</a><form method="post" action="/wiki/scan"><?= csrf() ?><input type="hidden" name="_return" value="/wiki"><button class="link-button" title="Détecte les fichiers ajoutés, modifiés ou supprimés hors de Sillage">Analyser le dossier</button></form></div><?php endif; ?>
+</aside>
+<section class="wiki-main">
+<?php if ($mode === 'home'): ?>
+  <?= $wikiCrumbs($folder) ?>
+  <div class="panel-header"><div><h1><?= $folder === '' ? 'Wiki' : e(WikiStorage::name($folder)) ?></h1><p><?= $folder === '' ? 'La documentation partagée de l’équipe : procédures, modes opératoires, guides.' : 'Dossier ' . e(str_replace('/', ' › ', $folder)) ?></p></div>
+  <?php if ($canEdit && $folder !== ''): ?><div class="wiki-actions"><button type="button" class="button subtle" data-open="wiki-folder-move-dialog"><?= icon('edit') ?>Renommer ou déplacer</button><?php if ($user['role'] === 'admin'): ?><form method="post" action="/wiki/folders/delete" data-wiki-confirm="Supprimer le dossier « <?= e(WikiStorage::name($folder)) ?> » ? Seul un dossier vide peut être supprimé."><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><input type="hidden" name="folder" value="<?= e($folder) ?>"><button class="button subtle danger">Supprimer le dossier</button></form><?php endif; ?></div><?php endif; ?></div>
+  <?php if ($folder === ''): ?>
+    <p class="notice wiki-warning" role="note"><?= icon('lock') ?>Le wiki est lisible par toutes les personnes connectées. N’y mettez ni mot de passe, ni donnée personnelle de client ou de salarié, ni document confidentiel.</p>
+    <section class="panel"><h2>Dernières modifications</h2><?php if (!$recent): ?><p class="empty-state">Aucune page pour l’instant.<?= $canEdit ? ' Créez la première avec « Nouvelle page ».' : '' ?></p><?php else: ?><ul class="wiki-list"><?php foreach ($recent as $item): ?><li><a href="/wiki/pages/<?= (int) $item['id'] ?>"><?= icon('book') ?><strong><?= e($item['title']) ?></strong></a><span class="help-text"><?= e(str_replace('/', ' › ', WikiStorage::parent($item['path'])) ?: 'Racine') ?> · <?= e($item['updated_by_name'] ?? WikiRevision::EXTERNAL_AUTHOR) ?> · <?= $wikiDate($item['updated_at']) ?></span></li><?php endforeach; ?></ul><?php endif; ?></section>
+  <?php else: ?>
+    <section class="panel"><?php if (!$subfolders && !$folderPages): ?><p class="empty-state">Ce dossier est vide.</p><?php endif; ?><ul class="wiki-list"><?php foreach ($subfolders as $sub): ?><li><a href="<?= e($wikiFolderUrl($sub)) ?>"><?= icon('folder') ?><strong><?= e(WikiStorage::name($sub)) ?></strong></a></li><?php endforeach; ?><?php foreach ($folderPages as $item): ?><li><a href="/wiki/pages/<?= (int) $item['id'] ?>"><?= icon('book') ?><strong><?= e($item['title']) ?></strong></a><span class="help-text"><?= $wikiDate($item['updated_at']) ?></span></li><?php endforeach; ?></ul></section>
+  <?php endif; ?>
+
+<?php elseif ($mode === 'search'): ?>
+  <div class="panel-header"><div><h1>Recherche dans le wiki</h1><p><?= $query === '' ? 'Saisissez un ou plusieurs mots.' : e($results['total']) . ' page' . ($results['total'] > 1 ? 's' : '') . ' pour « ' . e($query) . ' »' . ($folder !== '' ? ' dans ' . e(str_replace('/', ' › ', $folder)) : '') ?></p></div></div>
+  <form method="get" action="/wiki/search" class="panel wiki-search-form"><label>Mots recherchés<input type="search" name="q" value="<?= e($query) ?>" maxlength="200" required></label><label>Dans le dossier<select name="folder"><?= $wikiFolderOptions($folder) ?></select></label><button class="button primary"><?= icon('search') ?>Rechercher</button></form>
+  <?php foreach ($results['rows'] as $row): ?><article class="panel wiki-result"><h2><a href="/wiki/pages/<?= (int) $row['id'] ?>"><?= e($row['title']) ?></a></h2><p class="help-text"><?= e(str_replace('/', ' › ', WikiStorage::parent($row['path'])) ?: 'Racine') ?> · <?= $wikiDate($row['updated_at']) ?></p><p><?= WikiPage::highlight($row['snippet'], $results['words']) ?></p></article><?php endforeach; ?>
+  <?php if ($query !== '' && !$results['rows']): ?><p class="empty-state">Aucune page trouvée. Essayez un autre mot, ou ajoutez * pour chercher un début de mot. Les mots de moins de 3 lettres sont ignorés.</p><?php endif; ?>
+  <?php if ($results['total'] > 20): ?><nav class="inbox-pagination" aria-label="Pages de résultats"><?php if ($resultPage > 1): ?><a class="button subtle" href="<?= e(query_url('/wiki/search', ['q' => $query, 'folder' => $folder], ['page' => $resultPage - 1])) ?>">Précédent</a><?php endif; ?><span>Page <?= (int) $resultPage ?> / <?= (int) ceil($results['total'] / 20) ?></span><?php if ($resultPage * 20 < $results['total']): ?><a class="button subtle" href="<?= e(query_url('/wiki/search', ['q' => $query, 'folder' => $folder], ['page' => $resultPage + 1])) ?>">Suivant</a><?php endif; ?></nav><?php endif; ?>
+
+<?php elseif ($mode === 'page'): ?>
+  <?= $wikiCrumbs($page['path'], true) ?>
+  <?php if ($syncState === 'external'): ?><p class="notice" role="status"><?= icon('alert') ?>Le fichier a été modifié hors de Sillage : la modification a été ajoutée à l’historique.</p><?php elseif ($syncState === 'missing'): ?><p class="notice error" role="alert"><?= icon('alert') ?>Fichier introuvable sur le disque. Le contenu affiché est la dernière version connue ; enregistrer la page recréera le fichier.</p><?php elseif ($syncState === 'invalid'): ?><p class="notice error" role="alert"><?= icon('alert') ?>Le fichier sur le disque n’est pas un texte UTF-8 valide. Le contenu affiché est la dernière version connue ; un administrateur doit corriger le fichier.</p><?php endif; ?>
+  <article class="panel wiki-page">
+    <header class="wiki-page-header"><p class="help-text">Dernière modification par <strong><?= e($page['updated_by_name'] ?? WikiRevision::EXTERNAL_AUTHOR) ?></strong>, le <?= $wikiDate($page['updated_at']) ?> · <a href="/wiki/pages/<?= (int) $page['id'] ?>/history">Historique (<?= (int) $revisionCount ?> version<?= $revisionCount > 1 ? 's' : '' ?>)</a></p>
+      <div class="wiki-actions"><?php if ($canEdit): ?><a class="button primary" href="/wiki/pages/<?= (int) $page['id'] ?>/edit"><?= icon('edit') ?>Modifier</a><button type="button" class="button subtle" data-open="wiki-move-dialog">Renommer ou déplacer</button><?php endif; ?><a class="button subtle" href="/wiki/pages/<?= (int) $page['id'] ?>/raw"><?= icon('download') ?>Télécharger le .md</a><?php if ($canEdit): ?><form method="post" action="/wiki/pages/<?= (int) $page['id'] ?>/delete" data-wiki-confirm="Supprimer la page « <?= e($page['title']) ?> » ? Le fichier sera retiré ; l’historique reste consultable par un administrateur."><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><button class="button subtle danger">Supprimer</button></form><?php endif; ?></div></header>
+    <?php if (count($toc) > 1): ?><nav class="wiki-toc" aria-label="Sommaire"><strong>Sommaire</strong><ol><?php foreach ($toc as $entry): ?><li class="level-<?= (int) $entry['level'] ?>"><a href="#<?= e($entry['id']) ?>"><?= e($entry['text']) ?></a></li><?php endforeach; ?></ol></nav><?php endif; ?>
+    <div class="wiki-content"><?= $html !== '' ? $html : '<p class="empty-state">Cette page est vide.</p>' ?></div>
+  </article>
+
+<?php elseif ($mode === 'edit'): ?>
+  <?= $wikiCrumbs($page['path'], true) ?>
+  <?php if ($syncState === 'external'): ?><p class="notice" role="status"><?= icon('alert') ?>Le fichier venait d’être modifié hors de Sillage : vous partez de cette nouvelle version.</p><?php endif; ?>
+  <form method="post" action="/wiki/pages/<?= (int) $page['id'] ?>" class="panel wiki-editor-form stack" data-wiki-editor data-page="<?= (int) $page['id'] ?>" data-view-url="/wiki/pages/<?= (int) $page['id'] ?>"><?= csrf() ?>
+    <input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><input type="hidden" name="base_revision" value="<?= (int) $page['current_revision_no'] ?>">
+    <header class="wiki-editor-header"><h1><?= e($page['title']) ?></h1><div class="wiki-actions"><div class="wiki-mode" role="group" aria-label="Mode d’édition" data-wiki-modes hidden><button type="button" class="button subtle" data-wiki-mode="visual" aria-pressed="true">Visuel</button><button type="button" class="button subtle" data-wiki-mode="markdown" aria-pressed="false">Markdown</button></div><button type="button" class="button subtle" data-wiki-assist hidden><?= icon('spark') ?>Aide à la rédaction</button></div></header>
+    <div class="wiki-editor" data-wiki-visual hidden></div>
+    <label class="wiki-source" data-wiki-source><span class="sr-only">Contenu Markdown</span><textarea name="content" rows="24" spellcheck="true" data-wiki-markdown><?= e($content) ?></textarea></label>
+    <p class="help-text" data-wiki-editor-status role="status" aria-live="polite">Le contenu est enregistré en Markdown dans le fichier <code><?= e($page['path']) ?></code>.</p>
+    <div class="wiki-conflict notice error" data-wiki-conflict hidden role="alert"><p data-wiki-conflict-message></p><div class="wiki-actions"><a class="button subtle" data-wiki-conflict-diff target="_blank" rel="noopener">Voir les différences</a><button type="button" class="button subtle" data-wiki-copy>Copier mon texte</button><button type="button" class="button subtle danger" data-wiki-force>Écraser malgré tout</button></div><p class="help-text">« Écraser » crée une nouvelle version avec votre texte ; la version de l’autre personne reste dans l’historique.</p></div>
+    <footer class="wiki-editor-footer"><label class="wiki-message">Décrire la modification (facultatif)<input name="message" maxlength="255" placeholder="Ex. : ajout de l’étape de contrôle du coffre"></label><div class="wiki-actions"><a class="button subtle" href="/wiki/pages/<?= (int) $page['id'] ?>" data-wiki-cancel>Annuler</a><button class="button primary" data-wiki-save><?= icon('save') ?>Enregistrer</button></div></footer>
+    <textarea hidden data-wiki-llm-target aria-hidden="true" tabindex="-1"></textarea>
+  </form>
+
+<?php elseif ($mode === 'history'): ?>
+  <?= $wikiCrumbs($page['path'], true) ?>
+  <div class="panel-header"><div><h1>Historique</h1><p><?php if ($page['deleted_at'] === null): ?><a href="/wiki/pages/<?= (int) $page['id'] ?>"><?= e($page['title']) ?></a><?php else: ?><?= e($page['title']) ?> (page supprimée)<?php endif; ?> · <?= count($revisions) ?> version<?= count($revisions) > 1 ? 's' : '' ?></p></div></div>
+  <form method="get" action="/wiki/pages/<?= (int) $page['id'] ?>/diff" class="panel wiki-history"><table class="wiki-history-table"><thead><tr><th scope="col">Comparer</th><th scope="col">Version</th><th scope="col">Date</th><th scope="col">Auteur</th><th scope="col">Action</th><th scope="col">Lignes</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+  <?php foreach ($revisions as $index => $revision): ?><tr><td><input type="radio" name="from" value="<?= (int) $revision['revision_no'] ?>" aria-label="Comparer depuis la version <?= (int) $revision['revision_no'] ?>" <?= $index === 1 ? 'checked' : '' ?>><input type="radio" name="to" value="<?= (int) $revision['revision_no'] ?>" aria-label="Comparer jusqu’à la version <?= (int) $revision['revision_no'] ?>" <?= $index === 0 ? 'checked' : '' ?>></td><td><a href="/wiki/pages/<?= (int) $page['id'] ?>/revisions/<?= (int) $revision['revision_no'] ?>"><?= (int) $revision['revision_no'] ?></a></td><td><?= $wikiDate($revision['created_at']) ?></td><td><?= e($revision['user_name']) ?></td><td><?= e(WikiRevision::ACTIONS[$revision['action']] ?? $revision['action']) ?><?php if ($revision['action'] === 'move'): ?><br><small class="help-text"><?= e($revision['path_before']) ?> → <?= e($revision['path_after']) ?></small><?php endif; ?><?php if ($revision['message']): ?><br><small><?= e($revision['message']) ?></small><?php endif; ?></td><td><span class="wiki-added">+<?= (int) $revision['lines_added'] ?></span> <span class="wiki-removed">−<?= (int) $revision['lines_removed'] ?></span></td><td><?php if ($revision['revision_no'] > 1): ?><a href="/wiki/pages/<?= (int) $page['id'] ?>/diff?from=<?= (int) $revision['revision_no'] - 1 ?>&amp;to=<?= (int) $revision['revision_no'] ?>">Voir le diff</a><?php endif; ?></td></tr><?php endforeach; ?>
+  </tbody></table><?php if (count($revisions) > 1): ?><div class="wiki-actions"><label class="checkbox"><input type="checkbox" name="format" value="1">Ignorer la mise en forme</label><button class="button primary">Comparer les versions choisies</button></div><?php endif; ?></form>
+
+<?php elseif ($mode === 'revision'): ?>
+  <?= $wikiCrumbs($page['path'], true) ?>
+  <div class="panel-header"><div><h1>Version <?= (int) $revision['revision_no'] ?></h1><p><?= e(WikiRevision::ACTIONS[$revision['action']] ?? $revision['action']) ?> par <?= e($revision['user_name']) ?>, le <?= $wikiDate($revision['created_at']) ?> · <a href="/wiki/pages/<?= (int) $page['id'] ?>/history">Historique</a></p></div>
+  <?php $wikiCanRestore = $page['deleted_at'] === null ? $canEdit && (int) $revision['revision_no'] !== (int) $page['current_revision_no'] && $revision['action'] !== 'delete' : $user['role'] === 'admin'; if ($wikiCanRestore): ?><form method="post" action="/wiki/pages/<?= (int) $page['id'] ?>/revisions/<?= (int) $revision['revision_no'] ?>/restore" data-wiki-confirm="Restaurer la version <?= (int) $revision['revision_no'] ?> ? Elle deviendra une nouvelle version ; aucune version n’est effacée."><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><button class="button primary">Restaurer cette version</button></form><?php endif; ?></div>
+  <article class="panel wiki-page"><div class="wiki-content"><?= $html !== '' ? $html : '<p class="empty-state">Version vide.</p>' ?></div></article>
+
+<?php elseif ($mode === 'diff'): ?>
+  <?= $wikiCrumbs($page['path'], true) ?>
+  <div class="panel-header"><div><h1>Différences</h1><p><a href="/wiki/pages/<?= (int) $page['id'] ?>/history"><?= e($page['title']) ?></a> · version <?= (int) $old['revision_no'] ?> (<?= e($old['user_name']) ?>, <?= $wikiDate($old['created_at']) ?>) → version <?= (int) $new['revision_no'] ?> (<?= e($new['user_name']) ?>, <?= $wikiDate($new['created_at']) ?>)</p></div></div>
+  <form method="get" class="panel wiki-diff-options"><label>De la version<select name="from"><?php foreach ($revisions as $r): ?><option value="<?= (int) $r['revision_no'] ?>" <?= (int) $r['revision_no'] === (int) $old['revision_no'] ? 'selected' : '' ?>><?= (int) $r['revision_no'] ?> · <?= e($r['user_name']) ?></option><?php endforeach; ?></select></label><label>À la version<select name="to"><?php foreach ($revisions as $r): ?><option value="<?= (int) $r['revision_no'] ?>" <?= (int) $r['revision_no'] === (int) $new['revision_no'] ? 'selected' : '' ?>><?= (int) $r['revision_no'] ?> · <?= e($r['user_name']) ?></option><?php endforeach; ?></select></label><label class="checkbox"><input type="checkbox" name="format" value="1" <?= $ignoreFormatting ? 'checked' : '' ?>>Ignorer la mise en forme</label><button class="button subtle">Comparer</button></form>
+  <p class="help-text"><span class="wiki-added">+<?= (int) $diff['added'] ?> ligne<?= $diff['added'] > 1 ? 's' : '' ?></span> · <span class="wiki-removed">−<?= (int) $diff['removed'] ?> ligne<?= $diff['removed'] > 1 ? 's' : '' ?></span><?= $ignoreFormatting ? ' · mise en forme ignorée' : '' ?></p>
+  <?php if ($diff['truncated']): ?><p class="notice" role="status"><?= icon('alert') ?>Les deux versions diffèrent trop pour être comparées ligne à ligne. Ouvrez les versions <a href="/wiki/pages/<?= (int) $page['id'] ?>/revisions/<?= (int) $old['revision_no'] ?>"><?= (int) $old['revision_no'] ?></a> et <a href="/wiki/pages/<?= (int) $page['id'] ?>/revisions/<?= (int) $new['revision_no'] ?>"><?= (int) $new['revision_no'] ?></a> pour les consulter.</p>
+  <?php elseif (!$diff['rows']): ?><p class="empty-state">Aucune différence<?= $ignoreFormatting ? ' en dehors de la mise en forme' : '' ?>.</p>
+  <?php else: ?><div class="panel wiki-diff" role="table" aria-label="Différences ligne à ligne"><?php foreach ($diff['rows'] as $row): ?><div class="wiki-diff-row <?= e($row['type']) ?>" role="row"><span class="wiki-diff-number" role="cell"><?= $row['old'] ?? '' ?></span><span class="wiki-diff-number" role="cell"><?= $row['new'] ?? '' ?></span><span class="wiki-diff-sign" role="cell" aria-label="<?= ['add' => 'Ajoutée', 'del' => 'Supprimée', 'same' => 'Identique', 'gap' => 'Lignes masquées'][$row['type']] ?>"><?= ['add' => '+', 'del' => '−', 'same' => '', 'gap' => '⋯'][$row['type']] ?></span><code class="wiki-diff-text" role="cell"><?php if ($row['parts']): foreach ($row['parts'] as [$changed, $text]): ?><?= $changed ? '<mark>' . e($text) . '</mark>' : e($text) ?><?php endforeach; else: ?><?= e($row['text']) ?><?php endif; ?></code></div><?php endforeach; ?></div><?php endif; ?>
+
+<?php elseif ($mode === 'deleted'): ?>
+  <div class="panel-header"><div><h1>Pages supprimées</h1><p>Leur historique est conservé. Restaurer remet la dernière version en place, si son emplacement est libre.</p></div></div>
+  <section class="panel"><?php if (!$deleted): ?><p class="empty-state">Aucune page supprimée.</p><?php else: ?><ul class="wiki-list"><?php foreach ($deleted as $item): ?><li><a href="/wiki/pages/<?= (int) $item['id'] ?>/history"><?= icon('book') ?><strong><?= e($item['title']) ?></strong></a><span class="help-text"><?= e($item['path']) ?> · supprimée le <?= $wikiDate($item['deleted_at']) ?></span><form method="post" action="/wiki/pages/<?= (int) $item['id'] ?>/revisions/<?= (int) $item['current_revision_no'] ?>/restore"><?= csrf() ?><input type="hidden" name="_return" value="/wiki/deleted"><button class="button subtle">Restaurer</button></form></li><?php endforeach; ?></ul><?php endif; ?></section>
+
+<?php elseif ($mode === 'scan'): ?>
+  <div class="panel-header"><div><h1>Analyse du dossier</h1><p>Comparaison des fichiers du dossier avec l’index du wiki.</p></div></div>
+  <section class="panel"><ul class="wiki-report"><li><strong><?= (int) $report['created'] ?></strong> nouvelle(s) page(s) ajoutée(s)</li><li><strong><?= (int) $report['external'] ?></strong> modification(s) externe(s) enregistrée(s)</li><li><strong><?= (int) $report['repaired'] ?></strong> fichier(s) réparé(s) après une écriture interrompue</li><li><strong><?= (int) $report['deleted'] ?></strong> page(s) marquée(s) supprimée(s) (fichier disparu)</li></ul>
+  <?php if ($report['invalid'] || $report['rejected']): ?><h2>Fichiers ignorés</h2><ul class="wiki-report"><?php foreach ($report['invalid'] as $line): ?><li><?= e($line) ?></li><?php endforeach; ?><?php foreach ($report['rejected'] as [$path, $reason]): ?><li><code><?= e($path) ?></code> — <?= e($reason) ?></li><?php endforeach; ?></ul><?php endif; ?></section>
+<?php endif; ?>
+</section>
+</div>
+
+<?php if ($canEdit): ?>
+<dialog id="wiki-page-dialog" class="dialog compact"><form method="post" action="/wiki/pages" class="stack"><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><header class="dialog-header"><h2>Nouvelle page</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><label>Titre<input name="title" required maxlength="200" placeholder="Ex. : Clôture de caisse"></label><label>Dossier<select name="folder"><?= $wikiFolderOptions($activeFolder) ?></select></label><p class="help-text">Le fichier portera le nom du titre (sans les caractères \ / : * ? " &lt; &gt; |).</p><button class="button primary">Créer et modifier</button></form></dialog>
+<dialog id="wiki-folder-dialog" class="dialog compact"><form method="post" action="/wiki/folders" class="stack"><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><header class="dialog-header"><h2>Nouveau dossier</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><label>Nom<input name="name" required maxlength="120"></label><label>Dans<select name="parent"><?= $wikiFolderOptions($activeFolder) ?></select></label><button class="button primary">Créer le dossier</button></form></dialog>
+<?php if ($mode === 'page'): ?><dialog id="wiki-move-dialog" class="dialog compact"><form method="post" action="/wiki/pages/<?= (int) $page['id'] ?>/move" class="stack"><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><header class="dialog-header"><h2>Renommer ou déplacer</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><label>Nom du fichier<input name="name" required maxlength="117" value="<?= e(preg_replace('/\.md$/', '', WikiStorage::name($page['path']))) ?>"></label><label>Dossier<select name="folder"><?= $wikiFolderOptions(WikiStorage::parent($page['path'])) ?></select></label><p class="help-text">Le titre affiché reste le premier titre du document ; modifiez la page pour le changer.</p><button class="button primary">Enregistrer</button></form></dialog><?php endif; ?>
+<?php if ($mode === 'home' && ($folder ?? '') !== ''): ?><dialog id="wiki-folder-move-dialog" class="dialog compact"><form method="post" action="/wiki/folders/move" class="stack"><?= csrf() ?><input type="hidden" name="_return" value="<?= e($wikiReturn) ?>"><input type="hidden" name="folder" value="<?= e($folder) ?>"><header class="dialog-header"><h2>Renommer ou déplacer le dossier</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><label>Nom<input name="name" required maxlength="120" value="<?= e(WikiStorage::name($folder)) ?>"></label><label>Dans<select name="parent"><?= $wikiFolderOptions(WikiStorage::parent($folder)) ?></select></label><p class="help-text">Les pages du dossier gardent leur historique ; un déplacement est ajouté à chacune.</p><button class="button primary">Enregistrer</button></form></dialog><?php endif; ?>
+<?php endif; ?>

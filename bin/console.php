@@ -34,6 +34,26 @@ if (in_array($command,['version','history:check'],true)) {
     if ($command==='history:check') echo count($history['entries']).' entrées d’historique valides.'.PHP_EOL;
     exit();
 }
+if ($command === 'wiki:scan') {
+    // Reconciles WIKI_PATH with the index: files added, changed or removed outside Sillage.
+    $report = \App\Services\Wiki::scan();
+    echo "Wiki : {$report['created']} page(s) ajoutée(s), {$report['external']} modification(s) externe(s), {$report['repaired']} fichier(s) réparé(s), {$report['deleted']} page(s) supprimée(s).
+";
+    foreach ($report['invalid'] as $line) echo "Ignoré : $line
+";
+    foreach ($report['rejected'] as [$path, $reason]) echo "Ignoré : $path — $reason
+";
+    exit();
+}
+if ($command === 'wiki:rebuild') {
+    // Writes every active page from its latest revision into an empty directory (never the live wiki folder).
+    $target = $argv[2] ?? '';
+    if ($target === '') { fwrite(STDERR, "Usage : php bin/console.php wiki:rebuild <dossier vide>
+"); exit(1); }
+    echo \App\Services\Wiki::rebuild($target) . " page(s) écrite(s) dans $target.
+";
+    exit();
+}
 if ($command === 'notifications:send') {
     echo json_encode(\App\Services\Notifications::deliver(100),JSON_THROW_ON_ERROR).PHP_EOL;
     exit();
@@ -151,4 +171,4 @@ if ($command === 'site:import') {
     echo 'Chaque utilisateur doit se reconnecter. Si l’adresse du site a changé, mettez à jour APP_URL, les webhooks Git et les clients OAuth.' . PHP_EOL;
     exit();
 }
-echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | git:work | git:watch | admin:create email | user:role email admin/member/viewer | site:export [dossier] | site:import fichier.zip\n";
+echo "Sillage : version | history:check | logs:prune | migrate | seed | key:generate | health | mcp:tools | company:check | mail:list | notifications:send | git:work | git:watch | wiki:scan | wiki:rebuild dossier | admin:create email | user:role email admin/member/viewer | site:export [dossier] | site:import fichier.zip\n";

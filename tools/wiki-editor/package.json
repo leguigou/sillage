@@ -1,0 +1,17 @@
+{
+  "name": "sillage-wiki-editor",
+  "private": true,
+  "description": "Prépare public/assets/vendor/milkdown/ pour l’éditeur du wiki. Non nécessaire pour installer ou déployer Sillage.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@milkdown/crepe": "7.22.3",
+    "@milkdown/kit": "7.22.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

@@ -66,6 +66,8 @@ jobs:
           php tests/run.php fixtures
           python3 tests/http_ticket_people.py
           php tests/run.php fixtures
+          python3 tests/http_wiki.py
+          php tests/run.php fixtures
           SILLAGE_MCP_PYTHON=/tmp/sillage-mcp-sdk/bin/python python3 tests/http_mcp.py
       # Exports the data left by the HTTP workflows, imports it into a second, freshly migrated
       # database and compares both table by table; a second import must be refused.

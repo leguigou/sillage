@@ -42,6 +42,25 @@ $r->add('GET','/tickets/{id}/development',[$ticketDevelopment,'panel'])
     ->add('POST','/tickets/{id}/development/pull-requests/{event}/test-procedure',[$ticketDevelopment,'publishTestProcedure'])
     ->add('GET','/tickets/{id}/development/pull-requests/{event}/files',[$ticketDevelopment,'pullRequestFiles']);
 $r->add('GET','/administration/logs',[new \App\Controllers\TechnicalLogController(),'index']);
+$wiki=new \App\Controllers\WikiController();
+$r->add('GET','/wiki',[$wiki,'index'])
+    ->add('GET','/wiki/search',[$wiki,'search'])
+    ->add('GET','/wiki/deleted',[$wiki,'deleted'])
+    ->add('POST','/wiki/scan',[$wiki,'scan'])
+    ->add('POST','/wiki/pages',[$wiki,'create'])
+    ->add('GET','/wiki/pages/{id}',[$wiki,'show'])
+    ->add('POST','/wiki/pages/{id}',[$wiki,'save'])
+    ->add('GET','/wiki/pages/{id}/edit',[$wiki,'edit'])
+    ->add('GET','/wiki/pages/{id}/raw',[$wiki,'raw'])
+    ->add('GET','/wiki/pages/{id}/history',[$wiki,'history'])
+    ->add('GET','/wiki/pages/{id}/diff',[$wiki,'diff'])
+    ->add('GET','/wiki/pages/{id}/revisions/{number}',[$wiki,'revision'])
+    ->add('POST','/wiki/pages/{id}/revisions/{number}/restore',[$wiki,'restore'])
+    ->add('POST','/wiki/pages/{id}/move',[$wiki,'move'])
+    ->add('POST','/wiki/pages/{id}/delete',[$wiki,'delete'])
+    ->add('POST','/wiki/folders',[$wiki,'createFolder'])
+    ->add('POST','/wiki/folders/move',[$wiki,'moveFolder'])
+    ->add('POST','/wiki/folders/delete',[$wiki,'deleteFolder']);
 $tracking=new \App\Controllers\TrackingController();
 $r->add('POST','/tickets/{id}/time',[$tracking,'time'])
     ->add('POST','/tickets/{id}/validation',[$tracking,'review'])

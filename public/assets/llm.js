@@ -74,12 +74,14 @@
   let target=null,original='',pending=false;
   function syncMode(){ $('[data-llm-scope]',form).hidden=mode.value!=='search';apply.hidden=!target||mode.value==='search'||!output.value; }
   function resetResult(){ result.hidden=true;output.value='';status.textContent='';apply.hidden=true; }
-  function open(field=null) {
+  function open(field=null,options={}) {
     target=field;original=field?(field.isContentEditable?field.innerHTML:field.value):'';
-    mode.value=field?(field.isContentEditable?'rewrite':'draft'):'search';
-    text.value=field?(field.isContentEditable?field.innerText:(field.form?.querySelector('[name=title]')?.value||'')+'\n'+field.value):'';
+    mode.value=options.mode||(field?(field.isContentEditable?'rewrite':'draft'):'search');
+    text.value=options.text??(field?(field.isContentEditable?field.innerText:(field.form?.querySelector('[name=title]')?.value||'')+'\n'+field.value):'');
     resetResult();syncMode();window.SillageDialogs.show(dialog);
   }
+  // Other screens (the wiki editor) open the assistant on their own hidden field; "Insérer" fills it and fires "input".
+  window.SillageAssistant=Object.freeze({open:(field,options={})=>open(field,options)});
   $$('[data-llm-open]').forEach(button=>button.addEventListener('click',()=>open()));
   if(document.body.dataset.role!=='viewer') {
     $$('form[action="/tickets"] textarea[name=description],form[action^="/tickets/"] textarea[name=description],.conversation-editor').forEach(field=>{
