@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.0",
+  "current_version": "1.24.1",
   "entries": [
+    {
+      "version": "1.24.1",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Pastilles d’état harmonisées",
+      "summary": "Les états de la liste adoptent une forme de gélule.",
+      "changes": [
+        "Cliquez directement sur la pastille pour changer l’état du ticket. Le chevron a été retiré."
+      ]
+    },
     {
       "version": "1.24.0",
       "date": "2026-11-06",
