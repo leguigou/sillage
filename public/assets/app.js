@@ -481,9 +481,14 @@ function applyPreferences() {
     $$('[data-progress-remaining]', table).forEach(remaining => remaining.hidden = !showRemaining);
     const typeLabel=preferences['column-label.'+columnLayoutKey+'.type']===true;
     const priorityMode = listPriorityMode();
+    const assigneeAvatar = preferences['column-label.'+columnLayoutKey+'.assignee'] === false;
+    $('[data-list-label-visible]').checked = typeLabel;
+    $('[data-list-priority-mode]').value = priorityMode;
+    $('[data-list-assignee-mode]').value = assigneeAvatar ? 'avatar' : 'name';
+    $('[data-list-progress-mode]').value = mode;
     table.classList.toggle('priority-compact', priorityMode !== 'label');
     table.classList.toggle('priority-code-only', priorityMode === 'code');
-    table.classList.toggle('assignee-avatar-only',preferences['column-label.'+columnLayoutKey+'.assignee']===false);
+    table.classList.toggle('assignee-avatar-only', assigneeAvatar);
     $$('[data-quick-field="assignee_id"]',table).forEach(select=>select.title=select.selectedOptions[0]?.textContent||'Non assigné');
     $$('[data-type-label]',table).forEach(label=>label.hidden=!typeLabel);
     $$('[data-column="priority"] select', table).forEach(select => {
@@ -601,50 +606,21 @@ if (listHeader) {
 
   listHeader.addEventListener('dragend', finishColumnDrag);
 }
-document.addEventListener('click',event=>{
-  const button=event.target.closest('[data-list-label-options]');if(!button) return;
-  const dialog=$('#list-label-options'),key=button.dataset.listLabelOptions;
-  dialog.dataset.labelColumn=key;
-  const isAssignee = key === 'assignee';
-  const isProgress = key === 'progress_percent';
-  const isPriority = key === 'priority';
-  const labels = {type:'Type', priority:'Priorité', assignee:'Personne assignée', progress_percent:'Avancement'};
-  $('[data-list-label-title]',dialog).textContent = 'Affichage · ' + labels[key];
-  $('[data-list-label-control]',dialog).hidden = key !== 'type';
-  $('[data-list-priority-control]',dialog).hidden = !isPriority;
-  $('[data-list-assignee-control]',dialog).hidden = !isAssignee;
-  $('[data-list-progress-control]',dialog).hidden = !isProgress;
-  const help = isProgress ? 'Le temps restant est calculé à partir de l’estimation totale et du pourcentage d’avancement.'
-    : isAssignee ? 'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.'
-    : isPriority ? 'P1 correspond à Critique et P6 à Très basse. Cliquez sur la priorité pour la modifier.'
-    : 'L’icône et son infobulle restent visibles.';
-  $('[data-list-label-help]',dialog).textContent = help + ' Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport.';
-  const stored = preferences['column-label.'+columnLayoutKey+'.'+key];
-  $('[data-list-label-visible]',dialog).checked = stored === true;
-  $('[data-list-priority-mode]',dialog).value = listPriorityMode();
-  $('[data-list-assignee-mode]',dialog).value = stored===false ? 'avatar' : 'name';
-  $('[data-list-progress-mode]',dialog).value = preferences['column-progress.'+columnLayoutKey] ?? 'both';
-  window.SillageDialogs.show(dialog);
+$('[data-list-label-visible]')?.addEventListener('change', event => {
+  preferences['column-label.'+columnLayoutKey+'.type'] = event.target.checked;
+  savePreferences();
 });
-$('[data-list-label-visible]')?.addEventListener('change',event=>{
-  const dialog=event.target.closest('dialog');
-  preferences['column-label.'+columnLayoutKey+'.'+dialog.dataset.labelColumn]=event.target.checked;
-  savePreferences();window.SillageDialogs.commit(dialog);
-});
-$('[data-list-assignee-mode]')?.addEventListener('change',event=>{
-  const dialog=event.target.closest('dialog');
-  preferences['column-label.'+columnLayoutKey+'.assignee']=event.target.value==='name';
-  savePreferences();window.SillageDialogs.commit(dialog);
+$('[data-list-assignee-mode]')?.addEventListener('change', event => {
+  preferences['column-label.'+columnLayoutKey+'.assignee'] = event.target.value === 'name';
+  savePreferences();
 });
 $('[data-list-priority-mode]')?.addEventListener('change', event => {
   preferences['column-priority.'+columnLayoutKey] = event.target.value;
   savePreferences();
-  window.SillageDialogs.commit(event.target.closest('dialog'));
 });
 $('[data-list-progress-mode]')?.addEventListener('change', event => {
   preferences['column-progress.'+columnLayoutKey] = event.target.value;
   savePreferences();
-  window.SillageDialogs.commit(event.target.closest('dialog'));
 });
 function savePreferences() {
   try {

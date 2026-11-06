@@ -31,7 +31,9 @@ for direction,values in [('asc',[0,50,100]),('desc',[100,50,0])]:
  progress_header=html.split('<th data-column="progress_percent"',1)[1].split('</th>',1)[0]
  check('aria-sort="'+('ascending' if direction=='asc' else 'descending')+'"' in progress_header
        and 'direction='+('desc' if direction=='asc' else 'asc') in progress_header
-       and 'data-list-label-options="progress_percent"' in progress_header,'dedicated progress column sorts and opens its display settings')
+       and 'data-list-label-options' not in progress_header,'dedicated progress column sorts without a settings button')
+ check('<summary>Avancé</summary>' in html and 'data-list-progress-mode' in html,
+       'advanced view options expose progress display settings')
  check('<td data-column="progress_percent"' in html and 'data-progress-estimate' in html,'progress and total estimate are rendered in their own column')
  _,remembered,_=call('/list?project='+pid);check('sort=progress_percent' in remembered and 'aria-current="true"' in remembered,'progress sort retained during navigation '+direction)
 report_data={'_csrf':token(html),'project_id':pid,'name':'Trois tris','settings':'{}','report_options':'1','sort':'priority','direction':'asc','sort2':'progress_percent','direction2':'desc','sort3':'title','direction3':'asc','group':'','columns[]':['title','priority'],'column_order':json.dumps(['title','priority'])}

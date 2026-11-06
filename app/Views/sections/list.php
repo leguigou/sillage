@@ -28,7 +28,6 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
       $label = ListLayout::COLUMNS[$key];
       $sorted = ($filters['sort'] ?? 'rank') === $key;
       $ascending = ($filters['direction'] ?? 'asc') === 'asc';
-      $customizable = in_array($key, ['type','priority','assignee','progress_percent'], true);
   ?>
     <th data-column="<?= e($key) ?>" <?= in_array($key,$listColumns,true)?'':'hidden' ?><?= $sorted?' aria-sort="'.($ascending?'ascending':'descending').'"':'' ?>>
       <div class="list-column-heading">
@@ -36,9 +35,6 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
         <a draggable="true" data-list-column-drag title="Cliquer pour trier, glisser pour déplacer" <?= $sorted?'aria-current="true"':'' ?> href="<?= e(query_url('/'.$section,$baseQuery,['sort'=>$key,'direction'=>$sorted && $ascending?'desc':'asc','page'=>1])) ?>"><?= e($label) ?> <?= icon($sorted && $ascending?'up':'down') ?></a>
       <?php else: ?>
         <span draggable="true" data-list-column-drag title="Glisser pour déplacer la colonne"><?= e($label) ?></span>
-      <?php endif; ?>
-      <?php if ($customizable): ?>
-        <button type="button" class="icon-button list-label-settings" data-list-label-options="<?= e($key) ?>" aria-label="<?= e('Affichage de la colonne '.$label) ?>" title="Personnaliser l’affichage"><?= icon('settings') ?></button>
       <?php endif; ?>
       </div>
     </th>
@@ -50,5 +46,3 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
 <td class="checkbox-cell"><input type="checkbox" name="ids[]" value="<?= (int)$t['id'] ?>" form="bulk-form" data-select-ticket aria-label="Sélectionner <?= e($t['key']) ?>"></td><?php require ROOT.'/app/Views/partials/list-ticket-cells.php'; ?><td><?php require ROOT.'/app/Views/partials/list-ticket-actions.php'; ?></td></tr>
 <?php endforeach; endforeach; ?></tbody></table><?php if(!$tickets): ?><div class="empty-state"><?= icon('search') ?><h3>Aucun ticket sur cet horizon.</h3><p>Essayez d’autres filtres, ou créez le premier ticket.</p></div><?php endif; ?><div class="table-footer"><button class="text-button" data-open="ticket-dialog"><?= icon('plus') ?>Créer un ticket</button><span><?= min($count,($page-1)*$limit+1) ?>–<?= min($count,$page*$limit) ?> sur <?= $count ?></span><div><?php if($page>1): ?><a class="button subtle small-button" href="<?= e(query_url('/'.$section,$baseQuery,['page'=>$page-1])) ?>">Précédent</a><?php endif; if($page*$limit<$count): ?><a class="button subtle small-button" href="<?= e(query_url('/'.$section,$baseQuery,['page'=>$page+1])) ?>">Suivant</a><?php endif; ?></div></div></div>
 <script type="application/json" id="formatting-rules"><?= json_encode($rules,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
-
-<dialog id="list-label-options" class="dialog compact"><header class="dialog-header"><h2 data-list-label-title>Affichage de la colonne</h2><button type="button" class="icon-button" data-close aria-label="Fermer"><?= icon('close') ?></button></header><label class="check-label" data-list-label-control><input type="checkbox" data-list-label-visible>Afficher le libellé à côté de l’icône</label><label data-list-priority-control hidden>Format de la priorité<select data-list-priority-mode><option value="label">Icône et libellé</option><option value="icon">Icône seule</option><option value="code">Code P1 à P6</option></select></label><label data-list-assignee-control hidden>Afficher la personne assignée<select data-list-assignee-mode><option value="name">Nom de la personne</option><option value="avatar">Avatar</option></select></label><label data-list-progress-control hidden>Informations à afficher<select data-list-progress-mode><option value="both">Barre et temps estimé</option><option value="bar">Barre de progression</option><option value="estimate">Temps estimé seul</option><option value="bar-remaining">Barre et temps restant</option><option value="remaining">Temps restant seul</option></select></label><p class="help-text" data-list-label-help>L’icône et son infobulle restent visibles. Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport. La priorité reste modifiable en cliquant sur son icône.</p></dialog>

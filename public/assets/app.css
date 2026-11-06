@@ -3695,9 +3695,6 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .people-candidates{max-height:240px;overflow:auto;margin:12px 0}
 .people-candidates .check-label{padding:7px 4px;gap:8px;display:flex;align-items:center}
 .people-candidates .check-label[hidden]{display:none}
-.ticket-table th .list-label-settings{display:inline-flex;vertical-align:middle;width:22px;height:22px;padding:4px;margin-left:0;flex-shrink:0;color:var(--muted)}
-.ticket-table th .list-label-settings .icon{width:13px;height:13px}
-.ticket-table th .list-label-settings:hover{color:var(--accent);background:var(--accent-soft)}
 .ticket-table.priority-compact .cell-priority{position:relative;display:inline-flex;gap:0;min-width:22px;min-height:21px;border-radius:5px}
 .ticket-table.priority-compact .cell-priority .cell-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
 .ticket-table.priority-compact .cell-priority:focus-within{outline:2px solid var(--accent);outline-offset:3px}
@@ -3773,3 +3770,7 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table .deployment-badge{padding:2px 5px;border-radius:5px;gap:4px}
 .ticket-table .deployment-badge > .icon{width:14px;height:14px}
 .ticket-table .merge-conflict-badge{padding:2px 4px}
+
+.list-advanced-options{border-top:1px solid var(--line);padding-top:10px}
+.list-advanced-options > summary{cursor:pointer;font-weight:600}
+.list-advanced-options > .stack{margin-top:12px}

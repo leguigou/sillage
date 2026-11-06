@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.5",
+  "current_version": "1.24.6",
   "entries": [
+    {
+      "version": "1.24.6",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Réglages de colonnes regroupés",
+      "summary": "La section Avancé de Votre espace, votre lecture réunit les réglages de présentation.",
+      "changes": [
+        "Les en-têtes de la liste sont allégés. Les réglages de Type, Priorité, Personne assignée et Avancement sont accessibles au même endroit."
+      ]
+    },
     {
       "version": "1.24.5",
       "date": "2026-11-06",
