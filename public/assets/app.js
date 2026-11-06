@@ -232,14 +232,19 @@ function formatTicketHours(value) {
   return (hours?hours.toLocaleString('fr-FR')+' h':'')+(hours&&rest?' ':'')+(rest?rest+' min':'');
 }
 function updateTicketProgress(row,ticket) {
-  const meter=$('[data-progress-meter]',row);
-  if(!meter) return;
-  meter.value=ticket.progress_percent;
-  meter.textContent=ticket.progress_percent+' %';
-  $('[data-progress-percent]',row).textContent=ticket.progress_percent+' %';
-  $('[data-progress-remaining]',row).textContent=ticket.remaining_hours===null
-    ?'Estimation manquante'
-    :'≈ '+formatTicketHours(ticket.remaining_hours)+' restantes';
+  const meter = $('[data-progress-meter]', row);
+  if (!meter) return;
+  const percent = ticket.progress_percent + ' %';
+  meter.value = ticket.progress_percent;
+  meter.textContent = percent;
+  $('[data-progress-percent]', row).textContent = percent;
+  const estimate = $('[data-progress-estimate]', row);
+  const duration = formatTicketHours(ticket.estimated_hours);
+  estimate.textContent = ticket.estimated_hours === null ? 'Estimation manquante' : 'Estimé : ' + duration;
+  estimate.title = ticket.remaining_hours === null ? '' : 'Reste estimé : ' + formatTicketHours(ticket.remaining_hours);
+  $('[data-column="estimated_hours"] .ticket-estimate-value', row).textContent = duration;
+  const title = $('.ticket-summary-link', row);
+  if (title) title.title = ticket.title;
 }
 function ticketModifiedLabel(value,now=new Date()) {
   const date=new Date(value);if(Number.isNaN(date.getTime())) return {label:'—',title:''};
@@ -450,13 +455,17 @@ function applyPreferences() {
   $$('[data-column-toggle]').forEach((el) => {
     const key=el.dataset.columnToggle;
     const saved=columnLayoutKey?preferences['column-visibility.'+columnLayoutKey]?.[key]:undefined;
-    el.checked = key==='title'?true:typeof saved==='boolean'?saved:key==='progress_percent' && reportLayout?.show_progress!==null && reportLayout?.show_progress!==undefined
-      ? String(reportLayout.show_progress)!=='0'
-      : reportLayout?.columns?reportLayout.columns.includes(key):preferences[`column.${key}`] !== false;
+    const defaultVisible = reportLayout?.columns
+      ? reportLayout.columns.includes(key)
+      : preferences['column.'+key] ?? el.defaultChecked;
+    el.checked = key==='title' || (typeof saved==='boolean' ? saved : defaultVisible);
     $$(`[data-column="${el.dataset.columnToggle}"]`).forEach((cell) => (cell.hidden = !el.checked));
   });
   const table=$('.ticket-table');
   if(table) {
+    const mode = preferences['column-progress.'+columnLayoutKey] ?? 'both';
+    $$('[data-progress-bar]', table).forEach(bar => bar.hidden = mode === 'estimate');
+    $$('[data-progress-estimate]', table).forEach(estimate => estimate.hidden = mode === 'bar');
     const typeLabel=preferences['column-label.'+columnLayoutKey+'.type']===true;
     const priorityLabel=preferences['column-label.'+columnLayoutKey+'.priority']!==false;
     table.classList.toggle('priority-icon-only',!priorityLabel);
@@ -481,6 +490,9 @@ function applyColumnOrder() {
   const headers=$$('thead th[data-column]',table),keys=headers.map(header=>header.dataset.column);
   const saved=preferences['column-order.'+table.dataset.columnLayoutKey];
   const chosen=Array.isArray(saved)?[...new Set(saved.filter(key=>keys.includes(key)))]:[];
+  if (chosen.includes('title') && !chosen.includes('progress_percent')) {
+    chosen.splice(chosen.indexOf('title')+1, 0, 'progress_percent');
+  }
   const order=[...chosen,...keys.filter(key=>!chosen.includes(key))];
   $$('thead tr,tbody tr[data-ticket-id]',table).forEach(row=>{
     const cells=new Map([...row.children].filter(cell=>cell.dataset.column).map(cell=>[cell.dataset.column,cell]));
@@ -502,14 +514,21 @@ document.addEventListener('click',event=>{
   const button=event.target.closest('[data-list-label-options]');if(!button) return;
   const dialog=$('#list-label-options'),key=button.dataset.listLabelOptions;
   dialog.dataset.labelColumn=key;
-  const isAssignee=key==='assignee';
-  $('[data-list-label-title]',dialog).textContent='Affichage · '+({type:'Type',priority:'Priorité',assignee:'Personne assignée'}[key]);
-  $('[data-list-label-control]',dialog).hidden=isAssignee;
-  $('[data-list-assignee-control]',dialog).hidden=!isAssignee;
-  $('[data-list-label-help]',dialog).textContent=(isAssignee?'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.':'L’icône et son infobulle restent visibles. La priorité reste modifiable en cliquant sur son icône.')+' Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport.';
-  const stored=preferences['column-label.'+columnLayoutKey+'.'+key];
-  $('[data-list-label-visible]',dialog).checked=typeof stored==='boolean'?stored:key==='priority';
-  $('[data-list-assignee-mode]',dialog).value=stored===false?'avatar':'name';
+  const isAssignee = key === 'assignee';
+  const isProgress = key === 'progress_percent';
+  const labels = {type:'Type', priority:'Priorité', assignee:'Personne assignée', progress_percent:'Avancement'};
+  $('[data-list-label-title]',dialog).textContent = 'Affichage · ' + labels[key];
+  $('[data-list-label-control]',dialog).hidden = isAssignee || isProgress;
+  $('[data-list-assignee-control]',dialog).hidden = !isAssignee;
+  $('[data-list-progress-control]',dialog).hidden = !isProgress;
+  const help = isProgress ? 'Le temps affiché correspond à l’estimation totale du ticket.'
+    : isAssignee ? 'Le nom complet reste disponible dans l’infobulle. Cliquez sur l’avatar pour modifier l’affectation.'
+    : 'L’icône et son infobulle restent visibles. La priorité reste modifiable en cliquant sur son icône.';
+  $('[data-list-label-help]',dialog).textContent = help + ' Le réglage est mémorisé dans ce navigateur pour ce compte, ce projet et ce rapport.';
+  const stored = preferences['column-label.'+columnLayoutKey+'.'+key];
+  $('[data-list-label-visible]',dialog).checked = typeof stored==='boolean' ? stored : key==='priority';
+  $('[data-list-assignee-mode]',dialog).value = stored===false ? 'avatar' : 'name';
+  $('[data-list-progress-mode]',dialog).value = preferences['column-progress.'+columnLayoutKey] ?? 'both';
   window.SillageDialogs.show(dialog);
 });
 $('[data-list-label-visible]')?.addEventListener('change',event=>{
@@ -521,6 +540,11 @@ $('[data-list-assignee-mode]')?.addEventListener('change',event=>{
   const dialog=event.target.closest('dialog');
   preferences['column-label.'+columnLayoutKey+'.assignee']=event.target.value==='name';
   savePreferences();window.SillageDialogs.commit(dialog);
+});
+$('[data-list-progress-mode]')?.addEventListener('change', event => {
+  preferences['column-progress.'+columnLayoutKey] = event.target.value;
+  savePreferences();
+  window.SillageDialogs.commit(event.target.closest('dialog'));
 });
 function savePreferences() {
   try {

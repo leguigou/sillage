@@ -22,7 +22,6 @@
     if(headers.length) {
       arrange(headers.map(node=>node.dataset.column));
       for(const row of rows()) {const header=headers.find(node=>node.dataset.column===row.dataset.reportColumn);row.querySelector('input').checked=row.dataset.reportColumn==='title'||!header?.hidden;}
-      const progress=document.querySelector('[data-column-toggle="progress_percent"]');if(progress) form.elements.show_progress.checked=progress.checked;
       recordOrder();
     }
   },true);

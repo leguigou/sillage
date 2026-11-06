@@ -254,12 +254,13 @@ final class WorkspaceController
         if(isset($_POST['report_options'])) {
             foreach(['sort','direction','group','sort2','sort3'] as $key) $settings[$key]=$_POST[$key]??'';
             foreach(['direction2','direction3'] as $key) $settings[$key]=$_POST[$key]??'asc';
+            unset($settings['show_progress']);
             $settings['columns']=$_POST['columns']??[];
             $chosen=\App\Services\ListLayout::columns($settings);
             try {$order=json_decode((string)($_POST['column_order']??'[]'),true,16,JSON_THROW_ON_ERROR);} catch(\JsonException) {throw new \InvalidArgumentException('Ordre des colonnes invalide.');}
             $order=\App\Services\ListLayout::columns(['columns'=>$order]);
             $settings['columns']=array_values(array_intersect($order,$chosen));
-            $settings['show_progress']=empty($_POST['show_progress'])?'0':'1';
+            if (isset($_POST['show_progress'])) $settings['show_progress'] = $_POST['show_progress'];
             $settings['hierarchy']=empty($_POST['hierarchy'])?'0':'1';
         }
         $id=\App\Models\SavedView::save(

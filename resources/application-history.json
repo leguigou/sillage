@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.19.0",
+  "current_version": "1.20.0",
   "entries": [
+    {
+      "version": "1.20.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Liste des tickets plus compacte",
+      "summary": "Les informations tiennent sur une ligne par ticket, avec une colonne Avancement dédiée.",
+      "changes": [
+        "La colonne Avancement affiche la barre et le temps estimé sur deux lignes. La roue crantée permet de garder l’un, l’autre ou les deux.",
+        "La colonne peut être déplacée, masquée et ajoutée aux rapports personnels.",
+        "Les résumés longs restent sur une ligne. Le texte complet et les détails de déploiement restent accessibles au survol."
+      ]
+    },
     {
       "version": "1.19.0",
       "date": "2026-11-06",

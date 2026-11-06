@@ -3,15 +3,22 @@ declare(strict_types=1);
 namespace App\Services;
 final class ListLayout
 {
-    public const COLUMNS=['type'=>'Type','key'=>'Clé','title'=>'Résumé','development'=>'Déploiement','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','status'=>'État','start'=>'Date de début','due'=>'Échéance','estimated_hours'=>'Temps estimé','labels'=>'Étiquettes','created'=>'Création','updated'=>'Modification'];
+    public const COLUMNS=['type'=>'Type','key'=>'Clé','title'=>'Résumé','progress_percent'=>'Avancement','development'=>'Déploiement','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','status'=>'État','start'=>'Date de début','due'=>'Échéance','estimated_hours'=>'Temps estimé','labels'=>'Étiquettes','created'=>'Création','updated'=>'Modification'];
     public const GROUPS=[''=>'Aucun','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','type'=>'Type de ticket','parent'=>'Parent / Epic','labels'=>'Étiquettes'];
     public const SORT_LABELS=['rank'=>'Ordre manuel','progress_percent'=>'Avancement','title'=>'Résumé','status'=>'État','priority'=>'Priorité','due'=>'Échéance','estimated_hours'=>'Temps estimé','start'=>'Date de début','created'=>'Création','updated'=>'Dernière modification','assignee'=>'Personne assignée','team'=>'Équipe','type'=>'Type'];
     public static function columns(array $settings): array
     {
-        $columns=$settings['columns']??array_keys(self::COLUMNS);
+        $columns=$settings['columns']??array_keys(array_diff_key(self::COLUMNS,['estimated_hours'=>true]));
         if(!is_array($columns) || !array_is_list($columns) || count($columns)>count(self::COLUMNS) || !in_array('title',$columns,true)) throw new \InvalidArgumentException('Choisissez les colonnes du rapport en conservant le résumé.');
         foreach($columns as $column) if(!is_string($column) || !isset(self::COLUMNS[$column])) throw new \InvalidArgumentException('Colonne de rapport invalide.');
         if(count(array_unique($columns))!==count($columns)) throw new \InvalidArgumentException('Une colonne ne peut apparaître qu’une fois.');
+        // Old reports stored the progress display separately from their columns.
+        if (isset($settings['show_progress'])) {
+            $columns = array_values(array_diff($columns, ['progress_percent']));
+            if (!empty($settings['show_progress'])) {
+                array_splice($columns, array_search('title', $columns, true)+1, 0, ['progress_percent']);
+            }
+        }
         return $columns;
     }
     public static function order(array $settings): array {$columns=self::columns($settings);return [...$columns,...array_diff(array_keys(self::COLUMNS),$columns)];}
@@ -41,10 +48,13 @@ final class ListLayout
         if(isset($settings['sort']) && !isset(self::SORT_LABELS[$settings['sort']])) throw new \InvalidArgumentException('Tri du rapport invalide.');
         if(isset($settings['direction']) && !in_array($settings['direction'],['asc','desc'],true)) throw new \InvalidArgumentException('Sens du tri invalide.');
         if(isset($settings['group']) && !isset(self::GROUPS[$settings['group']])) throw new \InvalidArgumentException('Regroupement du rapport invalide.');
-        if(isset($settings['columns'])) $settings['columns']=self::columns($settings);
         foreach(['hierarchy','show_progress','hide_done','flagged'] as $key) if(isset($settings[$key])) {
             if(!in_array($settings[$key],[0,1,'0','1',false,true,''],true)) throw new \InvalidArgumentException('Option de rapport invalide.');
             $settings[$key]=empty($settings[$key])?'0':'1';
+        }
+        if (isset($settings['columns'])) {
+            $settings['columns'] = self::columns($settings);
+            unset($settings['show_progress']);
         }
         if(strlen(json_encode($settings,JSON_THROW_ON_ERROR))>16000) throw new \InvalidArgumentException('Configuration de rapport trop volumineuse.');
         Filter::where($project,$settings);return $settings;

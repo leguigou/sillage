@@ -10,7 +10,7 @@ check(View::hours(50/60)==='50 min' && View::hours(1.25)==='1 h 15 min','palier 
 $rpProject=Project::save(['name'=>'Rapports personnels','key'=>'RP'.strtoupper(bin2hex(random_bytes(3)))]);
 $rpId=SavedView::save($uid,$rpProject,'Mes priorités',['q'=>'important','sort'=>'created','direction'=>'desc','columns'=>['created','title','priority'],'show_progress'=>'1']);
 $rpRow=DB::one('SELECT * FROM saved_views WHERE id=?',[$rpId]);$rpSettings=json_decode($rpRow['settings'],true,64,JSON_THROW_ON_ERROR);
-check($rpSettings['columns']===['created','title','priority'] && $rpSettings['direction']==='desc','rapport personnel conserve ordre des colonnes et tri de création');
+check($rpSettings['columns']===['created','title','progress_percent','priority'] && $rpSettings['direction']==='desc','rapport personnel conserve ordre des colonnes et tri de création');
 $rpRevision=SavedView::revision($rpRow);
 SavedView::save($uid,$rpProject,'Mes urgences',['priority'=>'high','sort'=>'created','direction'=>'asc','columns'=>['title','created']],$rpId,$rpRevision);
 check(DB::one('SELECT name FROM saved_views WHERE id=?',[$rpId])['name']==='Mes urgences','rapport existant modifiable par son propriétaire');
