@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.23.0",
+  "current_version": "1.24.0",
   "entries": [
+    {
+      "version": "1.24.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Colonnes déplaçables dans la liste",
+      "summary": "Déplacez les colonnes directement depuis leurs en-têtes.",
+      "changes": [
+        "Glissez la poignée d’une colonne et déposez-la à gauche ou à droite d’un autre en-tête.",
+        "Le nouvel ordre est mémorisé dans le navigateur. Les flèches des options de vue permettent aussi de déplacer les colonnes."
+      ]
+    },
     {
       "version": "1.23.0",
       "date": "2026-11-06",

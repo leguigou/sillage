@@ -522,14 +522,84 @@ function applyColumnOrder() {
   order.forEach(key=>{const row=[...picker.children].find(node=>node.dataset.listColumn===key);if(row) picker.append(row);});
   [...picker.children].forEach((row,index)=>{const up=$('[data-column-move="up"]',row),down=$('[data-column-move="down"]',row);if(up) up.disabled=index===0;if(down) down.disabled=index===picker.children.length-1;});
 }
-document.addEventListener('click',event=>{
-  const button=event.target.closest('[data-column-move]');if(!button || button.disabled) return;
-  const table=$('.ticket-table'),row=button.closest('[data-list-column]');if(!table || !row) return;
-  const keys=$$('thead th[data-column]',table).map(header=>header.dataset.column),index=keys.indexOf(row.dataset.listColumn),next=index+(button.dataset.columnMove==='up'?-1:1);
-  if(index<0 || next<0 || next>=keys.length) return;
-  [keys[index],keys[next]]=[keys[next],keys[index]];preferences['column-order.'+table.dataset.columnLayoutKey]=keys;
-  savePreferences();button.focus({preventScroll:true});
+function columnKeys(table) {
+  return $$('thead th[data-column]', table).map(header => header.dataset.column);
+}
+function saveColumnOrder(table, keys) {
+  preferences['column-order.'+table.dataset.columnLayoutKey] = keys;
+  savePreferences();
+}
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-column-move]');
+  if (!button || button.disabled) return;
+  const table = $('.ticket-table');
+  const row = button.closest('[data-list-column]');
+  if (!table || !row) return;
+  const keys = columnKeys(table);
+  const index = keys.indexOf(row.dataset.listColumn);
+  const next = index + (button.dataset.columnMove === 'up' ? -1 : 1);
+  if (index < 0 || next < 0 || next >= keys.length) return;
+  [keys[index], keys[next]] = [keys[next], keys[index]];
+  saveColumnOrder(table, keys);
+  button.focus({preventScroll:true});
 });
+const listHeader = $('.ticket-table thead');
+if (listHeader) {
+  const table = listHeader.closest('table');
+  let source = null;
+  let target = null;
+  let position = null;
+
+  function clearDropMarker() {
+    target?.removeAttribute('data-column-drop');
+    target = null;
+  }
+  function finishColumnDrag() {
+    clearDropMarker();
+    source?.classList.remove('column-drag-source');
+    source = null;
+  }
+
+  listHeader.addEventListener('dragstart', event => {
+    if (!event.target.closest('[data-list-column-grip]')) return;
+    source = event.target.closest('th[data-column]');
+    source.classList.add('column-drag-source');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', source.dataset.column);
+  });
+
+  listHeader.addEventListener('dragover', event => {
+    if (!source) return;
+    const header = event.target.closest('th[data-column]');
+    if (!header || header === source) {
+      clearDropMarker();
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const rect = header.getBoundingClientRect();
+    position = event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+    if (target !== header) clearDropMarker();
+    target = header;
+    target.dataset.columnDrop = position;
+  });
+
+  listHeader.addEventListener('dragleave', event => {
+    if (target && !target.contains(event.relatedTarget)) clearDropMarker();
+  });
+
+  listHeader.addEventListener('drop', event => {
+    if (!source || !target || !target.contains(event.target)) return;
+    event.preventDefault();
+    const key = source.dataset.column;
+    const keys = columnKeys(table).filter(column => column !== key);
+    keys.splice(keys.indexOf(target.dataset.column) + (position === 'after' ? 1 : 0), 0, key);
+    finishColumnDrag();
+    saveColumnOrder(table, keys);
+  });
+
+  listHeader.addEventListener('dragend', finishColumnDrag);
+}
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-list-label-options]');if(!button) return;
   const dialog=$('#list-label-options'),key=button.dataset.listLabelOptions;

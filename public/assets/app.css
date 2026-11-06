@@ -3707,6 +3707,11 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table.assignee-avatar-only .cell-assignee:focus-within{outline:2px solid var(--accent);outline-offset:3px}
 
 .list-column-heading{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.list-column-grip{flex:none;padding:0 2px;color:var(--subtle);font-size:14px;line-height:1;cursor:grab;user-select:none}
+.list-column-grip:hover{color:var(--accent)}
+.ticket-table th.column-drag-source .list-column-heading{opacity:.55}
+.ticket-table th[data-column-drop="before"]{box-shadow:inset 3px 0 var(--accent)}
+.ticket-table th[data-column-drop="after"]{box-shadow:inset -3px 0 var(--accent)}
 .deployment-badge{--badge-color:var(--subtle);display:inline-flex;align-items:center;gap:8px;min-width:160px;max-width:280px;padding:6px 9px;border:1px solid color-mix(in srgb,var(--badge-color) 45%,transparent);border-radius:10px;background:color-mix(in srgb,var(--badge-color) 10%,transparent);color:var(--badge-color);text-decoration:none;vertical-align:middle}
 .deployment-badge>.icon{width:18px;height:18px;flex-shrink:0}
 .deployment-badge>span{min-width:0;display:flex;align-items:baseline;gap:6px}

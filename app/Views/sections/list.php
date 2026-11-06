@@ -31,13 +31,15 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
       $customizable = in_array($key, ['type','priority','assignee','progress_percent'], true);
   ?>
     <th data-column="<?= e($key) ?>" <?= in_array($key,$listColumns,true)?'':'hidden' ?><?= $sorted?' aria-sort="'.($ascending?'ascending':'descending').'"':'' ?>>
-      <?php if ($customizable): ?><div class="list-column-heading"><?php endif; ?>
+      <div class="list-column-heading">
+        <span class="list-column-grip" draggable="true" data-list-column-grip title="Glisser pour déplacer la colonne" aria-hidden="true">⠿</span>
       <?php if (isset(ListLayout::SORT_LABELS[$key])): ?>
         <a <?= $sorted?'aria-current="true"':'' ?> href="<?= e(query_url('/'.$section,$baseQuery,['sort'=>$key,'direction'=>$sorted && $ascending?'desc':'asc','page'=>1])) ?>"><?= e($label) ?> <?= icon($sorted && $ascending?'up':'down') ?></a>
       <?php else: ?><?= e($label) ?><?php endif; ?>
       <?php if ($customizable): ?>
         <button type="button" class="icon-button list-label-settings" data-list-label-options="<?= e($key) ?>" aria-label="<?= e('Affichage de la colonne '.$label) ?>" title="Personnaliser l’affichage"><?= icon('settings') ?></button>
-      </div><?php endif; ?>
+      <?php endif; ?>
+      </div>
     </th>
   <?php endforeach; ?>
   <th></th>
