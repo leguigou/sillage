@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "current_version": "1.25.0",
+  "current_version": "1.26.0",
   "entries": [
     {
-      "version": "1.25.0",
+      "version": "1.26.0",
       "date": "2026-11-06",
       "category": "features",
       "title": "Wiki de documentation",
@@ -15,7 +15,21 @@
         "Deux personnes qui modifient la même page sont prévenues avant d’écraser le travail de l’autre.",
         "La recherche porte sur les titres et les contenus, sans tenir compte des accents ni des majuscules.",
         "Les fichiers modifiés, ajoutés ou supprimés hors de Sillage sont détectés et inscrits dans l’historique comme modifications externes.",
+        "Les fichiers du wiki ne font pas partie du transfert de site : après un import, la commande wiki:rebuild les recrée à partir de l’historique.",
         "Limites : les images, les liens entre pages et l’import de documents ne sont pas encore disponibles ; toutes les personnes connectées peuvent lire le wiki."
+      ]
+    },
+    {
+      "version": "1.25.0",
+      "date": "2026-11-06",
+      "category": "features",
+      "title": "Transfert complet d’un site",
+      "summary": "Un site entier peut être exporté dans un seul fichier zip puis importé sur une nouvelle installation.",
+      "changes": [
+        "La commande site:export regroupe comptes, configuration, projets, tickets, commentaires, historique et pièces jointes dans un fichier zip.",
+        "La commande site:import charge ce fichier sur un site neuf de même version et de même clé, après vérification complète de l’archive.",
+        "En cas d’erreur pendant l’import, aucune donnée n’est enregistrée.",
+        "Les connexions mémorisées, liens de validation en cours, limites de tentatives et journaux techniques ne sont pas transférés."
       ]
     },
     {

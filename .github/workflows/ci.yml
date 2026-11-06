@@ -44,8 +44,8 @@ jobs:
       - name: Installer les extensions de test
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends libxml2-dev libonig-dev libcurl4-openssl-dev python3 python3-venv
-          docker-php-ext-install pdo_mysql mbstring curl dom
+          apt-get install -y --no-install-recommends libxml2-dev libonig-dev libcurl4-openssl-dev libzip-dev python3 python3-venv
+          docker-php-ext-install pdo_mysql mbstring curl dom zip
           python3 -m venv /tmp/sillage-mcp-sdk
           /tmp/sillage-mcp-sdk/bin/pip install -r tests/requirements-mcp.txt
       - name: Vérifier la syntaxe PHP
@@ -69,6 +69,20 @@ jobs:
           python3 tests/http_wiki.py
           php tests/run.php fixtures
           SILLAGE_MCP_PYTHON=/tmp/sillage-mcp-sdk/bin/python python3 tests/http_mcp.py
+      # Exports the data left by the HTTP workflows, imports it into a second, freshly migrated
+      # database and compares both table by table; a second import must be refused.
+      - name: Tester le transfert complet d’un site
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        run: |
+          php bin/console.php site:export /tmp/sillage-export
+          php tests/site_transfer_roundtrip.php prepare sillage_import
+          DB_DATABASE=sillage_import php bin/console.php migrate
+          DB_DATABASE=sillage_import php bin/console.php site:import /tmp/sillage-export/sillage-site-*.zip
+          php tests/site_transfer_roundtrip.php compare sillage_test sillage_import
+          if DB_DATABASE=sillage_import php bin/console.php site:import /tmp/sillage-export/sillage-site-*.zip; then
+            echo 'ÉCHEC : un second import sur un site non vide a été accepté'; exit 1
+          fi
       - name: Tester une autre société avec domaines restreints
         env:
           COMPANY_NAME: Atelier Horizon & Associés

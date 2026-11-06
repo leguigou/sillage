@@ -1,6 +1,6 @@
 # Wiki — spécification du lot 1
 
-Statut : **lot 1 développé** sur la branche `feat/wiki` (version 1.25.0, non encore livrée). Prototype de l’éditeur et du rendu réalisé le 6 novembre 2026 (§ 6.2 et § 7.2). Le guide d’utilisation et de maintenance est [wiki.md](wiki.md). Ce document décrit le premier lot du module Wiki : une documentation interne rangée en dossiers, rédigée dans un éditeur visuel, enregistrée en fichiers Markdown (`.md`) sur disque, affichée en HTML, recherchable, avec un historique des modifications (qui, quand, quoi).
+Statut : **lot 1 développé** sur la branche `feat/wiki` (version 1.26.0, non encore livrée). Prototype de l’éditeur et du rendu réalisé le 6 novembre 2026 (§ 6.2 et § 7.2). Le guide d’utilisation et de maintenance est [wiki.md](wiki.md). Ce document décrit le premier lot du module Wiki : une documentation interne rangée en dossiers, rédigée dans un éditeur visuel, enregistrée en fichiers Markdown (`.md`) sur disque, affichée en HTML, recherchable, avec un historique des modifications (qui, quand, quoi).
 
 Les lots suivants (images, liens entre pages, import de documents, outils MCP, droits par dossier) sont listés en fin de document pour situer les choix, mais ne font pas partie de ce lot.
 

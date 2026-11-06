@@ -420,6 +420,7 @@ try {
     require __DIR__ . '/application_history.php';
     require __DIR__ . '/technical_logs.php';
     require __DIR__ . '/trusted_proxies.php';
+    require __DIR__ . '/site_transfer.php';
     require __DIR__ . '/wiki_files.php';
     require __DIR__ . '/wiki.php';
 } finally {

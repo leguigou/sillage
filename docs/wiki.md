@@ -32,6 +32,8 @@ php bin/console.php wiki:rebuild /chemin/vers/un/dossier/vide
 
 écrit la dernière version de chaque page dans ce dossier, qu’il suffit ensuite de placer comme `WIKI_PATH`.
 
+**Transfert de site** (`site:export` / `site:import`, voir [transfert-site.md](transfert-site.md)) : les tables du wiki sont transférées, pas les fichiers. Après l’import, lancer `wiki:rebuild` vers le dossier du wiki encore vide.
+
 Les fichiers peuvent être modifiés hors de Sillage, mais ce n’est pas recommandé. À l’ouverture d’une page, Sillage compare le fichier à sa dernière version connue : une différence est enregistrée comme **Modification externe** (sans auteur). Pour tout le dossier, y compris les fichiers ajoutés ou supprimés : **Analyser le dossier** (administrateurs) ou
 
 ```bash
