@@ -31,6 +31,30 @@ with admin.open(urllib.request.Request(BASE+'/connections/'+str(bb)+'/webhook',d
     setup_reply.read();check('no-store' in setup_reply.headers.get('Cache-Control',''),'revealed webhook setup cannot be cached')
 _,setup_logs,_=call('/administration/logs?channel=api',json_accept=True)
 check(webhook_setup['secret'] not in setup_logs,'webhook reveal body is excluded from technical logs')
+# A description edit can attach an existing PR with no key in its title or branch.
+description_key='BG'+suffix.upper()+'-1'
+for provider,event_header,events,object_key,body_key,id_key,author_date in [
+    ('bitbucket','X-Event-Key',('pullrequest:created','pullrequest:updated'),'pullrequest','description','id','updated_on'),
+    ('github','X-GitHub-Event',('pull_request','pull_request'),'pull_request','body','number','updated_at'),
+]:
+    repo=repositories[provider]
+    secret=json.loads(call('/connections/'+str(connections[provider])+'/webhook',{'_csrf':csrf},True)[1])['secret']
+    title='PR reference dans la description '+provider
+    pr={id_key:91234,'title':title,'state':'OPEN',body_key:'Correction du flux XML',author_date:'2026-11-06T10:00:00Z'}
+    payload={'repository':{'full_name':repo},object_key:pr}
+    for index,event in enumerate(events):
+        if provider=='github':
+            payload['action']='edited' if index else 'opened'
+        if index:
+            pr[body_key]='Correction du flux XML. Voir `'+description_key.lower()+'`.'
+            pr[author_date]='2026-11-06T10:05:00Z'
+        raw=json.dumps(payload).encode()
+        signature='sha256='+hmac.new(secret.encode(),raw,hashlib.sha256).hexdigest()
+        headers={'Content-Type':'application/json','X-Hub-Signature-256':signature,event_header:event}
+        with urllib.request.urlopen(urllib.request.Request(BASE+'/webhooks/'+str(connections[provider]),data=raw,headers=headers)) as reply:
+            check(reply.status==200,provider+' accepts signed PR delivery')
+        _,description_panel,_=call('/tickets/'+tid+'/development')
+        check((title in description_panel)==bool(index),provider+' only attaches the PR after adding the key in its description')
 check(call('/projects/'+pid+'/update',{'_csrf':csrf,'repository_connection_id':bb},True)[0]==200,'project chooses Bitbucket repository as default')
 status,panel,_=call('/tickets/'+tid+'/development')
 _,branch_list,_=call('/list?project='+pid)

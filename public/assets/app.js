@@ -438,6 +438,7 @@ $$('[data-enable-bulk]').forEach((b) =>
 let preferences = {};
 let reportLayout=null;
 const columnLayoutKey=$('.ticket-table')?.dataset.columnLayoutKey;
+const reportOrderSave=$('[data-report-order-save]');
 try {reportLayout=JSON.parse($('.ticket-table[data-report-layout]')?.dataset.reportLayout||'null');} catch {}
 try {
   const stored=JSON.parse(localStorage.getItem('sillage.preferences') || '{}');
@@ -499,6 +500,9 @@ function applyPreferences() {
       select.title = select.selectedOptions[0]?.textContent || 'Priorité';
     });
   }
+  if (reportOrderSave) {
+    reportOrderSave.hidden = String(reportColumnOrder()) === String(reportLayout.savedOrder);
+  }
   $$('.table-group td').forEach(cell=>cell.colSpan=$$('.ticket-table thead th:not([hidden])').length);
   const age = Number(preferences['done-age'] || 0);
   $$('.ticket-card').forEach((c) => {
@@ -530,6 +534,37 @@ function applyColumnOrder() {
 function columnKeys(table) {
   return $$('thead th[data-column]', table).map(header => header.dataset.column);
 }
+function reportColumnOrder() {
+  const savedOrder = reportLayout.savedOrder;
+  return columnKeys($('.ticket-table')).filter(key => savedOrder.includes(key));
+}
+reportOrderSave?.addEventListener('click', async () => {
+  const form = $('#save-view-dialog [data-personal-report]');
+  const body = new URLSearchParams({
+    _csrf: csrfToken,
+    mode: 'column_order',
+    project_id: form.elements.project_id.value,
+    view_id: form.elements.view_id.value,
+    revision: form.elements.revision.value,
+    column_order: JSON.stringify(reportColumnOrder()),
+  });
+  reportOrderSave.disabled = true;
+  try {
+    const response = await fetch('/views', {method:'POST', body, headers:{Accept:'application/json'}});
+    if (response.redirected || !response.headers.get('content-type')?.includes('application/json')) {
+      throw new Error('Votre session a expiré. Rechargez la page.');
+    }
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Enregistrement impossible.');
+    reportOrderSave.hidden = true;
+    try { sessionStorage.setItem('sillage.notice', 'Ordre des colonnes enregistré.'); } catch {}
+    location.assign(result.url);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    reportOrderSave.disabled = false;
+  }
+});
 function saveColumnOrder(table, keys) {
   preferences['column-order.'+table.dataset.columnLayoutKey] = keys;
   savePreferences();

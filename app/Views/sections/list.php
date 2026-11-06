@@ -31,7 +31,7 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
 <div class="table-panel">
 <table class="ticket-table"
   data-column-layout-key="<?= e($user['id'].':'.$project['id'].':'.($activeView?($activeView['id'].':'.App\Models\SavedView::revision($activeView)):'default')) ?>"
-  data-report-layout="<?= e(json_encode(['columns'=>isset($filters['columns']) || isset($filters['show_progress']) ? $listColumns : null],JSON_THROW_ON_ERROR)) ?>">
+  data-report-layout="<?= e(json_encode(['columns'=>isset($filters['columns']) || isset($filters['show_progress']) ? $listColumns : null,'savedOrder'=>$activeView?ListLayout::columns(json_decode($activeView['settings'],true,64,JSON_THROW_ON_ERROR)):null],JSON_THROW_ON_ERROR)) ?>">
 <thead><tr>
   <th class="checkbox-cell"><input type="checkbox" data-select-all aria-label="Sélectionner tous les tickets affichés"></th>
   <?php foreach ($listOrder as $key):

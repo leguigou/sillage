@@ -51,11 +51,16 @@ final class DevelopmentEvent
             $newAttempt=$event['kind']==='build' && (int)($event['metadata']['attempt']??1)>(int)($oldMeta['attempt']??1);
             if($old && $event['kind']==='build' && (int)($event['metadata']['attempt']??1)<(int)($oldMeta['attempt']??1)) return (int)$old['id'];
             if (!$newAttempt && $old && ($oldMeta['date_known']??true) && $event['metadata']['date_known'] && $old['occurred_at']>$event['occurred_at']) return (int)$old['id'];
+            // Partial provider observations may omit the description. An explicit empty body clears its keys.
+            if ($event['kind']==='pull_request' && isset($oldMeta['description_keys'])) {
+                $event['metadata']['description_keys']??=$oldMeta['description_keys'];
+            }
+            $references=DevelopmentPayload::references($event);
             // 1. Ticket keys mentioned in the event text, for each project attached to the connection.
             $tickets=[];
             foreach($projects as $project) {
                 $numbers=[];
-                preg_match_all('/\b'.preg_quote($project['project_key'],'/').'-([1-9][0-9]*)\b/i',$event['references'],$matches);
+                preg_match_all('/\b'.preg_quote($project['project_key'],'/').'-([1-9][0-9]*)\b/i',$references,$matches);
                 foreach($matches[1] as $number) if (filter_var($number,FILTER_VALIDATE_INT)!==false) $numbers[]=(int)$number;
                 $numbers=array_values(array_unique($numbers));
                 if ($numbers) $tickets=[...$tickets,...array_column(DB::all('SELECT id

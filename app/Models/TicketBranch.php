@@ -125,7 +125,6 @@ final class TicketBranch
             $row = DB::one('SELECT t.id,t.number FROM tickets t WHERE t.id=? AND '.self::eligibleTicketsSql().' FOR UPDATE', [$ticket, $project]);
             if (!$row) throw new \InvalidArgumentException('Choisissez un ticket ouvert du projet, sans branche associée.');
             $connection = self::connection($ticket, (int)$branch['connection_id']);
-            $branch['references'] = DevelopmentPayload::references($branch);
             $branch['trigger'] = null;
             self::link($ticket, $connection, $branch, $actor);
             \App\Services\GitSync::request((int)$connection['id']);
@@ -145,7 +144,7 @@ final class TicketBranch
             $stored=DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=?',[$row['connection_id'],$row['external_key']]);
             if ($stored) {
                 $event=DevelopmentEvent::hydrate($stored);
-                $event['references']=DevelopmentPayload::references($event);$event['trigger']=null;
+                $event['trigger']=null;
                 DevelopmentEvent::save($connection,$event,false);
             }
         });

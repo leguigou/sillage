@@ -66,6 +66,18 @@ check(status==200,'edit report persists state checkboxes')
 _,filtered_report,_=call(json.loads(updated)['url'])
 check('data-ticket-id="'+review_id+'"' in filtered_report and 'data-ticket-id="'+progress_tickets[0]+'"' not in filtered_report and 'name="status[]" value="review" checked' in filtered_report,'reopened report restores checked states and matching tickets')
 
+# Quick order save keeps the report's other settings and checks its revision.
+updated_report=json.loads(updated)
+order_data={'_csrf':token(filtered_report),'project_id':pid,'view_id':updated_report['id'],'revision':updated_report['revision'],'mode':'column_order','column_order':json.dumps(['priority','title']),'status[]':['done']}
+status,reordered,_=call('/views',order_data,True)
+check(status==200,'quick save stores the reordered report columns')
+_,reordered_report,_=call(json.loads(reordered)['url'])
+check(reordered_report.index('<th data-column="priority"')<reordered_report.index('<th data-column="title"')
+      and 'data-ticket-id="'+review_id+'"' in reordered_report
+      and 'data-ticket-id="'+done_id+'"' not in reordered_report
+      and 'data-report-order-save hidden' in reordered_report,
+      'saved order is restored, existing report filters are preserved and the button is initially hidden')
+check(call('/views',order_data,True)[0]==422,'stale quick save cannot overwrite the report')
 # The active report survives navigation and is reapplied from its saved settings.
 report_id = json.loads(updated)['id']
 call('/board?project='+pid+'&status=done')

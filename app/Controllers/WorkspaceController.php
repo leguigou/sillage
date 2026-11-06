@@ -315,8 +315,15 @@ final class WorkspaceController
     {
         $u = Auth::requireUser();
         $pid = (int) ($_POST['project_id'] ?? 0);
+        $viewId=($_POST['mode']??'')==='copy'?0:(int)($_POST['view_id']??0);
+        $name=(string)($_POST['name']??'');
+        if (($_POST['mode']??'')==='column_order') {
+            $view=DB::one('SELECT name,settings FROM saved_views WHERE id=? AND project_id=? AND user_id=?',[$viewId,$pid,$u['id']]);
+            if (!$view) throw new \InvalidArgumentException('Rapport personnel introuvable.');
+            $name=$view['name'];
+        }
         try {$settings = json_decode(
-            (string) ($_POST['settings'] ?? '{}'),
+            (string) ($view['settings'] ?? $_POST['settings'] ?? '{}'),
             true,
             64,
             JSON_THROW_ON_ERROR,
@@ -324,11 +331,18 @@ final class WorkspaceController
         if (!is_array($settings)) {
             throw new \InvalidArgumentException('Vue invalide.');
         }
-        if (array_key_exists('status', $_POST)) {
+        if (isset($view)) {
+            try {$order=json_decode((string)($_POST['column_order']??''),true,16,JSON_THROW_ON_ERROR);} catch(\JsonException) {throw new \InvalidArgumentException('Ordre des colonnes invalide.');}
+            if (!is_array($order)) throw new \InvalidArgumentException('Ordre des colonnes invalide.');
+            $order=\App\Services\ListLayout::columns(['columns'=>$order]);
+            $chosen=\App\Services\ListLayout::columns($settings);
+            $settings['columns']=array_values(array_unique([...array_intersect($order,$chosen),...$chosen]));
+            unset($settings['show_progress']);
+        } elseif (array_key_exists('status', $_POST)) {
             $settings['status'] = $_POST['status'];
             unset($settings['pause']);
         }
-        if(isset($_POST['report_options'])) {
+        if(!isset($view) && isset($_POST['report_options'])) {
             foreach(['sort','direction','group','sort2','sort3'] as $key) $settings[$key]=$_POST[$key]??'';
             foreach(['direction2','direction3'] as $key) $settings[$key]=$_POST[$key]??'asc';
             unset($settings['show_progress']);
@@ -343,9 +357,9 @@ final class WorkspaceController
         $id=\App\Models\SavedView::save(
             (int) $u['id'],
             $pid,
-            (string) ($_POST['name'] ?? ''),
+            $name,
             $settings,
-            ($_POST['mode']??'')==='copy'?0:(int)($_POST['view_id']??0),
+            $viewId,
             isset($_POST['revision'])?(string)$_POST['revision']:null,
         );
         $saved=DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=?',[$id,$u['id']]);

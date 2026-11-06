@@ -46,6 +46,7 @@ function icon(string $name, string $class=''): string {
         'chevron'=>'<path d="m9 5 7 7-7 7"/>',
         'down'=>'<path d="m6 9 6 6 6-6"/>',
         'more'=>'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+        'save'=>'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/>',
         'edit'=>'<path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5M4 15l5 5"/>',
         'comment'=>'<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2v-9.5A8.5 8.5 0 0 1 10.5 4H12a9 9 0 0 1 9 7.5Z"/><path d="M7 10h9M7 14h6"/>',
         'filter'=>'<path d="M4 6h16M7 12h10M10 18h4"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/>',

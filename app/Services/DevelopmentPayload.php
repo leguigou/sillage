@@ -51,10 +51,18 @@ final class DevelopmentPayload
         $event=['external_key'=>$key,'kind'=>$kind,'title'=>mb_substr($title?:$key,0,500),'external_url'=>$url,'state'=>$state,
             'occurred_at'=>$time->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),'commit_sha'=>$sha,
             'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger];
-        $event['references']=self::references($event);return $event;
+        return $event;
     }
-    /** Text searched for ticket references: the full title followed by the branch name. */
-    public static function references(array $event): string {return ($event['metadata']['full_title']??$event['title'])."\n".($event['metadata']['branch']??'');}
+    /** Full title, source branch and normalized description keys used for ticket matching. */
+    public static function references(array $event): string
+    {
+        $metadata=$event['metadata'];
+        return implode("\n", [
+            $metadata['full_title']??$event['title'],
+            $metadata['branch']??'',
+            ...($metadata['description_keys']??[]),
+        ]);
+    }
     /**
      * Normalises one branch, commit or pull request item. Field names differ between providers, hence the
      * "github ?? bitbucket" fallbacks. $live marks webhook data: only then is an automation trigger set
@@ -89,7 +97,13 @@ final class DevelopmentPayload
             $event['metadata']['target_sha']=self::sha($item['base']['sha']??$item['destination']['commit']['hash']??null);
             // Bitbucket list payloads carry no mergeability; it is checked separately (GitMonitor).
             $event['metadata']['merge_conflict']=$github?DevelopmentRunPayload::conflict('github',$item):null;
-            $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);return $event;
+            $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);
+            $descriptionField=$github?'body':'description';
+            if (array_key_exists($descriptionField,$item) && (is_string($item[$descriptionField]) || $item[$descriptionField]===null)) {
+                preg_match_all('/\b[A-Z][A-Z0-9]{1,9}-[1-9][0-9]*\b/i', $item[$descriptionField]??'', $matches);
+                $event['metadata']['description_keys']=array_values(array_unique(array_map('strtoupper',$matches[0])));
+            }
+            return $event;
         }
         throw new \InvalidArgumentException('Type de suivi inconnu.');
     }

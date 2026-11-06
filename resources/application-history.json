@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.24.12",
+  "current_version": "1.24.13",
   "entries": [
+    {
+      "version": "1.24.13",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Références de pull requests et ordre des rapports",
+      "summary": "Sillage lit la description des pull requests et simplifie l’enregistrement de l’ordre des colonnes.",
+      "changes": [
+        "La clé d’un ticket dans la description d’une pull request Bitbucket ou GitHub permet de l’associer, y compris après une modification.",
+        "Une disquette apparaît à côté du crayon si l’ordre des colonnes du rapport actif a changé."
+      ]
+    },
     {
       "version": "1.24.12",
       "date": "2026-11-06",
