@@ -62,6 +62,8 @@ jobs:
           trap 'kill "$SERVER_PID"' EXIT
           python3 -c 'import time,urllib.request; time.sleep(2); urllib.request.urlopen("http://127.0.0.1:8089/login")'
           python3 tests/http_workflows.py
+          # http_workflows.py signs in 10 times from 127.0.0.1, the login limit; reset it before the next suite.
+          php tests/run.php fixtures
           python3 tests/http_ticket_people.py
           php tests/run.php fixtures
           SILLAGE_MCP_PYTHON=/tmp/sillage-mcp-sdk/bin/python python3 tests/http_mcp.py
