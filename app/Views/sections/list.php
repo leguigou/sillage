@@ -32,10 +32,11 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
   ?>
     <th data-column="<?= e($key) ?>" <?= in_array($key,$listColumns,true)?'':'hidden' ?><?= $sorted?' aria-sort="'.($ascending?'ascending':'descending').'"':'' ?>>
       <div class="list-column-heading">
-        <span class="list-column-grip" draggable="true" data-list-column-grip title="Glisser pour déplacer la colonne" aria-hidden="true">⠿</span>
       <?php if (isset(ListLayout::SORT_LABELS[$key])): ?>
-        <a <?= $sorted?'aria-current="true"':'' ?> href="<?= e(query_url('/'.$section,$baseQuery,['sort'=>$key,'direction'=>$sorted && $ascending?'desc':'asc','page'=>1])) ?>"><?= e($label) ?> <?= icon($sorted && $ascending?'up':'down') ?></a>
-      <?php else: ?><?= e($label) ?><?php endif; ?>
+        <a draggable="true" data-list-column-drag title="Cliquer pour trier, glisser pour déplacer" <?= $sorted?'aria-current="true"':'' ?> href="<?= e(query_url('/'.$section,$baseQuery,['sort'=>$key,'direction'=>$sorted && $ascending?'desc':'asc','page'=>1])) ?>"><?= e($label) ?> <?= icon($sorted && $ascending?'up':'down') ?></a>
+      <?php else: ?>
+        <span draggable="true" data-list-column-drag title="Glisser pour déplacer la colonne"><?= e($label) ?></span>
+      <?php endif; ?>
       <?php if ($customizable): ?>
         <button type="button" class="icon-button list-label-settings" data-list-label-options="<?= e($key) ?>" aria-label="<?= e('Affichage de la colonne '.$label) ?>" title="Personnaliser l’affichage"><?= icon('settings') ?></button>
       <?php endif; ?>

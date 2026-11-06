@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.24.2",
+  "current_version": "1.24.3",
   "entries": [
+    {
+      "version": "1.24.3",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Déplacement par le libellé de colonne",
+      "summary": "Glissez directement le texte d’un en-tête pour déplacer sa colonne.",
+      "changes": [
+        "Un clic sur le libellé d’une colonne triable continue de changer son tri."
+      ]
+    },
     {
       "version": "1.24.2",
       "date": "2026-11-06",

@@ -561,9 +561,10 @@ if (listHeader) {
   }
 
   listHeader.addEventListener('dragstart', event => {
-    if (!event.target.closest('[data-list-column-grip]')) return;
+    if (!event.target.closest('[data-list-column-drag]')) return;
     source = event.target.closest('th[data-column]');
     source.classList.add('column-drag-source');
+    event.dataTransfer.clearData();
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', source.dataset.column);
   });
