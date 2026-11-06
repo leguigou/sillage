@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth, DB, View};
 use App\Models\{Project, Ticket};
-use App\Services\{Filter, Query};
+use App\Services\{Filter, FilterMemory, ListLayout, Query};
 final class WorkspaceController
 {
     public function show(string $section = 'dashboard'): void
@@ -29,29 +29,43 @@ final class WorkspaceController
         $all = $section === 'all';
         $pid = $all ? 0 : (int) $project['id'];
         $filters = $_GET;
-        $activeView=null;
-        if (!empty($_GET['view'])) {
-            $view = DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=? AND project_id=?', [
-                (int) $_GET['view'],
-                $user['id'],
-                $project['id'],
+        $activeView = null;
+        $userId = (int) $user['id'];
+        $projectId = (int) $project['id'];
+        $isList = $section === 'list';
+        $reset = !empty($_GET['filters_reset']);
+        $reportId = $_GET['view'] ?? null;
+        if ($isList && !$reset && !FilterMemory::hasExplicitFilters($_GET)) {
+            $reportId = $_SESSION['list_reports'][$userId][$projectId] ?? null;
+        }
+        $reportId = filter_var($reportId, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if (!$reset && $reportId) {
+            $activeView = DB::one('SELECT * FROM saved_views WHERE id=? AND user_id=? AND project_id=?', [
+                $reportId, $userId, $projectId,
             ]);
-            if ($view) {
-                $activeView=$view;
-                $filters = array_replace(
-                    json_decode($view['settings'], true),
-                    array_diff_key($_GET, ['view' => 1]),
-                );
+            if ($activeView) {
+                $filters = array_replace(json_decode($activeView['settings'], true), $_GET, ['view'=>$reportId]);
             }
         }
         $error = null;
         try {
-            if(in_array($section,['dashboard','list','all','board','timeline','charts'],true)) $filters=\App\Services\FilterMemory::resolve((int)$user['id'],$pid,$filters);
+            if ($isList && $activeView) {
+                $filters = ListLayout::settings($pid, $filters) + ['view'=>$reportId];
+            } elseif (in_array($section, ['dashboard','list','all','board','timeline','charts'], true)) {
+                $filters = FilterMemory::resolve($userId, $pid, $filters);
+            }
             Filter::where($pid, $filters);
-            \App\Services\ListLayout::columns($filters);
+            ListLayout::columns($filters);
         } catch (\InvalidArgumentException $e) {
             $error = $e->getMessage();
             $filters = [];
+            $activeView = null;
+        }
+        if ($isList) {
+            $reports = $_SESSION['list_reports'][$userId] ?? [];
+            unset($reports[$projectId]);
+            if ($activeView) $reports[$projectId] = $reportId;
+            $_SESSION['list_reports'][$userId] = array_slice($reports, -20, null, true);
         }
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $limit = in_array($section, ['board', 'timeline'], true) ? 1000 : 50;

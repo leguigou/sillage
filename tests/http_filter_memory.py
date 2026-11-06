@@ -65,3 +65,17 @@ status,updated,_=call('/views',report_data,True)
 check(status==200,'edit report persists state checkboxes')
 _,filtered_report,_=call(json.loads(updated)['url'])
 check('data-ticket-id="'+review_id+'"' in filtered_report and 'data-ticket-id="'+progress_tickets[0]+'"' not in filtered_report and 'name="status[]" value="review" checked' in filtered_report,'reopened report restores checked states and matching tickets')
+
+# The active report survives navigation and is reapplied from its saved settings.
+report_id = json.loads(updated)['id']
+call('/board?project='+pid+'&status=done')
+_, returned, _ = call('/list?project='+pid)
+check('data-report-edit="'+str(report_id)+'"' in returned
+      and 'data-ticket-id="'+review_id+'"' in returned
+      and 'data-ticket-id="'+done_id+'"' not in returned,
+      'returning from another view restores the selected report and its filters')
+call('/list?project='+pid+'&filters_reset=1')
+_, reset_list, _ = call('/list?project='+pid)
+check('data-report-edit="'+str(report_id)+'"' not in reset_list
+      and 'data-ticket-id="'+done_id+'"' in reset_list,
+      'reset clears the remembered report and its filters')

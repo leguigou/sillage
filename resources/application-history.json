@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.24.7",
+  "current_version": "1.24.8",
   "entries": [
+    {
+      "version": "1.24.8",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Rapport conservé au retour à la liste",
+      "summary": "La liste retrouve le rapport sélectionné pour le projet en cours.",
+      "changes": [
+        "Le rapport et ses réglages sont réappliqués au retour à la liste pendant la session.",
+        "Le bouton Réinitialiser permet de revenir à la liste sans rapport actif."
+      ]
+    },
     {
       "version": "1.24.7",
       "date": "2026-11-06",
