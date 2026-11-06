@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.21.0",
+  "current_version": "1.21.1",
   "entries": [
+    {
+      "version": "1.21.1",
+      "date": "2026-11-06",
+      "category": "fixes",
+      "title": "Badge de fusion simplifié",
+      "summary": "Les badges de fusion affichent la branche cible de la pull request.",
+      "changes": [
+        "Le badge « Fusionné sur staging » tient sur une ligne avec son icône et son libellé."
+      ]
+    },
     {
       "version": "1.21.0",
       "date": "2026-11-06",

@@ -62,11 +62,11 @@ final class TicketDevelopment
             $target=$meta['target_branch']??null;$number=str_starts_with($event['external_key'],'pr:')?substr($event['external_key'],3):'';
             $badge['detail']=($number?'PR #'.$number:'Pull request').($target?' · vers '.$target:'');
             if($state==='open') {$badge['tone']='review';$badge['label']='PR ouverte';}
-            elseif($state==='merged') {$badge['tone']='info';$badge['label']=$target?'Fusionné sur '.$target:'PR fusionnée';$badge['detail']='Déploiement non confirmé';}
+            elseif($state==='merged') {$badge['tone']='info';$badge['label']=$target?'Fusionné sur '.$target:'PR fusionnée';$badge['detail']='';}
             else $badge['label']='PR fermée';
         }
         if(($meta['date_known']??true)===false) {$badge['tone']='neutral';$badge['label']='Suivi à confirmer';$badge['detail']='Date de l’événement non fournie';}
-        $badge['title']=$event['repository'].' · '.$badge['label'].' · '.$badge['detail'].(($meta['date_known']??true)?' · '.$event['occurred_at'].' UTC':'');
+        $badge['title']=$event['repository'].' · '.$badge['label'].($badge['detail']!==''?' · '.$badge['detail']:'').(($meta['date_known']??true)?' · '.$event['occurred_at'].' UTC':'');
         return $badge;
     }
     public static function data(array $ticket,array $project): array
