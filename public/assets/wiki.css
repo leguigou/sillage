@@ -93,6 +93,10 @@
 [data-theme='dark'] .wiki-content .wiki-callout-caution { --callout: #f87171; }
 .wiki-callout-picker select { margin: 0; }
 .wiki-editor .milkdown img { max-width: 100%; }
+/* "<br>" inside table cells is kept as raw HTML by the editor: show it as a line break, not as text. */
+.wiki-editor .milkdown span[data-type="html"][data-value="<br>"],
+.wiki-editor .milkdown span[data-type="html"][data-value="<br/>"],
+.wiki-editor .milkdown span[data-type="html"][data-value="<br />"] { display: block; height: 0; overflow: hidden; font-size: 0; }
 .wiki-content .align-left { text-align: left; }
 .wiki-content .align-center { text-align: center; }
 .wiki-content .align-right { text-align: right; }

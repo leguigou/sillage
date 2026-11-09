@@ -7,8 +7,8 @@ namespace App\Services;
  *
  * - Headings, paragraphs, emphasis, inline code, links (http, https, mailto only), lists and task
  *   lists, quotes, rules, code blocks with their language.
- * - Simple tables become Markdown tables. Tables whose cells hold lists, several paragraphs or other
- *   tables (Markdown cannot nest them) become nested lists, so no text is lost or duplicated.
+ * - Tables stay Markdown tables; cells holding lists, several paragraphs, code or other tables keep
+ *   them as lines joined by "<br>" (see cellLines), so no text is lost or duplicated.
  * - Confluence: emoticons become Unicode emojis, "Info/Note/Warning/Tip" macros and panels become
  *   "> [!…]" callouts, the table of contents macro is dropped, embedded images are handed to the
  *   resolver, which stores them and returns their wiki name ("_assets/<name>").
@@ -229,6 +229,11 @@ final class HtmlToMarkdown
 
     // ---- Tables -------------------------------------------------------------------------------
 
+    /**
+     * Every HTML table stays a Markdown table, as in the source page. A cell holding paragraphs,
+     * lists, code or a nested table (impossible inside a Markdown cell) keeps it as lines separated
+     * by "<br>", the only HTML WikiRenderer turns back into line breaks inside cells.
+     */
     private function table(\DOMElement $table, int $depth): string
     {
         $rows = [];
@@ -240,12 +245,26 @@ final class HtmlToMarkdown
             if ($cells) $rows[] = $cells;
         }
         if (!$rows) return '';
-        $complex = false;
-        foreach ($rows as $cells) foreach ($cells as $cell) {
-            if ((int) $cell->getAttribute('rowspan') > 1 || $this->isComplexCell($cell)) $complex = true;
-        }
         $header = array_reduce($rows[0], fn($all, $cell) => $all && strtolower($cell->nodeName) === 'th', true) || ($rows[0][0]->parentNode && strtolower($rows[0][0]->parentNode->parentNode->nodeName ?? '') === 'thead');
-        return $complex ? $this->tableAsList($rows, $header, $depth) : $this->tableAsGrid($rows, $header, $depth);
+        $matrix = [];$width = 0;
+        foreach ($rows as $index => $cells) {
+            $line = [];
+            foreach ($cells as $cell) {
+                $text = implode('<br>', $this->cellLines($cell, $depth));
+                // Header cells are already bold in a Markdown table.
+                if ($index === 0 && $header) $text = preg_replace('/^\*\*(.*)\*\*$/su', '$1', $text) ?? $text;
+                $line[] = $text === '' ? ' ' : str_replace('|', '\|', $text);
+                for ($span = (int) $cell->getAttribute('colspan'); $span > 1; $span--) $line[] = ' ';
+            }
+            $width = max($width, count($line));
+            $matrix[] = $line;
+        }
+        foreach ($matrix as &$line) $line = array_pad($line, $width, ' ');
+        unset($line);
+        if (!$header) array_unshift($matrix, array_fill(0, $width, ' '));
+        $out = ['| ' . implode(' | ', $matrix[0]) . ' |', '|' . str_repeat(' --- |', $width)];
+        foreach (array_slice($matrix, 1) as $line) $out[] = '| ' . implode(' | ', $line) . ' |';
+        return implode("\n", $out);
     }
 
     /** @return list<\DOMElement> rows of this table only (not of nested tables) */
@@ -261,58 +280,90 @@ final class HtmlToMarkdown
         return $rows;
     }
 
-    private function isComplexCell(\DOMElement $cell): bool
-    {
-        foreach (['table', 'ul', 'ol', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as $tag) if ($cell->getElementsByTagName($tag)->length) return true;
-        $paragraphs = 0;
-        foreach ($cell->getElementsByTagName('p') as $p) if (trim($p->textContent) !== '') $paragraphs++;
-        foreach ($cell->getElementsByTagName('div') as $div) if ($this->calloutType($div) !== null) return true;
-        return $paragraphs > 1;
-    }
+    private const CELL_CALLOUTS = ['NOTE' => 'ℹ️', 'TIP' => '💡', 'IMPORTANT' => '❗', 'WARNING' => '⚠️', 'CAUTION' => '⛔'];
 
-    private function tableAsGrid(array $rows, bool $header, int $depth): string
+    /**
+     * Content of a table cell as single-line Markdown fragments: paragraphs and headings, list items
+     * ("•", "1.", nested "◦"), code, callouts (emoji first) and nested tables (bold header line, then
+     * one "• a — b" line per row).
+     * @return list<string>
+     */
+    private function cellLines(\DOMNode $node, int $depth, string $bullet = ''): array
     {
+        $lines = [];$current = '';
+        $flush = function () use (&$lines, &$current): void {
+            foreach (explode("\n", $current) as $part) {
+                $part = trim(preg_replace('/\s+/u', ' ', $part) ?? $part);
+                if ($part !== '') $lines[] = $part;
+            }
+            $current = '';
+        };
         $was = $this->inTable;$this->inTable = true;
-        $matrix = [];$width = 0;
-        foreach ($rows as $cells) {
-            $line = [];
-            foreach ($cells as $cell) {
-                $text = $this->cleanInline($this->inlineChildren($cell, $depth));
-                $line[] = str_replace('|', '\|', $text === '' ? ' ' : $text);
-                for ($span = (int) $cell->getAttribute('colspan'); $span > 1; $span--) $line[] = ' ';
+        foreach ($node->childNodes as $child) {
+            if ($child instanceof \DOMText) { $current .= $this->text($child->data);continue; }
+            if (!$child instanceof \DOMElement) continue;
+            $tag = strtolower($child->nodeName);
+            if (in_array($tag, self::DROP, true) || $this->hasClass($child, 'hidden')) continue;
+            if ($depth >= self::MAX_DEPTH) { $current .= ' ' . $this->text($child->textContent);continue; }
+            if ($tag === 'br') { $flush();continue; }
+            if ($tag === 'ul' || $tag === 'ol') {
+                $flush();
+                $number = max(1, (int) ($child->getAttribute('start') ?: 1));
+                foreach ($child->childNodes as $item) {
+                    if (!$item instanceof \DOMElement || strtolower($item->nodeName) !== 'li') continue;
+                    $marker = $tag === 'ol' ? ($number++) . '.' : ($bullet === '' ? '•' : '◦');
+                    if ($item->hasAttribute('data-inline-task-id')) $marker = $this->hasClass($item, 'checked') ? '☑' : '☐';
+                    foreach ($this->cellLines($item, $depth + 1, $marker) as $k => $itemLine) {
+                        $lines[] = ($bullet !== '' ? ' ' : '') . ($k === 0 ? $marker . ' ' : '') . $itemLine;
+                    }
+                }
+                continue;
             }
-            $width = max($width, count($line));
-            $matrix[] = $line;
+            if ($tag === 'table') {
+                $flush();
+                foreach ($this->rowsOf($child) as $tr) {
+                    $cells = [];$isHeader = true;
+                    foreach ($tr->childNodes as $cell) {
+                        if (!$cell instanceof \DOMElement || !in_array(strtolower($cell->nodeName), ['td', 'th'], true)) continue;
+                        $isHeader = $isHeader && strtolower($cell->nodeName) === 'th';
+                        $cells[] = trim(implode(' ', $this->cellLines($cell, $depth + 1)));
+                    }
+                    $cells = array_values(array_filter($cells, fn($c) => $c !== ''));
+                    if (!$cells) continue;
+                    $lines[] = $isHeader ? '**' . trim(str_replace('**', '', implode(' — ', $cells))) . '**' : '• ' . implode(' — ', $cells);
+                }
+                continue;
+            }
+            if ($tag === 'pre') {
+                $flush();
+                foreach (explode("\n", rtrim($child->textContent)) as $code) if (trim($code) !== '') $lines[] = $this->inlineCode($code);
+                continue;
+            }
+            if (($type = $this->calloutType($child)) !== null) {
+                $flush();
+                $inner = $this->cellLines($child, $depth + 1);
+                if (count($inner) > 1 && preg_match(self::NOTE_LABELS, $inner[0])) array_shift($inner);
+                foreach ($inner as $k => $innerLine) $lines[] = ($k === 0 ? self::CELL_CALLOUTS[$type] . ' ' : '') . $innerLine;
+                continue;
+            }
+            if (preg_match('/^h[1-6]$/', $tag)) {
+                $flush();
+                $heading = $this->cleanInline($this->inlineChildren($child, $depth + 1));
+                if ($heading !== '') $lines[] = '**' . $heading . '**';
+                continue;
+            }
+            if (in_array($tag, self::BLOCKS, true)) { $flush();array_push($lines, ...$this->cellLines($child, $depth + 1, $bullet));continue; }
+            $current .= $this->inline($child, $depth + 1);
         }
+        $flush();
         $this->inTable = $was;
-        foreach ($matrix as &$line) $line = array_pad($line, $width, ' ');
-        unset($line);
-        if (!$header) array_unshift($matrix, array_fill(0, $width, ' '));
-        $out = ['| ' . implode(' | ', $matrix[0]) . ' |', '|' . str_repeat(' --- |', $width)];
-        foreach (array_slice($matrix, 1) as $line) $out[] = '| ' . implode(' | ', $line) . ' |';
-        return implode("\n", $out);
-    }
-
-    /** Rows become list items: first cell in bold, the other cells (labelled by their header) below. */
-    private function tableAsList(array $rows, bool $header, int $depth): string
-    {
-        $labels = [];
-        if ($header) { foreach (array_shift($rows) as $cell) $labels[] = trim(str_replace('**', '', $this->cleanInline($this->inlineChildren($cell, $depth))), " *"); }
-        $items = [];
-        foreach ($rows as $cells) {
-            $first = $this->joinBlocks($this->blocks($cells[0], $depth));
-            $lines = [];
-            foreach (array_slice($cells, 1) as $index => $cell) {
-                $content = $this->joinBlocks($this->blocks($cell, $depth));
-                if (trim($content) === '') continue;
-                $label = $labels[$index + 1] ?? '';
-                $lines[] = $this->indentItem('- ', ($label !== '' ? '*' . $label . '* : ' : '') . $content);
-            }
-            if (trim($first) === '' && !$lines) continue;
-            $head = trim($first) === '' ? '' : (str_contains($first, "\n") || preg_match('/^\*\*.*\*\*$/s', $first) ? $first : '**' . $first . '**');
-            $items[] = $this->indentItem('- ', $head . ($lines ? "\n" . implode("\n", $lines) : ''));
+        // "Note :" followed by text inside a cell: one line with the emoji.
+        $out = [];
+        for ($i = 0, $n = count($lines); $i < $n; $i++) {
+            if ($i + 1 < $n && preg_match(self::NOTE_LABELS, $lines[$i])) { $out[] = 'ℹ️ ' . $lines[++$i];continue; }
+            $out[] = $lines[$i];
         }
-        return implode("\n", $items);
+        return $out;
     }
 
     // ---- Inline -------------------------------------------------------------------------------
@@ -333,7 +384,7 @@ final class HtmlToMarkdown
         if (in_array($tag, self::DROP, true) || $this->hasClass($element, 'hidden')) return '';
         if ($depth >= self::MAX_DEPTH) return $this->text($element->textContent);
         switch ($tag) {
-            case 'br': return $this->inTable ? ' ' : "  \n";
+            case 'br': return $this->inTable ? "\n" : "  \n";
             case 'img': return $this->image($element);
             case 'strong': case 'b': return $this->wrap('**', $this->inlineChildren($element, $depth));
             case 'em': case 'i': case 'cite': return $this->wrap('*', $this->inlineChildren($element, $depth));

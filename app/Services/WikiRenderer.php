@@ -10,14 +10,15 @@ require_once ROOT . '/app/Libraries/Parsedown/Parsedown.php';
  * adds what Parsedown lacks: heading anchors and table of contents, alignment classes instead of
  * style attributes, read-only task-list checkboxes, other images shown as links, external links
  * opened in a new tab, "> [!NOTE]" callouts, images of the wiki ("_assets/<hash>") served by
- * /wiki/assets. Any remaining style or on* attribute is removed defensively.
+ * /wiki/assets, "<br>" line breaks inside table cells (cellBreaks). Any remaining style or on*
+ * attribute is removed defensively.
  *
  * The result is cached in wiki_pages.html; bump VERSION whenever the output changes so cached
  * pages are rendered again.
  */
 final class WikiRenderer
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     /** @return array{html: string, toc: list<array{level:int, id:string, text:string}>, text: string, title: ?string} */
     public static function render(string $markdown): array
@@ -47,6 +48,7 @@ final class WikiRenderer
                 if (preg_match('/text-align:\s*(left|center|right)/', $element->getAttribute('style'), $match)) {
                     $element->setAttribute('class', 'align-' . $match[1]);
                 }
+                self::cellBreaks($document, $element);
             }
             $element->removeAttribute('style');
             if (preg_match('/^h([1-6])$/', $tag, $match)) {
@@ -183,6 +185,25 @@ final class WikiRenderer
             $figure->appendChild($caption);
         }
         $parent->parentNode->replaceChild($figure, $parent);
+    }
+
+    /**
+     * Markdown cells cannot hold several lines: "<br>" written in a cell (escaped as text by safe
+     * mode) becomes a real line break. Only this exact tag, only in table cells, never inside code.
+     */
+    private static function cellBreaks(\DOMDocument $document, \DOMElement $cell): void
+    {
+        $xpath = new \DOMXPath($document);
+        foreach (iterator_to_array($xpath->query('.//text()[not(ancestor::code)]', $cell)) as $text) {
+            $parts = preg_split('#<br\s*/?>#i', $text->data);
+            if (count($parts) < 2) continue;
+            $parent = $text->parentNode;
+            foreach ($parts as $index => $part) {
+                if ($index > 0) $parent->insertBefore($document->createElement('br'), $text);
+                if ($part !== '') $parent->insertBefore($document->createTextNode($part), $text);
+            }
+            $parent->removeChild($text);
+        }
     }
 
     /** "[ ] text" / "[x] text" list items become read-only checkboxes. */

@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.27.0",
+  "current_version": "1.27.1",
   "entries": [
+    {
+      "version": "1.27.1",
+      "date": "2026-11-09",
+      "category": "fixes",
+      "title": "Tableaux conservés à l’import",
+      "summary": "Les tableaux des pages Confluence importées restent des tableaux, même quand leurs cellules contiennent des listes ou d’autres tableaux.",
+      "changes": [
+        "Une cellule avec plusieurs paragraphes, une liste, du code ou un tableau imbriqué garde ce contenu sur plusieurs lignes, au lieu de transformer tout le tableau en liste.",
+        "Un tableau imbriqué s’affiche dans sa cellule avec son en-tête en gras puis une ligne par rangée.",
+        "Les retours à la ligne des cellules s’affichent aussi dans l’éditeur et sont conservés à l’enregistrement.",
+        "Les pages déjà importées ne changent pas : importez de nouveau le document pour profiter de ce rendu."
+      ]
+    },
     {
       "version": "1.27.0",
       "date": "2026-11-09",
@@ -11,7 +24,7 @@
       "changes": [
         "« Importer des documents » accepte plusieurs fichiers à la fois et montre un aperçu de chaque page, avec un titre modifiable, avant de les créer dans le dossier choisi.",
         "Les exports Word de Confluence (.doc) gardent leurs titres, listes, tableaux, liens, blocs de code, emojis et images ; les encadrés Info, Note et les paragraphes « Note : » deviennent des encadrés colorés.",
-        "Les tableaux imbriqués, impossibles en Markdown, deviennent des listes sans perte ni doublon de texte.",
+        "Les tableaux imbriqués, impossibles en Markdown, sont convertis sans perte ni doublon de texte.",
         "Les images seulement liées à Confluence, sans copie dans le fichier, sont signalées et non téléchargées.",
         "L’historique de chaque page importée indique le fichier d’origine.",
         "Limites : les fichiers Word .docx et les PDF ne sont pas encore pris en charge."
