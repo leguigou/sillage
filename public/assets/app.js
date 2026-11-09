@@ -681,7 +681,7 @@ $$('[data-column-toggle]').forEach((el) =>
     savePreferences();
   }),
 );
-applyPreferences();
+try { applyPreferences(); } finally { document.documentElement.classList.remove('list-layout-pending'); }
 try {
   const path = location.pathname;
   if (['/list', '/board', '/all'].includes(path)) {

@@ -1194,6 +1194,9 @@ progress::-moz-progress-bar {
   border-radius: 14px;
   overflow: auto;
 }
+.list-layout-pending .ticket-table[data-column-layout-key] {
+  visibility: hidden;
+}
 .ticket-table {
   width: 100%;
   border-collapse: collapse;
