@@ -124,7 +124,13 @@ try {
     check(str_contains($md, '*(image non importée : absente.png)*') && count(array_filter($imported['warnings'], fn($w) => str_contains($w, 'absente.png'))) === 1, 'image externe signalée');
     check(str_contains($md, "> [!NOTE]\n> Commande validée par le client.") && !str_contains($md, "> Note :"), 'macro Information en encadré, libellé en double retiré');
     check(str_contains($md, "> [!NOTE]\n> Le lot 2 supprimera cette étape.") && str_contains($md, "> [!CAUTION]\n> Ne jamais modifier le mapping."), 'paragraphes « Note : » et macro Warning en encadrés');
-    check(str_contains($md, "- **Connexion**\n  - *Détails* : `PunchOut Site` ce qui :") && str_contains($md, '| Connecte le client existant |'), 'tableau imbriqué converti en liste sans perte');
+    check(str_contains($md, "| Étape | Détails |\n| --- | --- |\n| Connexion | `PunchOut Site` ce qui :<br>**Comportement**<br>• Connecte le client existant |\n| Panier | `Cart` |"), 'tableau conservé, tableau imbriqué en lignes de la cellule');
+    $cellHtml = WikiRenderer::render($md)['html'];
+    check(str_contains($cellHtml, '<code>PunchOut Site</code> ce qui :<br><strong>Comportement</strong><br>• Connecte le client existant</td>'), 'retours à la ligne des cellules rendus');
+    $cellsOnly = WikiRenderer::render("| a |\n| --- |\n| x<br>y `<br>` <br/>z <br onclick=x> |\n\nHors tableau <br>\n")['html'];
+    check(str_contains($cellsOnly, 'x<br>y <code>&lt;br&gt;</code> <br>z &lt;br onclick=x&gt;</td>') && str_contains($cellsOnly, 'Hors tableau &lt;br&gt;'), 'seul <br> nu des cellules hors code devient un retour à la ligne');
+    $listCell = \App\Services\WikiImport::convert('<table><tr><th>A</th></tr><tr><td><p>Un</p><p>Deux</p><ul><li>x<ul><li>y</li></ul></li></ul><ol><li>premier</li></ol><pre>code | a</pre><div class="confluence-information-macro confluence-information-macro-note"><div class="confluence-information-macro-body"><p>Prudence</p></div></div></td></tr></table>', 't.html', $fakeStore)['markdown'];
+    check(str_contains($listCell, '| Un<br>Deux<br>• x<br> ◦ y<br>1. premier<br>`code \| a`<br>⚠️ Prudence |'), 'paragraphes, listes, code et encadré dans une cellule');
     check(substr_count($md, 'Connecte le client existant') === 1, 'aucun texte dupliqué');
     check(str_contains($md, "| Type | Description |\n| --- | --- |\n| \"Setup request\" | requête \\| initiale |"), 'tableau simple conservé, barre verticale échappée');
     check(str_contains($md, "```xml\n<cXML>\n  <Cart/>\n</cXML>\n```"), 'bloc de code avec son langage');
