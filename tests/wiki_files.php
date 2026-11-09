@@ -111,6 +111,41 @@ try {
     check(WikiRenderer::title("```\n# pas un titre\n```\n# Vrai titre\n") === 'Vrai titre', 'titre ignoré dans un bloc de code');
     check(WikiRenderer::title("Texte\n") === null, 'page sans titre de niveau 1');
 
+    // Import of a Confluence export (MHTML) and other documents, without database.
+    require_once __DIR__ . '/wiki_import_fixture.php';
+    $stored = [];
+    $fakeStore = function (string $data, string $label) use (&$stored): string { $name = \App\Models\WikiAsset::inspect($data)['name'];$stored[] = $label;return $name; };
+    $imported = \App\Services\WikiImport::convert(wiki_import_fixture(), 'Punchout.doc', $fakeStore);
+    $md = $imported['markdown'];
+    $pngName = hash('sha256', wiki_import_png()) . '.png';
+    check($imported['format'] === 'confluence' && $imported['title'] === '🏷️ Punchout client', 'export Confluence reconnu, titre issu du premier titre');
+    check(str_starts_with($md, "# 🏷️ Punchout client\n") && str_contains($md, "## ⭐ Schéma"), 'emojis Confluence convertis en caractères');
+    check(str_contains($md, "![schema](_assets/$pngName)") && $imported['images'] === 1 && $stored === ['schema.png'], 'image intégrée importée, émoticônes non stockées');
+    check(str_contains($md, '*(image non importée : absente.png)*') && count(array_filter($imported['warnings'], fn($w) => str_contains($w, 'absente.png'))) === 1, 'image externe signalée');
+    check(str_contains($md, "> [!NOTE]\n> Commande validée par le client.") && !str_contains($md, "> Note :"), 'macro Information en encadré, libellé en double retiré');
+    check(str_contains($md, "> [!NOTE]\n> Le lot 2 supprimera cette étape.") && str_contains($md, "> [!CAUTION]\n> Ne jamais modifier le mapping."), 'paragraphes « Note : » et macro Warning en encadrés');
+    check(str_contains($md, "- **Connexion**\n  - *Détails* : `PunchOut Site` ce qui :") && str_contains($md, '| Connecte le client existant |'), 'tableau imbriqué converti en liste sans perte');
+    check(substr_count($md, 'Connecte le client existant') === 1, 'aucun texte dupliqué');
+    check(str_contains($md, "| Type | Description |\n| --- | --- |\n| \"Setup request\" | requête \\| initiale |"), 'tableau simple conservé, barre verticale échappée');
+    check(str_contains($md, "```xml\n<cXML>\n  <Cart/>\n</cXML>\n```"), 'bloc de code avec son langage');
+    check(str_contains($md, "- Premier\n  1. Sous-étape\n- Second") && str_contains($md, "- [x] Fait\n- [ ] À faire"), 'listes imbriquées et cases à cocher');
+    check(str_contains($md, '`Punchout_Gateway`') && str_contains($md, '\\*panier\\*') && str_contains($md, '\\[crochets\\]'), 'texte échappé, code intact');
+    check(str_contains($md, '[la doc](https://exemple.fr/doc?a=1&b=2)') && str_contains($md, ' piège.') && !str_contains($md, 'javascript'), 'liens sûrs conservés, javascript retiré');
+    check(str_contains($md, '\\1. pas une liste') && !str_contains($md, 'alert(') && !str_contains($md, 'color:red'), 'scripts, styles et formulaires ignorés');
+    $importHtml = WikiRenderer::render($md)['html'];
+    check(substr_count($importHtml, 'wiki-callout ') === 3 && str_contains($importHtml, '<figure class="wiki-figure">') && !str_contains($importHtml, '<script'), 'page importée rendue avec encadrés et image');
+    check(\App\Services\WikiImport::withTitle("# Ancien\n\nTexte\n", 'Nouveau $1') === "# Nouveau \$1\n\nTexte\n" && \App\Services\WikiImport::withTitle("Texte\n", 'Titre') === "# Titre\n\nTexte\n", 'titre modifiable avant import');
+    $plain = \App\Services\WikiImport::convert("Ligne sans titre\r\n", 'notes_reunion.md', $fakeStore);
+    check($plain['format'] === 'markdown' && $plain['title'] === 'notes reunion' && $plain['markdown'] === "Ligne sans titre\n", 'Markdown importé tel quel, titre tiré du nom');
+    $page = \App\Services\WikiImport::convert('<!doctype html><html><head><meta charset="windows-1252"><title>Ancienne page</title></head><body><p>' . "caf\xE9" . '</p></body></html>', 'x.html', $fakeStore);
+    check($page['format'] === 'html' && str_contains($page['markdown'], 'café') && str_starts_with($page['markdown'], '# Ancienne page'), 'page HTML Windows-1252 convertie en UTF-8');
+    foreach (["%PDF-1.7\n" => 'PDF', "PK\x03\x04xx" => 'docx', "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" => 'Word binaire', "\x00\x01\x02binaire" => 'binaire', '' => 'vide'] as $bytes => $label) {
+        rejects(fn() => \App\Services\WikiImport::convert((string) $bytes, 'f', $fakeStore), 'format refusé : ' . $label);
+    }
+    $deep = fn(int $levels) => '<html><body>' . str_repeat('<div><span>', $levels) . 'fond' . str_repeat('</span></div>', $levels) . '</body></html>';
+    check(str_contains(\App\Services\WikiImport::convert($deep(110), 'deep.html', $fakeStore)['markdown'], 'fond'), 'imbrication au-delà de la limite du convertisseur aplatie en texte');
+    check(is_string(\App\Services\WikiImport::convert($deep(3000), 'deep.html', $fakeStore)['markdown']), 'imbrication extrême sans erreur (limite de libxml)');
+
     // Diff.
     $diff = TextDiff::compare("a\nBonjour le monde\nc\n", "a\nBonjour tout le monde\nc\nd\n");
     check($diff['added'] === 2 && $diff['removed'] === 1 && !$diff['truncated'], 'lignes ajoutées et supprimées comptées');

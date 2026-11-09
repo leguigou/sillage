@@ -159,6 +159,18 @@
 .wiki-report { margin: 0; padding-left: 1.2em; }
 .wiki-report li { margin: 6px 0; }
 
+/* Import */
+.wiki-import-results { display: grid; gap: 14px; margin: 14px 0; }
+.wiki-import-item { display: grid; gap: 10px; }
+.wiki-import-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+.wiki-import-failed .wiki-import-head .help-text { color: #c9726c; }
+.wiki-import-item label.checkbox { display: flex; align-items: center; gap: 8px; }
+.wiki-import-item label.checkbox input { width: auto; margin: 0; }
+.wiki-import-warnings { margin: 0; padding: 8px 12px 8px 28px; border-radius: 10px; background: color-mix(in srgb, #d97706 10%, var(--surface)); color: var(--text); font-size: 13px; }
+.wiki-import-preview { max-height: 520px; overflow: auto; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; margin-top: 8px; }
+.wiki-import-markdown { max-height: 360px; overflow: auto; white-space: pre-wrap; font-size: 12px; padding: 10px; background: var(--surface-soft); border-radius: 8px; }
+.wiki-import-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; position: sticky; bottom: 12px; }
+
 /* Shared helpers not defined in app.css */
 /* .notice and other components set display; keep the hidden attribute authoritative. */
 .wiki-layout [hidden] { display: none !important; }

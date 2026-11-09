@@ -404,5 +404,6 @@ Sur la base isolée `sillage_test` et un `WIKI_PATH` temporaire :
 
 - **Fait en avance du lot 2** (même version 1.26.0) : images collées (table `wiki_assets` + copies `_assets/`), encadrés `> [!NOTE]`. Voir [wiki.md](wiki.md).
 - **Lot 2** : liens `[[Page]]` et rétroliens, redirections après renommage, modèles de page, corbeille, abonnements et notifications, brouillons enregistrés côté serveur, date de relecture et rappel.
-- **Lot 3** : import DOCX, ODT, RTF et HTML via Pandoc (ajouté au `Dockerfile`, exécuté en mode `--sandbox` avec délai et taille maximum, aperçu avant enregistrement, original conservé) ; recherche assistée par l’IA ; outils MCP `wiki_search` et `wiki_read`.
+- **Fait (version 1.27.0)** : import des exports Word de Confluence, MHTML, HTML et Markdown, par un convertisseur PHP dédié plutôt que Pandoc (emojis et macros Confluence reconnus). Voir [wiki.md](wiki.md).
+- **Lot 3** : import DOCX, ODT, RTF via Pandoc (ajouté au `Dockerfile`, exécuté en mode `--sandbox` avec délai et taille maximum, aperçu avant enregistrement, original conservé) ; recherche assistée par l’IA ; outils MCP `wiki_search` et `wiki_read`.
 - **Lot 4** : PDF (texte puis OCR pour les scans), XLSX/PPTX, nettoyage par l’IA avec découpage, droits par dossier.

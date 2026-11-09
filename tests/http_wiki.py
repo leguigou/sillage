@@ -1,5 +1,5 @@
 """Wiki through actual HTTP: pages, editor saves and conflicts, history, search, rights, CSRF, escaping."""
-import re, json, uuid, base64, hashlib, urllib.parse, urllib.request, urllib.error, http.cookiejar
+import re, json, uuid, base64, hashlib, subprocess, urllib.parse, urllib.request, urllib.error, http.cookiejar
 import http_workflows_support as support
 from http_workflows_support import call, get_token, token, check, passed_count
 
@@ -114,6 +114,26 @@ check(support.upload(images, {'_csrf': vcsrf}, 'image', 'schema.png', png, 'imag
 check(fetch_bytes('/wiki/assets/' + asset)[0] == 200, 'viewer sees wiki images')
 check(call('/wiki/deleted')[0] == 403, 'deleted pages are admin only')
 support.client = admin
+
+fixture = subprocess.run(['php', '-r', "require 'tests/wiki_import_fixture.php'; echo wiki_import_fixture();"], capture_output=True, check=True).stdout
+status, html, _ = call('/wiki/import?folder=' + urllib.parse.quote(folder))
+check(status == 200 and 'data-wiki-import' in html and 'Exporter vers Word' in html, 'import screen for editors')
+check(support.upload('/wiki/import/preview', {}, 'document', 'Punchout.doc', fixture, 'application/msword', json_accept=True)[0] == 403, 'import preview requires CSRF')
+status, body, _ = support.upload('/wiki/import/preview', {'_csrf': csrf}, 'document', 'Punchout.doc', fixture, 'application/msword', json_accept=True)
+preview = json.loads(body)
+check(status == 200 and preview['format'] == 'confluence' and preview['images'] == 1 and 'wiki-callout' in preview['html'] and any('absente.png' in w for w in preview['warnings']), 'Confluence export previewed with image, callouts and warnings')
+check(support.upload('/wiki/import/preview', {'_csrf': csrf}, 'document', 'doc.pdf', b'%PDF-1.7\n', 'application/pdf', json_accept=True)[0] == 422, 'PDF refused with a message')
+status, body, _ = support.upload('/wiki/import', {'_csrf': csrf, 'folder': folder, 'title': 'Procédure importée ' + suffix}, 'document', 'Punchout.doc', fixture, 'application/msword', json_accept=True)
+imported = json.loads(body)
+check(status == 200 and imported['title'] == 'Procédure importée ' + suffix, 'document imported as a page')
+status, html, _ = call(imported['url'])
+check(status == 200 and '<figure class="wiki-figure"><img class="wiki-image" src="/wiki/assets/' + asset + '"' in html and 'wiki-callout wiki-callout-caution' in html, 'imported page shows its image and callouts')
+check('Import' in call(imported['url'] + '/history')[1] and 'Importé depuis Punchout.doc' in call(imported['url'] + '/history')[1], 'import recorded in the history')
+support.client = viewer
+check(call('/wiki/import')[0] == 403, 'viewer cannot open the import screen')
+check(support.upload('/wiki/import', {'_csrf': vcsrf, 'folder': folder}, 'document', 'Punchout.doc', fixture, 'application/msword', json_accept=True)[0] == 403, 'viewer cannot import')
+support.client = admin
+check(call(imported['url'] + '/delete', {'_csrf': csrf})[0] == 200, 'imported page deleted to empty the folder')
 
 status, _, url = call('/wiki/pages/' + page + '/delete', {'_csrf': csrf, '_return': '/wiki'})
 check(status == 200 and call('/wiki/pages/' + page)[0] == 422, 'deleted page no longer readable')

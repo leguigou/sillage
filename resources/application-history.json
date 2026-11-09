@@ -1,7 +1,22 @@
 {
   "schema": 1,
-  "current_version": "1.26.0",
+  "current_version": "1.27.0",
   "entries": [
+    {
+      "version": "1.27.0",
+      "date": "2026-11-09",
+      "category": "features",
+      "title": "Import de documents dans le wiki",
+      "summary": "Le wiki importe les pages exportées de Confluence au format Word, ainsi que les fichiers HTML, Markdown et texte, avec leurs images.",
+      "changes": [
+        "« Importer des documents » accepte plusieurs fichiers à la fois et montre un aperçu de chaque page, avec un titre modifiable, avant de les créer dans le dossier choisi.",
+        "Les exports Word de Confluence (.doc) gardent leurs titres, listes, tableaux, liens, blocs de code, emojis et images ; les encadrés Info, Note et les paragraphes « Note : » deviennent des encadrés colorés.",
+        "Les tableaux imbriqués, impossibles en Markdown, deviennent des listes sans perte ni doublon de texte.",
+        "Les images seulement liées à Confluence, sans copie dans le fichier, sont signalées et non téléchargées.",
+        "L’historique de chaque page importée indique le fichier d’origine.",
+        "Limites : les fichiers Word .docx et les PDF ne sont pas encore pris en charge."
+      ]
+    },
     {
       "version": "1.26.0",
       "date": "2026-11-06",

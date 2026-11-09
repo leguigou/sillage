@@ -44,7 +44,7 @@ $wikiReturn = $_SERVER['REQUEST_URI'] ?? '/wiki';
 <div class="wiki-layout" data-wiki>
 <aside class="panel wiki-sidebar" aria-label="Arborescence du wiki">
   <form method="get" action="/wiki/search" class="wiki-search" role="search"><label class="sr-only" for="wiki-search-input">Rechercher dans le wiki</label><input id="wiki-search-input" type="search" name="q" value="<?= e($query ?? '') ?>" placeholder="Rechercher dans le wiki…" maxlength="200" required><button class="icon-button" aria-label="Rechercher"><?= icon('search') ?></button></form>
-  <?php if ($canEdit): ?><div class="wiki-sidebar-actions"><button type="button" class="button primary" data-open="wiki-page-dialog"><?= icon('plus') ?>Nouvelle page</button><button type="button" class="button subtle" data-open="wiki-folder-dialog"><?= icon('folder') ?>Nouveau dossier</button></div><?php endif; ?>
+  <?php if ($canEdit): ?><div class="wiki-sidebar-actions"><button type="button" class="button primary" data-open="wiki-page-dialog"><?= icon('plus') ?>Nouvelle page</button><button type="button" class="button subtle" data-open="wiki-folder-dialog"><?= icon('folder') ?>Nouveau dossier</button><a class="button subtle" href="<?= e('/wiki/import' . ($activeFolder !== '' ? '?folder=' . rawurlencode($activeFolder) : '')) ?>"><?= icon('upload') ?>Importer des documents</a></div><?php endif; ?>
   <div class="wiki-tree"><a class="wiki-tree-root<?= ($mode === 'home' && $activeFolder === '') ? ' active' : '' ?>" href="/wiki"><?= icon('book') ?><span>Accueil du wiki</span></a><?= $wikiTree($navigation, $activeFolder) ?></div>
   <?php if ($user['role'] === 'admin'): ?><div class="wiki-admin"><a href="/wiki/deleted">Pages supprimées</a><form method="post" action="/wiki/scan"><?= csrf() ?><input type="hidden" name="_return" value="/wiki"><button class="link-button" title="Détecte les fichiers ajoutés, modifiés ou supprimés hors de Sillage">Analyser le dossier</button></form></div><?php endif; ?>
 </aside>
@@ -116,6 +116,17 @@ $wikiReturn = $_SERVER['REQUEST_URI'] ?? '/wiki';
 <?php elseif ($mode === 'deleted'): ?>
   <div class="panel-header"><div><h1>Pages supprimées</h1><p>Leur historique est conservé. Restaurer remet la dernière version en place, si son emplacement est libre.</p></div></div>
   <section class="panel"><?php if (!$deleted): ?><p class="empty-state">Aucune page supprimée.</p><?php else: ?><ul class="wiki-list"><?php foreach ($deleted as $item): ?><li><a href="/wiki/pages/<?= (int) $item['id'] ?>/history"><?= icon('book') ?><strong><?= e($item['title']) ?></strong></a><span class="help-text"><?= e($item['path']) ?> · supprimée le <?= $wikiDate($item['deleted_at']) ?></span><form method="post" action="/wiki/pages/<?= (int) $item['id'] ?>/revisions/<?= (int) $item['current_revision_no'] ?>/restore"><?= csrf() ?><input type="hidden" name="_return" value="/wiki/deleted"><button class="button subtle">Restaurer</button></form></li><?php endforeach; ?></ul><?php endif; ?></section>
+
+<?php elseif ($mode === 'import'): ?>
+  <div class="panel-header"><div><h1>Importer des documents</h1><p>Chaque document devient une page du wiki, avec ses images. Vérifiez l’aperçu avant d’importer.</p></div></div>
+  <form method="post" action="/wiki/import" enctype="multipart/form-data" class="panel stack wiki-import-form" data-wiki-import data-max="<?= (int) App\Services\WikiImport::maxBytes() ?>"><?= csrf() ?><input type="hidden" name="_return" value="/wiki/import">
+    <label>Documents<input type="file" name="document" multiple required accept=".doc,.mht,.mhtml,.html,.htm,.md,.markdown,.txt"></label>
+    <label>Dossier de destination<select name="folder"><?= $wikiFolderOptions($folder) ?></select></label>
+    <p class="help-text">Formats acceptés : export Word de Confluence (<strong>.doc</strong> : menu « … → Exporter → Exporter vers Word »), page web enregistrée (.mht), .html, .md, .txt. <?= intdiv(App\Services\WikiImport::maxBytes(), 1048576) ?> Mo au maximum par fichier. Les PDF et les fichiers Word .docx ne sont pas encore pris en charge. Les pages importées sont lisibles par toutes les personnes connectées.</p>
+    <div class="wiki-actions"><button class="button primary" data-wiki-import-preview><?= icon('search') ?>Prévisualiser</button></div>
+  </form>
+  <div class="wiki-import-results" data-wiki-import-results aria-live="polite"></div>
+  <div class="panel wiki-import-footer" data-wiki-import-footer hidden><p class="help-text" data-wiki-import-summary></p><div class="wiki-actions"><button type="button" class="button primary" data-wiki-import-run><?= icon('upload') ?>Importer les pages sélectionnées</button></div></div>
 
 <?php elseif ($mode === 'scan'): ?>
   <div class="panel-header"><div><h1>Analyse du dossier</h1><p>Comparaison des fichiers du dossier avec l’index du wiki.</p></div></div>

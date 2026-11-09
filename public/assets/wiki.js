@@ -25,6 +25,118 @@
     if (!Number.isNaN(date.getTime())) { time.title = time.textContent; time.textContent = formatter.format(date); }
   });
 
+  // Import: each file is previewed (converted, images stored), then imported one request at a time,
+  // so the server upload limit applies per file. The preview HTML comes from WikiRenderer (safe mode).
+  const importForm = $('form[data-wiki-import]');
+  if (importForm) {
+    const input = $('input[type=file]', importForm);
+    const results = $('[data-wiki-import-results]');
+    const footer = $('[data-wiki-import-footer]');
+    const summary = $('[data-wiki-import-summary]');
+    const run = $('[data-wiki-import-run]');
+    const csrfImport = $('input[name="_csrf"]', importForm).value;
+    let items = [];
+
+    const element = (tag, attributes = {}, text = '') => {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+      if (text) node.textContent = text;
+      return node;
+    };
+    async function send(url, file, fields = {}) {
+      const body = new FormData();
+      body.set('_csrf', csrfImport);
+      body.set('document', file, file.name);
+      for (const [key, value] of Object.entries(fields)) body.set(key, value);
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' }, body });
+      let result = {};
+      try { result = await response.json(); } catch { throw new Error(response.status === 413 ? 'Fichier trop volumineux pour le serveur.' : 'Réponse inattendue du serveur.'); }
+      if (!response.ok || result.error) throw new Error(result.error || 'La conversion a échoué.');
+      return result;
+    }
+    function refreshFooter() {
+      const selected = items.filter((item) => item.ok && item.checkbox.checked && !item.done);
+      footer.hidden = !items.some((item) => item.ok && !item.done);
+      run.disabled = selected.length === 0;
+      summary.textContent = selected.length + ' page' + (selected.length > 1 ? 's' : '') + ' à importer dans « ' + (importForm.elements.folder.selectedOptions[0]?.textContent || 'Wiki') + ' ».';
+    }
+
+    importForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const files = [...input.files];
+      if (!files.length) return;
+      results.replaceChildren();items = [];footer.hidden = true;
+      const max = Number(importForm.dataset.max);
+      for (const file of files) {
+        const card = element('article', { class: 'panel wiki-import-item' });
+        const head = element('header', { class: 'wiki-import-head' });
+        head.append(element('strong', {}, file.name), element('span', { class: 'help-text' }, 'Conversion…'));
+        card.append(head);
+        results.append(card);
+        const item = { file, card, ok: false, done: false };
+        items.push(item);
+        try {
+          if (file.size > max) throw new Error('Fichier de plus de ' + Math.floor(max / 1048576) + ' Mo.');
+          const preview = await send('/wiki/import/preview', file);
+          item.ok = true;
+          const formats = { confluence: 'Export Confluence', html: 'Page HTML', markdown: 'Markdown' };
+          head.lastChild.textContent = (formats[preview.format] || preview.format) + ' · ' + preview.images + ' image' + (preview.images > 1 ? 's' : '');
+          const include = element('label', { class: 'checkbox' });
+          item.checkbox = element('input', { type: 'checkbox', checked: 'checked' });
+          include.append(item.checkbox, document.createTextNode(' Importer cette page'));
+          item.checkbox.addEventListener('change', refreshFooter);
+          const titleLabel = element('label', {}, 'Titre de la page');
+          item.title = element('input', { maxlength: '200', required: 'required' });
+          item.title.value = preview.title;
+          titleLabel.append(item.title);
+          card.append(include, titleLabel);
+          if (preview.warnings.length) {
+            const list = element('ul', { class: 'wiki-import-warnings' });
+            preview.warnings.forEach((warning) => list.append(element('li', {}, warning)));
+            card.append(list);
+          }
+          const rendered = element('details', { open: 'open' });
+          rendered.append(element('summary', {}, 'Aperçu'));
+          const content = element('div', { class: 'wiki-content wiki-import-preview' });
+          content.innerHTML = preview.html; // produced by WikiRenderer (Parsedown safe mode + DOM cleanup)
+          rendered.append(content);
+          const source = element('details');
+          source.append(element('summary', {}, 'Markdown produit'), element('pre', { class: 'wiki-import-markdown' }, preview.markdown));
+          card.append(rendered, source);
+          item.status = element('p', { class: 'help-text', role: 'status' });
+          card.append(item.status);
+        } catch (error) {
+          head.lastChild.textContent = error.message;
+          card.classList.add('wiki-import-failed');
+        }
+        refreshFooter();
+      }
+    });
+    importForm.elements.folder.addEventListener('change', refreshFooter);
+
+    run.addEventListener('click', async () => {
+      run.disabled = true;
+      let created = 0;
+      for (const item of items.filter((i) => i.ok && i.checkbox.checked && !i.done)) {
+        item.status.textContent = 'Import…';
+        try {
+          const saved = await send('/wiki/import', item.file, { folder: importForm.elements.folder.value, title: item.title.value });
+          item.done = true;created++;
+          item.status.replaceChildren(document.createTextNode('Page créée : '), element('a', { href: saved.url }, saved.title));
+          item.checkbox.disabled = true;item.title.disabled = true;
+        } catch (error) {
+          item.status.textContent = error.message;
+        }
+      }
+      refreshFooter();
+      if (created) {
+        const folder = importForm.elements.folder.value;
+        summary.replaceChildren(document.createTextNode(created + ' page' + (created > 1 ? 's' : '') + ' importée' + (created > 1 ? 's' : '') + '. '), element('a', { href: '/wiki' + (folder ? '?folder=' + encodeURIComponent(folder) : '') }, 'Ouvrir le dossier'));
+        footer.hidden = false;
+      }
+    });
+  }
+
   const form = $('form[data-wiki-editor]');
   if (!form) return;
   const source = $('[data-wiki-markdown]', form);
