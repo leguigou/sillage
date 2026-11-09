@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.27.1",
+  "current_version": "1.28.0",
   "entries": [
+    {
+      "version": "1.28.0",
+      "date": "2026-11-09",
+      "category": "features",
+      "title": "Tri des tickets par clé",
+      "summary": "La colonne Clé de la liste des tickets se trie en cliquant sur son en-tête, en ordre croissant ou décroissant.",
+      "changes": [
+        "Un clic sur l’en-tête Clé trie les tickets par clé ; un second clic inverse l’ordre.",
+        "Le numéro est trié comme un nombre : TMA-2 vient avant TMA-10, puis TMA-100.",
+        "Dans la vue de tous les projets, les tickets sont regroupés par code de projet puis classés par numéro.",
+        "Le tri par clé est aussi proposé dans les rapports personnels et pour les recherches de tickets via MCP."
+      ]
+    },
     {
       "version": "1.27.1",
       "date": "2026-11-09",

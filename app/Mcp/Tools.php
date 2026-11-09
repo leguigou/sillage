@@ -224,6 +224,7 @@ final class Tools
             'label' => $str(40),
             'sort' => $enum([
                 'rank',
+                'key',
                 'title',
                 'status',
                 'priority',
