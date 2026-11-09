@@ -22,6 +22,8 @@ final class Query
         [$where, $args] = Filter::where($project, $filters);
         $sorts = [
             'rank' => 't.rank_value',
+            // Project key then the numeric ticket number: TMA-2 sorts before TMA-10, unlike a text sort.
+            'key' => ['p.project_key', 't.number'],
             'title' => 't.title',
             'status' => 't.status',
             'priority' => "FIELD(t.priority,'".implode("','", array_keys(Ticket::PRIORITIES))."')",
@@ -36,7 +38,7 @@ final class Query
             'type' => 't.type',
         ];
         $order=[];
-        foreach(ListLayout::sorts($filters) as $field=>$direction) $order[]=$sorts[$field].' '.strtoupper($direction);
+        foreach(ListLayout::sorts($filters) as $field=>$direction) foreach((array)$sorts[$field] as $column) $order[]=$column.' '.strtoupper($direction);
         $order=implode(',',$order?:['t.rank_value ASC']);
         // t.id is appended as a final tie-breaker so LIMIT/OFFSET paging is stable.
         $rows = DB::all(

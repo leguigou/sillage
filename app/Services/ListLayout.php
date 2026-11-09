@@ -12,7 +12,7 @@ final class ListLayout
 {
     public const COLUMNS=['type'=>'Type','key'=>'Clé','title'=>'Résumé','progress_percent'=>'Avancement','git'=>'Git','development'=>'Déploiement','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','status'=>'État','start'=>'Date de début','due'=>'Échéance','estimated_hours'=>'Temps estimé','labels'=>'Étiquettes','created'=>'Création','updated'=>'Modification'];
     public const GROUPS=[''=>'Aucun','assignee'=>'Personne assignée','team'=>'Équipe','priority'=>'Priorité','type'=>'Type de ticket','parent'=>'Parent / Epic','labels'=>'Étiquettes'];
-    public const SORT_LABELS=['rank'=>'Ordre manuel','progress_percent'=>'Avancement','title'=>'Résumé','status'=>'État','priority'=>'Priorité','due'=>'Échéance','estimated_hours'=>'Temps estimé','start'=>'Date de début','created'=>'Création','updated'=>'Dernière modification','assignee'=>'Personne assignée','team'=>'Équipe','type'=>'Type'];
+    public const SORT_LABELS=['rank'=>'Ordre manuel','key'=>'Clé','progress_percent'=>'Avancement','title'=>'Résumé','status'=>'État','priority'=>'Priorité','due'=>'Échéance','estimated_hours'=>'Temps estimé','start'=>'Date de début','created'=>'Création','updated'=>'Dernière modification','assignee'=>'Personne assignée','team'=>'Équipe','type'=>'Type'];
     public static function columns(array $settings): array
     {
         $columns=$settings['columns']??array_keys(array_diff_key(self::COLUMNS,['estimated_hours'=>true]));

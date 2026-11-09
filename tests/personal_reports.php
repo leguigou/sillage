@@ -36,6 +36,11 @@ $rpLow=Ticket::create($rpMulti,['title'=>'Basse','priority'=>'low'],$uid);
 check(array_slice(array_column(Query::tickets($rpMulti,['sort'=>'priority']),'id'),-3)===[$rpMedium,$rpNormal,$rpLow]
     && array_column(Query::tickets($rpMulti,['priority'=>'normal']),'id')===[$rpNormal],
     'priorité Normale enregistrée, filtrable et classée entre Moyenne et Basse');
+$rpKeys=Project::save(['name'=>'Tri des clés','key'=>'KS'.strtoupper(bin2hex(random_bytes(3)))]);
+for($rpI=1;$rpI<=11;$rpI++) Ticket::create($rpKeys,['title'=>'Clé '.$rpI],$uid);
+check(array_map('intval',array_column(Query::tickets($rpKeys,['sort'=>'key','direction'=>'asc']),'number'))===range(1,11)
+    && array_map('intval',array_column(Query::tickets($rpKeys,['sort'=>'key','direction'=>'desc']),'number'))===range(11,1),
+    'tri par clé numérique : n°2 avant n°10, dans les deux sens');
 $rpMultiView=SavedView::save($uid,$rpMulti,'Trois tris',$rpMultiSettings);check(json_decode(DB::one('SELECT settings FROM saved_views WHERE id=?',[$rpMultiView])['settings'],true)==$rpMultiSettings,'rapport conserve les trois critères et leurs sens');
 foreach([['sort'=>'priority','sort2'=>'priority'],['sort2'=>'unknown'],['sort3'=>'title','direction3'=>'invalid'],['sort4'=>'title']] as $rpInvalidSort) rejects(fn()=>SavedView::save($uid,$rpMulti,'Tri invalide',$rpInvalidSort),'tri multiple invalide ou supérieur à trois refusé');
 check(str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=') && !str_contains(query_url('/list',$rpMultiSettings,['sort'=>'created']),'sort2=progress_percent') && str_contains(query_url('/list',$rpMultiSettings,['sort'=>'priority','direction'=>'desc']),'sort2=progress_percent'),'autre en-tête réinitialise les critères secondaires et inversion conserve les critères');
