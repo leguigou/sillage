@@ -128,6 +128,23 @@ try {
     check($report['images'] === 1 && WikiAsset::exists($gifName), 'analyse : image copiée à la main enregistrée');
     check(count(array_filter($report['invalid'], fn($line) => str_contains($line, str_repeat('0', 64)))) === 1, 'image dont le nom ne correspond pas au contenu signalée');
 
+    // Import of a Confluence export: images stored, page created with an "import" revision.
+    require_once __DIR__ . '/wiki_import_fixture.php';
+    Wiki::createFolder('', 'Imports');
+    $converted = \App\Services\WikiImport::convert(wiki_import_fixture(), 'Punchout.doc', \App\Services\WikiImport::storeWithAssets((int) $wikiUser['id']));
+    $importPng = hash('sha256', wiki_import_png()) . '.png';
+    check(WikiAsset::exists($importPng) && $converted['images'] === 1, 'import : image de l’export enregistrée');
+    $importId = Wiki::import($wikiUser, 'Imports', 'Procédure Punchout', $converted['markdown'], 'C:\\fakepath\\Punchout.doc');
+    $importPage = WikiPage::find($importId);
+    $importRevision = WikiRevision::latest($importId);
+    check($importPage['path'] === 'Imports/Procédure Punchout.md' && $importPage['title'] === 'Procédure Punchout' && str_starts_with($importRevision['content'], "# Procédure Punchout\n"), 'page importée avec le titre choisi');
+    check($importRevision['action'] === 'import' && $importRevision['message'] === 'Importé depuis Punchout.doc' && WikiRevision::ACTIONS['import'] === 'Import', 'version d’import tracée avec le fichier source');
+    check(is_file(WikiStorage::absolute('Imports/_assets/' . $importPng)) && WikiStorage::read('Imports/Procédure Punchout.md') === $importRevision['content'], 'fichier .md et copie de l’image écrits');
+    $againId = Wiki::import($wikiUser, 'Imports', 'procédure punchout', $converted['markdown'], 'Punchout.doc');
+    check(WikiPage::find($againId)['path'] === 'Imports/procédure punchout (2).md', 'titre déjà pris : suffixe ajouté');
+    rejects(fn() => Wiki::import($wikiUser, '../', 'X', 'x', 'x.md'), 'import hors du wiki refusé');
+    rejects(fn() => Wiki::import($wikiUser, 'Imports', '   ', 'x', 'x.md'), 'import sans titre refusé');
+
     // Rebuild from revisions.
     check(Wiki::rebuild($wikiRebuild) === count(WikiPage::under('')), 'reconstruction : une page écrite par page active');
     check(file_get_contents($wikiRebuild . '/Externe/clôture.md') === WikiRevision::latest($wikiId)['content'] && str_contains(WikiRevision::latest($wikiId)['content'], '_assets/' . $pngName), 'reconstruction fidèle à la dernière version');

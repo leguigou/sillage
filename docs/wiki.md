@@ -18,6 +18,22 @@ La spécification complète et les choix techniques sont dans [wiki-specificatio
 
 Toutes les personnes connectées lisent tout le wiki. Il ne doit contenir ni mot de passe, ni donnée personnelle de client ou de salarié, ni document confidentiel. Les comptes en lecture seule consultent, recherchent et téléchargent ; les membres et administrateurs modifient.
 
+## Import de documents
+
+**Importer des documents** (barre latérale du wiki, membres et administrateurs) : choisir un ou plusieurs fichiers et le dossier de destination, puis **Prévisualiser**. Chaque fichier est converti séparément : format reconnu, nombre d’images, avertissements, aperçu et Markdown produit. Le titre se modifie avant **Importer les pages sélectionnées** ; si le nom est déjà pris dans le dossier, « (2) », « (3) »… est ajouté. Chaque page est créée avec une version « Import » qui indique le fichier d’origine.
+
+| Format | Résultat |
+| --- | --- |
+| Export **Word de Confluence** (`.doc`, menu « … → Exporter → Exporter vers Word ») | Titres, listes, cases à cocher, tableaux, liens, code, **images intégrées**, emojis ; macros Info/Note/Warning/Tip, panneaux et paragraphes « Note : » en encadrés |
+| Page web enregistrée (`.mht`, `.mhtml`) | Comme ci-dessus |
+| `.html`, `.htm` | Idem, mais les images ne sont pas dans le fichier : elles sont signalées |
+| `.md`, `.txt` | Repris tel quel |
+| `.docx`, `.doc` Word classique, PDF | Refusés avec une explication (pas encore pris en charge) |
+
+Le format est reconnu d’après le contenu, pas l’extension. Les images sont lues **dans le fichier** ; une image seulement liée à Confluence (adresse `atlassian.net`) n’est jamais téléchargée : elle apparaît comme « *(image non importée : …)* » et un avertissement l’indique. Les tableaux dont les cellules contiennent des listes, plusieurs paragraphes ou d’autres tableaux deviennent des listes (Markdown ne sait pas les imbriquer). Les scripts, styles, formulaires et la table des matières de Confluence sont ignorés ; les liens autres que `http`, `https` et `mailto` gardent seulement leur texte.
+
+Les images sont enregistrées dès l’aperçu (sous leur empreinte, sans doublon) ; un aperçu abandonné peut donc laisser des images inutilisées. Taille maximale par fichier : `UPLOAD_MAX_MB` (15 Mo au plus) et la limite d’envoi du serveur PHP. Code : `App\Services\WikiImport` (lecture MHTML, détection du format) et `App\Services\HtmlToMarkdown` (conversion).
+
 ## Conflits
 
 L’éditeur envoie la version sur laquelle il est parti. Si quelqu’un a enregistré entre-temps, l’enregistrement est refusé : **Voir les différences** ouvre la comparaison, **Copier mon texte** permet de reporter ses changements à la main, **Écraser malgré tout** crée une nouvelle version avec son texte (la version de l’autre personne reste dans l’historique).
@@ -75,4 +91,4 @@ Choisir des versions publiées depuis au moins deux semaines, garder les version
 
 ## Limites actuelles
 
-Pas de pièces jointes autres que les images, pas de liens `[[Page]]`, de modèles, d’abonnements ni de droits par dossier, pas d’import de documents. L’éditeur enregistre le rapport d’affichage d’une image dans son texte alternatif (`![1.00](…)`) ; ce texte est ignoré au rendu. Voir la section « Lots suivants » de la spécification.
+Pas de pièces jointes autres que les images, pas de liens `[[Page]]`, de modèles, d’abonnements ni de droits par dossier ; import limité aux formats ci-dessus (ni `.docx` ni PDF). L’éditeur enregistre le rapport d’affichage d’une image dans son texte alternatif (`![1.00](…)`) ; ce texte est ignoré au rendu. Voir la section « Lots suivants » de la spécification.

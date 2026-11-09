@@ -5,13 +5,13 @@ use App\Core\DB;
 
 /**
  * Immutable history of wiki pages (table wiki_revisions): one full Markdown copy per change, with
- * the action (create, edit, move, delete, restore, external), its source, the author's name as it
+ * the action (create, edit, move, delete, restore, external, import), its source, the author's name as it
  * was at that time, and line counts. Revisions are only appended, inside the transaction that
  * changes the page.
  */
 final class WikiRevision
 {
-    public const ACTIONS = ['create' => 'Création', 'edit' => 'Modification', 'move' => 'Renommage ou déplacement', 'delete' => 'Suppression', 'restore' => 'Restauration', 'external' => 'Modification externe'];
+    public const ACTIONS = ['create' => 'Création', 'edit' => 'Modification', 'move' => 'Renommage ou déplacement', 'delete' => 'Suppression', 'restore' => 'Restauration', 'external' => 'Modification externe', 'import' => 'Import'];
     public const EXTERNAL_AUTHOR = 'Modification externe';
 
     /** Appends a revision; must run inside the page's transaction after WikiPage::lock(). */

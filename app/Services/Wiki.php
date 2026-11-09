@@ -106,20 +106,43 @@ final class Wiki
         return self::insert($user, $path, $content, 'create');
     }
 
+    /**
+     * Creates a page from an imported document (WikiImport). The title is the first heading of the
+     * Markdown; when that name is taken in the folder, " (2)", " (3)"… is added to the title.
+     */
+    public static function import(array $user, string $folder, string $title, string $markdown, string $source): int
+    {
+        $folder = self::ensureFolder($folder);
+        $title = trim(preg_replace('/\s+/u', ' ', $title) ?? '');
+        if ($title === '' || mb_strlen($title, 'UTF-8') > 200) throw new \InvalidArgumentException('Le titre doit contenir entre 1 et 200 caractères.');
+        $candidate = $title;
+        for ($n = 2; ; $n++) {
+            $path = WikiStorage::relativePath(WikiStorage::join($folder, WikiStorage::fileNameFromTitle($candidate) . '.md'), true);
+            if (!WikiPage::byPathKey(WikiStorage::key($path)) && !WikiStorage::nameTaken($folder, WikiStorage::name($path))) break;
+            if ($n > 50) throw new \InvalidArgumentException('Trop de pages portent déjà ce titre dans ce dossier.');
+            $candidate = $title . ' (' . $n . ')';
+        }
+        $content = WikiStorage::normalizeContent(WikiImport::withTitle($markdown, $candidate));
+        $source = mb_substr(trim(basename(str_replace('\\', '/', $source))), 0, 180, 'UTF-8');
+        $id = self::insert($user, $path, $content, 'import', true, 'Importé depuis ' . ($source !== '' ? $source : 'un fichier'));
+        self::ensureAssets($folder, $content);
+        return $id;
+    }
+
     /** Inserts a new page row + first revision, then writes its file (shared by create() and scans). */
-    private static function insert(?array $user, string $path, string $content, string $action, bool $writeFile = true): int
+    private static function insert(?array $user, string $path, string $content, string $action, bool $writeFile = true, string $message = ''): int
     {
         self::ensureFree($path, null, $writeFile);
         $derived = self::derived($path, $content);$author = self::author($user);
         $temp = $writeFile ? WikiStorage::prepare($path, $content) : null;
         try {
-            $id = DB::transaction(function () use ($path, $content, $derived, $author, $action) {
+            $id = DB::transaction(function () use ($path, $content, $derived, $author, $action, $message) {
                 $id = DB::insert(
                     'INSERT INTO wiki_pages(path,path_key,title,body_text,html,render_version,content_hash,current_revision_no,created_by,created_at,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,1,?,UTC_TIMESTAMP(),?,UTC_TIMESTAMP())',
                     [$path, WikiStorage::key($path), $derived['title'], $derived['text'], $derived['html'], WikiRenderer::VERSION, $derived['hash'], $author['user_id'], $author['user_id']],
                 );
                 $lines = $content === '' ? 0 : substr_count($content, "\n");
-                WikiRevision::append($id, 1, $author + ['action' => $action, 'path_after' => $path, 'content' => $content, 'hash' => $derived['hash'], 'added' => $lines]);
+                WikiRevision::append($id, 1, $author + ['action' => $action, 'path_after' => $path, 'content' => $content, 'hash' => $derived['hash'], 'added' => $lines, 'message' => $message !== '' ? $message : null]);
                 return $id;
             });
         } catch (\Throwable $error) {

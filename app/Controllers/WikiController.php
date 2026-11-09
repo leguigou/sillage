@@ -156,6 +156,56 @@ final class WikiController
         redirect(self::pageUrl((int) $id));
     }
 
+    /** Import screen: choose documents and a folder, preview, then import (public/assets/wiki.js). */
+    public function importForm(): void
+    {
+        $user = Auth::editor();
+        $folder = WikiStorage::relativePath((string) ($_GET['folder'] ?? ''));
+        if (!WikiStorage::isFolder($folder)) $folder = '';
+        $this->render($user, 'import', 'Importer des documents', ['folder' => $folder]);
+    }
+
+    /** Uploaded document of field "document": [bytes, file name]. */
+    private function document(): array
+    {
+        $file = $_FILES['document'] ?? null;
+        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
+            $tooLarge = in_array($file['error'] ?? null, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true);
+            throw new \InvalidArgumentException($tooLarge ? 'Le fichier dépasse la taille autorisée par le serveur.' : 'Choisissez un fichier à importer.');
+        }
+        if ((int) filesize($file['tmp_name']) > \App\Services\WikiImport::maxBytes()) throw new \InvalidArgumentException('Le fichier dépasse ' . intdiv(\App\Services\WikiImport::maxBytes(), 1048576) . ' Mo.');
+        return [(string) file_get_contents($file['tmp_name']), (string) ($file['name'] ?? 'document')];
+    }
+
+    /**
+     * Converts one document without creating a page. Its images are stored already (content hashes:
+     * importing it afterwards reuses them). JSON: {title, markdown, html, images, warnings, format}.
+     */
+    public function importPreview(): void
+    {
+        $user = Auth::editor();
+        \App\Core\Security::limit('wiki-import-' . $user['id'], 120, 600);
+        [$data, $name] = $this->document();
+        $result = \App\Services\WikiImport::convert($data, $name, \App\Services\WikiImport::storeWithAssets((int) $user['id']));
+        $result['html'] = \App\Services\WikiRenderer::render($result['markdown'])['html'];
+        $result['file'] = $name;
+        json_response($result);
+    }
+
+    /** Converts one document again and creates its page in "folder" with the (edited) "title". */
+    public function importSave(): void
+    {
+        $user = Auth::editor();
+        \App\Core\Security::limit('wiki-import-' . $user['id'], 120, 600);
+        [$data, $name] = $this->document();
+        $result = \App\Services\WikiImport::convert($data, $name, \App\Services\WikiImport::storeWithAssets((int) $user['id']));
+        $title = trim((string) ($_POST['title'] ?? '')) ?: $result['title'];
+        $id = Wiki::import($user, (string) ($_POST['folder'] ?? ''), $title, $result['markdown'], $name);
+        if ($this->json()) json_response(['ok' => true, 'id' => $id, 'title' => WikiPage::find($id)['title'], 'url' => self::pageUrl($id), 'warnings' => $result['warnings']]);
+        flash('Document importé.' . ($result['warnings'] ? ' ' . count($result['warnings']) . ' avertissement(s) : relisez la page.' : ''));
+        redirect(self::pageUrl($id));
+    }
+
     /** Image sent by the editor (field "image"). JSON: {ok, name, src: "_assets/<name>"}. */
     public function uploadImage(string $id): void
     {
