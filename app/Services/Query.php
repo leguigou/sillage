@@ -62,6 +62,12 @@ final class Query
         }
         return $rows;
     }
+    /** True when ticket $ticket is still part of the result set of $filters (used after an inline edit in the list). */
+    public static function matches(int $project, array $filters, int $ticket): bool
+    {
+        [$w, $p] = Filter::where($project, $filters);
+        return DB::one('SELECT 1 x' . self::JOIN . 'WHERE t.id=? AND ' . $w, [$ticket, ...$p]) !== null;
+    }
     public static function count(int $project, array $filters): int
     {
         [$w, $p] = Filter::where($project, $filters);
