@@ -62,6 +62,7 @@ final class Project
                         $appearance['icon'],
                         $id,
                     ]);
+                    if (array_key_exists('comment_order',$input)) DB::run('UPDATE projects SET comment_order=? WHERE id=?',[self::commentOrder($input['comment_order']),$id]);
                     if (array_key_exists('require_ticket_validation',$input)) DB::run('UPDATE projects
                         SET require_ticket_validation=?
                         WHERE id=?',[(int)(bool)$input['require_ticket_validation'],$id]);
@@ -77,6 +78,7 @@ final class Project
                     [$name, $key, $description, $color, $appearance['icon']],
                 );
                 if (!empty($input['require_ticket_validation'])) DB::run('UPDATE projects SET require_ticket_validation=1 WHERE id=?',[$newId]);
+                if (array_key_exists('comment_order',$input)) DB::run('UPDATE projects SET comment_order=? WHERE id=?',[self::commentOrder($input['comment_order']),$newId]);
                 if (!empty($input['repository_connection_id'])) RepositoryConnection::attach($newId,(int)$input['repository_connection_id'],true);
                 if (array_key_exists('team_ids',$input)) Team::setProjectTeams($newId,(array)$input['team_ids']);
                 return $newId;
@@ -87,6 +89,14 @@ final class Project
                 throw $e;
             }
         });
+    }
+    /** Validates the display order of ticket comments: "asc" (oldest first) or "desc" (newest first). */
+    private static function commentOrder(mixed $order): string
+    {
+        if (!in_array($order, ['asc', 'desc'], true)) {
+            throw new \InvalidArgumentException('Ordre des commentaires invalide.');
+        }
+        return $order;
     }
     /** Deletes a project that has no attached repository and no dependent rows (relies on foreign keys, MySQL error 1451). */
     public static function deleteEmpty(int $id): void

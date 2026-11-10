@@ -91,7 +91,8 @@
       event.preventDefault();if(publish.disabled) return;const body=new FormData(form);publish.disabled=true;form.querySelectorAll('input,textarea').forEach(field=>field.readOnly=true);form.setAttribute('aria-busy','true');status.textContent='Publication…';
       try {
         const data=await post(target,body),thread=document.getElementById('activity');
-        if(!document.getElementById('comment-'+data.id)) thread.insertAdjacentHTML('beforeend',data.html);
+        const list=thread.querySelector('[data-comment-list]')||thread;
+        if(!document.getElementById('comment-'+data.id)) list.insertAdjacentHTML(list.dataset.commentOrder==='desc'?'afterbegin':'beforeend',data.html);
         thread.querySelector('[data-no-comments]')?.remove();document.querySelectorAll('.ticket-comment-count').forEach(node=>node.textContent='('+data.count+')');
         window.SillageDialogs.complete(procedureDialog);toast('Procédure publiée dans le suivi du ticket.');
       }catch(error){status.textContent=error.message;}

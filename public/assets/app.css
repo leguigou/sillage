@@ -3759,7 +3759,20 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 
 /* Git announcements share the ticket conversation without impersonating a member. */
 .comment-system .git-kind-pill{font-size:10px;vertical-align:middle;margin-left:8px}
-.comment [data-test-procedure]{margin-top:12px}
+.comment-body{min-width:0}
+.comment-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:6px}
+.comment-actions [data-test-procedure]{margin-top:0}
+.comment-reply-button{font-size:11px;padding:2px 0}
+.comment-reply-button svg{width:13px;height:13px}
+/* Replies hang under their message, shifted right with a thread line so the link to the original stays visible. */
+.ticket-conversation .comment-replies{margin-top:10px;padding-left:16px;border-left:2px solid var(--line)}
+.ticket-conversation .comment-replies .comment{border-bottom:0;margin-bottom:0;padding:10px 0 0}
+.ticket-conversation .comment-replies .comment:first-child{padding-top:2px}
+.ticket-conversation .comment-replies:hover{border-left-color:var(--accent)}
+.comment-reply-context{margin:0 0 12px;padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;font-size:12px;display:grid;gap:4px}
+.comment-reply-context[hidden]{display:none}
+.comment-reply-excerpt{color:var(--subtle);overflow-wrap:anywhere}
+@media (max-width:760px){.ticket-conversation .comment-replies{padding-left:10px}}
 #test-procedure-dialog{width:min(640px,calc(100vw - 32px))}
 #test-procedure-dialog [data-procedure-status]:empty{display:none}
 
