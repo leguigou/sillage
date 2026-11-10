@@ -7,6 +7,7 @@
  * by partials/list-ticket-cells.php and partials/list-ticket-actions.php. $deploymentBadges (TicketDevelopment::badges())
  * is prepared here for those partials.
  * Before output, rows may be reordered as a parent/child tree ($filters['hierarchy']) and then grouped ($filters['group']).
+ * The table carries its effective filters (data-match-filters) so an inline edit can drop a row that no longer matches.
  * The hidden #bulk-form (POST /bulk) is shown by JS when rows are ticked; its value choices are in #bulk-value-options.
  */
 use App\Models\Ticket;
@@ -30,6 +31,7 @@ foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'S
 <script type="application/json" id="bulk-value-options"><?= json_encode(['status'=>App\Models\Workflow::labels('status',(int)$project['id'],true),'priority'=>Ticket::PRIORITIES,'assignee_id'=>['none'=>'Non assigné']+array_column($members,'name','id'),'flagged'=>['0'=>'Non bloqué','1'=>'Bloqué']],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
 <div class="table-panel">
 <table class="ticket-table"
+  data-match-filters="<?= e(json_encode($filters,JSON_THROW_ON_ERROR)) ?>" data-match-project="<?= $section==='all'?0:(int)$project['id'] ?>"
   data-column-layout-key="<?= e($user['id'].':'.$project['id'].':'.($activeView?($activeView['id'].':'.App\Models\SavedView::revision($activeView)):'default')) ?>"
   data-report-layout="<?= e(json_encode(['columns'=>isset($filters['columns']) || isset($filters['show_progress']) ? $listColumns : null,'savedOrder'=>$activeView?ListLayout::columns(json_decode($activeView['settings'],true,64,JSON_THROW_ON_ERROR)):null],JSON_THROW_ON_ERROR)) ?>">
 <thead><tr>

@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.33.0",
+  "current_version": "1.34.0",
   "entries": [
+    {
+      "version": "1.34.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Liste à jour après une modification rapide",
+      "summary": "Un ticket modifié directement dans la liste disparaît s’il ne correspond plus aux filtres, et un bouton permet de rafraîchir les tickets affichés.",
+      "changes": [
+        "En changeant l’état, la personne assignée, la priorité ou le résumé d’un ticket depuis la liste, la ligne s’efface si le ticket ne correspond plus aux filtres affichés, par exemple quand il passe « En pause » alors que les tickets en pause sont masqués.",
+        "Le nombre de tickets et les compteurs de regroupement suivent ce retrait ; un message confirme l’enregistrement et indique que le ticket a quitté la liste.",
+        "Un bouton « Rafraîchir les tickets », en forme de flèche circulaire, est disponible à côté du nombre de tickets. Il est mis en évidence lorsque des lignes ont été retirées, pour compléter la page."
+      ]
+    },
     {
       "version": "1.33.0",
       "date": "2026-11-10",

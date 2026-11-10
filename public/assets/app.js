@@ -252,12 +252,41 @@ function refreshTicketModified(root=document) {
 refreshTicketModified();
 setInterval(()=>{if(!document.hidden) refreshTicketModified();},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) refreshTicketModified();});
+// After an inline edit, a list row whose ticket left the current filters (e.g. set to "En pause") fades out;
+// the counters follow and the refresh button is highlighted, since the page now shows fewer rows than it should.
+function markListStale() {
+  $$('[data-refresh-view]').forEach(button=>{button.classList.add('is-stale');button.title='Des tickets ont été retirés de la liste : rafraîchir pour la compléter';});
+}
+function removeUnmatchedRow(row,field) {
+  let header=row.previousElementSibling;
+  while(header && !header.classList.contains('table-group')) header=header.previousElementSibling;
+  const select=$('[data-select-ticket]',row);if(select) select.checked=false;
+  const counter=$('[data-result-count]');
+  if(counter) {const n=Math.max(0,Number(counter.dataset.resultCount)-1);counter.dataset.resultCount=n;counter.textContent=n+' ticket'+(n>1?'s':'');}
+  const groupCount=header && $('span',header);
+  markListStale();
+  let next=row.nextElementSibling;
+  while(next && !next.matches('[data-ticket-id]')) next=next.nextElementSibling;
+  const finish=()=>{
+    if(!row.isConnected) return;
+    // Keyboard users keep their place: focus moves to the same field of the next row, or to the refresh button.
+    const hadFocus=row.contains(document.activeElement)||document.activeElement===document.body;
+    row.remove();selectedTickets();
+    if(groupCount) {const n=Number(groupCount.textContent)-1;if(n>0) groupCount.textContent=n;else header.remove();}
+    if(hadFocus) ((next?.isConnected&&$(`[data-quick-field="${field}"]`,next))||$('[data-refresh-view]'))?.focus({preventScroll:true});
+  };
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return finish();
+  row.classList.add('is-leaving');row.addEventListener('transitionend',finish,{once:true});setTimeout(finish,400);
+}
+$$('[data-refresh-view]').forEach(button=>button.addEventListener('click',()=>{button.classList.add('is-loading');button.setAttribute('aria-busy','true');location.reload();}));
 async function quick(row, field, value) {
   const previousVersion = Number(row.dataset.version);
+  const table = row.closest('[data-match-filters]');
   const data = await post(`/tickets/${row.dataset.ticketId}/quick`, {
     field,
     value,
     version: row.dataset.version,
+    ...(table ? { filters: table.dataset.matchFilters, filter_project: table.dataset.matchProject } : {}),
   });
   $$(`[data-ticket-id="${row.dataset.ticketId}"]`).forEach(
     (r) => {
@@ -295,9 +324,14 @@ async function quick(row, field, value) {
       'Modification enregistrée et automatisations appliquées.',
     );
     location.reload();
+  } else if (table && data.matches_filters === false) {
+    removeUnmatchedRow(row, field);
+    data.removed = true;
   }
   return data;
 }
+const savedMessage = (data, message) =>
+  data.removed ? message + ' Le ticket ne correspond plus aux filtres : il est retiré de la liste.' : message;
 let projectEditorLoading=false;
 document.addEventListener('click',async event=>{
   const button=event.target.closest('[data-edit-project]');
@@ -359,8 +393,8 @@ $$('[data-quick-field]').forEach((input) =>
     const row = input.closest('[data-ticket-id]');
     input.disabled = true;
     try {
-      await quick(row, input.dataset.quickField, input.value);
-      toast('Modification enregistrée.');
+      const data = await quick(row, input.dataset.quickField, input.value);
+      toast(savedMessage(data, 'Modification enregistrée.'));
       if (input.dataset.quickField === 'status') {
         input.className = 'status-select workflow-status';
         row.dataset.status = input.value;
@@ -378,10 +412,10 @@ $$('[data-edit-field]').forEach((button) =>
     const title = await window.SillageDialogs.prompt({title:'Modifier le résumé',label:'Résumé',value:button.dataset.value,maxLength:240,accept:'Enregistrer'});
     if (!title || title === button.dataset.value) return;
     try {
-      await quick(button.closest('[data-ticket-id]'), 'title', title);
+      const data = await quick(button.closest('[data-ticket-id]'), 'title', title);
       button.dataset.value = title;
       $('a', button.closest('td')).textContent = title;
-      toast('Résumé mis à jour.');
+      toast(savedMessage(data, 'Résumé mis à jour.'));
     } catch (error) {
       toast(error.message, true);
     }
