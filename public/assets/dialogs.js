@@ -146,7 +146,7 @@
   },true);
   document.addEventListener('click',async event=>{
     const trigger=event.target.closest('[data-confirm]');
-    if(!trigger || trigger.form || allowed.has(trigger)) {if(trigger) allowed.delete(trigger);return;}
+    if(!trigger || trigger.form || trigger instanceof HTMLFormElement || allowed.has(trigger)) {if(trigger) allowed.delete(trigger);return;}
     event.preventDefault();event.stopImmediatePropagation();
     if(await ask({message:trigger.dataset.confirm})) {allowed.add(trigger);trigger.click();allowed.delete(trigger);}
   },true);

@@ -1,7 +1,18 @@
 {
   "schema": 1,
-  "current_version": "1.33.0",
+  "current_version": "1.33.1",
   "entries": [
+    {
+      "version": "1.33.1",
+      "date": "2026-11-10",
+      "category": "fixes",
+      "title": "Archivage des projets réparé",
+      "summary": "Le bouton Archiver des paramètres archive de nouveau le projet après confirmation.",
+      "changes": [
+        "Après la confirmation, le projet est bien archivé ; auparavant, le clic restait sans effet.",
+        "Les confirmations placées sur un formulaire entier ne bloquent plus son envoi."
+      ]
+    },
     {
       "version": "1.33.0",
       "date": "2026-11-10",
