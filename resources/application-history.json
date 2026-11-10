@@ -10,7 +10,7 @@
       "summary": "On peut répondre directement à un message d’un ticket : la réponse s’affiche décalée sous ce message, reliée par un trait, et chaque projet choisit l’ordre d’affichage des commentaires.",
       "changes": [
         "Chaque commentaire propose un bouton « Répondre » ; la fenêtre de saisie rappelle l’auteur et le début du message concerné.",
-        "Les réponses apparaissent sous leur message, en retrait avec un trait vertical, pour suivre le fil de la discussion.",
+        "Les réponses forment des branches : un trait part de l’avatar du message et bifurque par un coude arrondi vers chaque réponse, indiquée « en réponse à … ». Survoler une réponse colore sa branche.",
         "On peut répondre à une réponse ; au-delà de quatre niveaux, la réponse reste au même retrait pour garder un affichage lisible.",
         "Dans les paramètres du projet (roue crantée de la liste), « Ordre des commentaires des tickets » affiche les discussions du plus ancien au plus récent ou l’inverse. Les réponses restent dans l’ordre chronologique sous leur message.",
         "Après l’envoi, la page revient directement sur le commentaire publié.",
