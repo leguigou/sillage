@@ -47,11 +47,11 @@ final class ListLayout
     public static function settings(int $project,array $settings): array
     {
         self::sorts($settings);
-        $allowed=['q','status','type','priority','assignee','team','hide_done','flagged','label','due_before','jql','pause','release','resolution','validation','sort','direction','group','hierarchy','columns','show_progress'];
+        $allowed=['q','status','type','priority','assignee','team','hide_done','flagged','label','due_before','jql','pause','release','resolution','validation','assignment_match','sort','direction','group','hierarchy','columns','show_progress'];
         $allowed=[...$allowed,'sort2','direction2','sort3','direction3'];
         $settings=array_intersect_key($settings,array_flip($allowed));
         foreach($settings as $key=>$value) {
-            if(in_array($key,['status','type','priority','columns'],true) && is_array($value)) {foreach($value as $item) if(!is_string($item)) throw new \InvalidArgumentException('Liste de critères invalide.');}
+            if(in_array($key,['status','type','priority','columns','assignee','team'],true) && is_array($value)) {foreach($value as $item) if(!is_string($item)) throw new \InvalidArgumentException('Liste de critères invalide.');}
             elseif(!is_scalar($value) && $value!==null) throw new \InvalidArgumentException('Critère de rapport invalide.');
         }
         if(isset($settings['sort']) && !isset(self::SORT_LABELS[$settings['sort']])) throw new \InvalidArgumentException('Tri du rapport invalide.');
@@ -60,6 +60,15 @@ final class ListLayout
         foreach(['hierarchy','show_progress','hide_done','flagged'] as $key) if(isset($settings[$key])) {
             if(!in_array($settings[$key],[0,1,'0','1',false,true,''],true)) throw new \InvalidArgumentException('Option de rapport invalide.');
             $settings[$key]=empty($settings[$key])?'0':'1';
+        }
+        // Assignee/team selections are normalised: one value stays a string (older shape), several become a list.
+        foreach(['assignee','team'] as $key) if(isset($settings[$key])) {
+            $ids=Filter::selectedIds($settings,$key);
+            if($ids===[]) unset($settings[$key]);else $settings[$key]=count($ids)===1?$ids[0]:$ids;
+        }
+        if(isset($settings['assignment_match'])) {
+            if(!in_array($settings['assignment_match'],['','all','any'],true)) throw new \InvalidArgumentException('Combinaison personne / équipe invalide.');
+            if($settings['assignment_match']!=='any') unset($settings['assignment_match']);
         }
         if (isset($settings['columns'])) {
             $settings['columns'] = self::columns($settings);
