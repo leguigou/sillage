@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.34.0",
+  "current_version": "1.35.0",
   "entries": [
+    {
+      "version": "1.35.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Changer l’équipe de plusieurs tickets à la fois",
+      "summary": "La modification groupée de la liste permet de choisir l’équipe des tickets cochés.",
+      "changes": [
+        "Après avoir coché des tickets dans la liste, le champ « Équipe » est proposé à côté de l’état, de la priorité, de la personne assignée et du blocage.",
+        "Les choix sont les équipes du projet et « Sans équipe » pour retirer l’équipe ; la personne assignée reste inchangée.",
+        "Dans « Tous les tickets », toutes les équipes sont proposées : si l’une d’elles ne participe pas au projet d’un ticket coché, aucun ticket n’est modifié et un message l’explique."
+      ]
+    },
     {
       "version": "1.34.0",
       "date": "2026-11-10",
