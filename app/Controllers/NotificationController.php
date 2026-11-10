@@ -15,6 +15,8 @@ use App\Models\ProjectEmail;
  *   ticket e-mails.
  * - POST /notifications/test (admin, max 3 per 10 min): sends a test e-mail
  *   to the admin to check the mail transport.
+ * - POST /notifications/sender (admin): display name used in the From header
+ *   of every e-mail (App\Models\CompanyBranding::saveSenderName()).
  */
 final class NotificationController
 {
@@ -37,6 +39,14 @@ final class NotificationController
         });
         flash('Votre préférence de notifications est enregistrée. Les e-mails de sécurité restent actifs.');
         redirect('/settings#email-preferences');
+    }
+    /** Saves the display name shown as the sender of every e-mail (admin). */
+    public function sender(): void
+    {
+        Auth::admin();
+        \App\Models\CompanyBranding::saveSenderName((string)($_POST['mail_from_name']??''));
+        flash('Le nom de l’expéditeur des e-mails est enregistré.');
+        redirect('/settings#notifications');
     }
     public function test(): void
     {

@@ -88,7 +88,8 @@ $notifications=new \App\Controllers\NotificationController();
 $r->add('POST','/projects/{id}/notifications',[$notifications,'project'])
     ->add('POST','/projects/{id}/notifications/retry',[$notifications,'retry'])
     ->add('POST','/account/notifications',[$notifications,'preference'])
-    ->add('POST','/notifications/test',[$notifications,'test']);
+    ->add('POST','/notifications/test',[$notifications,'test'])
+    ->add('POST','/notifications/sender',[$notifications,'sender']);
 $llm=new \App\Controllers\LlmController();
 $r->add('POST','/llm/profiles/test',[$llm,'probe'])
     ->add('POST','/llm/profiles',[$llm,'save'])
