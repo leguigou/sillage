@@ -79,15 +79,31 @@ final class Notifications
             $actorName=$actor?DB::one('SELECT name FROM users WHERE id=?',[$actor])['name']??'Un membre':'Le système ou un demandeur externe';
             $subject=Company::name().' · '.$ticket['key'].' · '.implode(', ',$eventLabels);
             $subject=mb_substr($subject,0,450);
-            $body="Bonjour ".$person['name'].",\n\n".$actorName." a fait évoluer le ticket ".$ticket['key']." dans le projet ".$ticket['project_name'].".\n\n";
-            $body.=$ticket['title']."\n".implode(' · ',$eventLabels)."\n";
-            if ($allFields) $body.='Champs modifiés : '.implode(', ',array_map(fn($field)=>self::FIELDS[$field],$allFields)).".\n";
-            $body.='État : '.\App\Models\Workflow::label('status',(int)$ticket['project_id'],$ticket['status'])."\nResponsable : ".($ticket['assignee_name']??'Non assigné')."\nÉquipe : ".($ticket['team_name']??'Sans équipe')."\n\nConsulter le ticket (connexion requise) :\n".url('/tickets/'.$ticket['id'])."\n\nVos préférences e-mail : ".url('/settings#email-preferences')."\nL’équipe ".Company::name().' — '.app_name();
+            // Only metadata is copied into the e-mail (title, labels, people); never descriptions or comments.
+            $rows=[
+                ['État',\App\Models\Workflow::label('status',(int)$ticket['project_id'],$ticket['status'])],
+                ['Responsable',$ticket['assignee_name']??'Non assigné'],
+                ['Équipe',$ticket['team_name']??'Sans équipe'],
+            ];
+            if ($allFields) $rows[]=['Champs modifiés',implode(', ',array_map(fn($field)=>self::FIELDS[$field],$allFields))];
+            $mail=EmailTemplate::render([
+                'preheader'=>$actorName.' · '.implode(', ',$eventLabels).' · '.$ticket['title'],
+                'eyebrow'=>$ticket['key'].' · '.$ticket['project_name'],
+                'title'=>$ticket['title'],
+                'greeting'=>'Bonjour '.$person['name'].',',
+                'paragraphs'=>[$actorName.' a fait évoluer le ticket '.$ticket['key'].' dans le projet '.$ticket['project_name'].'.'],
+                'chips'=>$eventLabels,
+                'card'=>['rows'=>$rows],
+                'action'=>['label'=>'Consulter le ticket','url'=>url('/tickets/'.$ticket['id'])],
+                'note'=>'La connexion est requise pour ouvrir le ticket. Le contenu des descriptions et des commentaires n’est jamais recopié dans les e-mails.',
+                'footer'=>[['Vos préférences e-mail',url('/settings#email-preferences')]],
+            ]);
+            $body=$mail['text'];$html=$mail['html'];
             if ($old) DB::run('UPDATE notification_outbox
-                SET events_json=?,fields_json=?,subject=?,body=?
-                WHERE id=?',[json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body,$old['id']]);
-            else DB::run('INSERT INTO notification_outbox(batch_key,ticket_id,project_id,recipient_id,recipient_email,events_json,fields_json,subject,body)
-                VALUES(?,?,?,?,?,?,?,?,?)',[self::$batch,$ticket['id'],$ticket['project_id'],$id,$person['email'],json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body]);
+                SET events_json=?,fields_json=?,subject=?,body=?,html_body=?
+                WHERE id=?',[json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body,$html,$old['id']]);
+            else DB::run('INSERT INTO notification_outbox(batch_key,ticket_id,project_id,recipient_id,recipient_email,events_json,fields_json,subject,body,html_body)
+                VALUES(?,?,?,?,?,?,?,?,?,?)',[self::$batch,$ticket['id'],$ticket['project_id'],$id,$person['email'],json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body,$html]);
         }
     }
     /**
@@ -132,7 +148,8 @@ final class Notifications
                     WHERE id=? AND lease_token=?",[$row['id'],$row['lease']]);$result['cancelled']++;continue;
             }
             try {
-                Mailer::send($row['recipient_email'],$row['subject'],$row['body']);
+                // Rows queued before the HTML layout existed have no html_body and go out as plain text.
+                Mailer::send($row['recipient_email'],$row['subject'],$row['body'],$row['html_body']??null);
                 DB::run("UPDATE notification_outbox
                     SET state='sent',sent_at=UTC_TIMESTAMP(),last_error=NULL,lease_token=NULL
                     WHERE id=? AND lease_token=?",[$row['id'],$row['lease']]);

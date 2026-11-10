@@ -21,6 +21,10 @@ $notifyTicket=Ticket::create($np,['title'=>'Premier signal','assignee_id'=>$reci
 $queued=DB::all('SELECT * FROM notification_outbox WHERE ticket_id=?',[$notifyTicket]);
 check(count($queued)===1 && (int)$queued[0]['recipient_id']===$recipient,'destinataires dédupliqués entre responsable, équipe et personnes choisies, auteur exclu');
 check(!str_contains($queued[0]['body'],'password') && str_contains($queued[0]['body'],url('/tickets/'.$notifyTicket)),'notification minimale avec lien de connexion au ticket');
+check(str_contains((string)$queued[0]['html_body'],'href="'.url('/tickets/'.$notifyTicket).'"') && str_contains((string)$queued[0]['html_body'],'Consulter le ticket'),'notification HTML avec bouton vers le ticket');
+$escaped=App\Services\EmailTemplate::render(['title'=>'<script>alert(1)</script>','paragraphs'=>['a & <b>'],'card'=>['rows'=>[['<i>','"x"']]],'action'=>['label'=>'Ouvrir','url'=>'https://example.com/?a=1&b="2"']]);
+check(!str_contains($escaped['html'],'<script>') && !str_contains($escaped['html'],'<b>') && !str_contains($escaped['html'],'<i>') && str_contains($escaped['html'],'&lt;script&gt;') && str_contains($escaped['html'],'b=&quot;2&quot;'),'mise en page des e-mails échappe toutes les valeurs');
+check(str_contains($escaped['text'],'<script>alert(1)</script>') && str_contains($escaped['text'],"Ouvrir :\nhttps://example.com/"),'version texte conservée sans HTML');
 $beforeCount=(int)DB::one('SELECT COUNT(*) n FROM notification_outbox')['n'];
 Ticket::create($npOther,['title'=>'Autre projet','assignee_id'=>$recipient],$uid);
 check((int)DB::one('SELECT COUNT(*) n FROM notification_outbox')['n']===$beforeCount,'politique de notifications indépendante par projet');

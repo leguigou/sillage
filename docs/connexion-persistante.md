@@ -8,6 +8,8 @@ Le cookie contient un identifiant aléatoire et un secret de 256 bits. MySQL con
 
 **Se déconnecter** efface le cookie et révoque ce justificatif côté serveur, y compris les sessions PHP recréées avec lui. Les autres appareils restent connectés. Un changement ou une réinitialisation de mot de passe, une modification de rôle ou une désactivation de compte invalide toutes les connexions persistantes du compte. Un compte non vérifié ne peut pas obtenir ce cookie.
 
+Après une réinitialisation par le lien reçu par e-mail, le navigateur qui a choisi le nouveau mot de passe est connecté directement : une nouvelle session et un nouveau cookie de 30 jours sont émis pour la nouvelle version du compte, alors que toutes les autres connexions restent révoquées. Si le compte a été désactivé ou modifié entre-temps, l’utilisateur est renvoyé vers la page de connexion. Le changement du mot de passe depuis le profil, lui, demande toujours de se reconnecter.
+
 La migration additive `014_persistent_login.sql` crée `persistent_logins`. Les données étant dans MySQL, un redéploiement qui remplace les fichiers de session PHP ne suffit plus à déconnecter l’utilisateur. Il faut conserver **la même base, `APP_URL` et `APP_KEY`** entre les déploiements. Le nom de société et les thèmes ne modifient pas ces identifiants. Un navigateur qui efface tous les cookies, une navigation privée fermée ou un changement de domaine peut toujours nécessiter une reconnexion.
 
 Un ancien formulaire ouvert avant la recréation de session peut demander à être rechargé car son jeton CSRF n’est plus celui de la nouvelle session. La protection CSRF n’est pas désactivée pour conserver la connexion.
