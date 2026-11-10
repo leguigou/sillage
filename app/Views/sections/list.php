@@ -7,7 +7,9 @@
  * by partials/list-ticket-cells.php and partials/list-ticket-actions.php. $deploymentBadges (TicketDevelopment::badges())
  * is prepared here for those partials.
  * Before output, rows may be reordered as a parent/child tree ($filters['hierarchy']) and then grouped ($filters['group']).
- * The hidden #bulk-form (POST /bulk) is shown by JS when rows are ticked; its value choices are in #bulk-value-options.
+ * The table carries its effective filters (data-match-filters) so an inline edit can drop a row that no longer matches.
+ * The hidden #bulk-form (POST /bulk) is shown by JS when rows are ticked; its value choices are in #bulk-value-options
+ * (teams: those of the project, or every team on /all, where the server still checks each ticket's project).
  */
 use App\Models\Ticket;
 use App\Services\ListLayout;
@@ -26,10 +28,11 @@ if(!empty($filters['hierarchy'])) {
 $group=$filters['group']??''; $grouped=[];
 foreach($tickets as $ticket) { $g=match($group){'team'=>$ticket['team_name']??'Sans équipe','assignee'=>$ticket['assignee_name']??'Non assigné','priority'=>Ticket::PRIORITIES[$ticket['priority']],'type'=>\App\Models\Workflow::label('type',(int)$ticket['project_id'],$ticket['type']),'parent'=>$ticket['parent_id']?'Parent #'.$ticket['parent_id']:'Sans parent','labels'=>implode(', ',$ticket['labels_array'])?:'Sans étiquette',default=>''}; $grouped[$g][]=$ticket; }
 ?>
-<form method="post" action="/bulk" id="bulk-form" class="bulk-bar" hidden><?= csrf() ?><input type="hidden" name="_return" value="<?= e(query_url('/'.$section,$baseQuery)) ?>"><span><strong data-selected-count>0</strong> sélectionné(s)</span><select name="field" aria-label="Champ à modifier"><option value="status">État</option><option value="priority">Priorité</option><option value="assignee_id">Personne assignée</option><option value="flagged">Blocage</option></select><select name="value" required aria-label="Nouvelle valeur"></select><button class="button primary small-button" data-confirm="Appliquer cette modification à tous les tickets sélectionnés ?">Appliquer</button></form>
-<script type="application/json" id="bulk-value-options"><?= json_encode(['status'=>App\Models\Workflow::labels('status',(int)$project['id'],true),'priority'=>Ticket::PRIORITIES,'assignee_id'=>['none'=>'Non assigné']+array_column($members,'name','id'),'flagged'=>['0'=>'Non bloqué','1'=>'Bloqué']],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
+<form method="post" action="/bulk" id="bulk-form" class="bulk-bar" hidden><?= csrf() ?><input type="hidden" name="_return" value="<?= e(query_url('/'.$section,$baseQuery)) ?>"><span><strong data-selected-count>0</strong> sélectionné(s)</span><select name="field" aria-label="Champ à modifier"><option value="status">État</option><option value="priority">Priorité</option><option value="assignee_id">Personne assignée</option><option value="team_id">Équipe</option><option value="flagged">Blocage</option></select><select name="value" required aria-label="Nouvelle valeur"></select><button class="button primary small-button" data-confirm="Appliquer cette modification à tous les tickets sélectionnés ?">Appliquer</button></form>
+<script type="application/json" id="bulk-value-options"><?= json_encode(['status'=>App\Models\Workflow::labels('status',(int)$project['id'],true),'priority'=>Ticket::PRIORITIES,'assignee_id'=>['none'=>'Non assigné']+array_column($members,'name','id'),'team_id'=>['none'=>'Sans équipe']+array_column($section==='all'?$teams:$projectTeams,'name','id'),'flagged'=>['0'=>'Non bloqué','1'=>'Bloqué']],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
 <div class="table-panel">
 <table class="ticket-table"
+  data-match-filters="<?= e(json_encode($filters,JSON_THROW_ON_ERROR)) ?>" data-match-project="<?= $section==='all'?0:(int)$project['id'] ?>"
   data-column-layout-key="<?= e($user['id'].':'.$project['id'].':'.($activeView?($activeView['id'].':'.App\Models\SavedView::revision($activeView)):'default')) ?>"
   data-report-layout="<?= e(json_encode(['columns'=>isset($filters['columns']) || isset($filters['show_progress']) ? $listColumns : null,'savedOrder'=>$activeView?ListLayout::columns(json_decode($activeView['settings'],true,64,JSON_THROW_ON_ERROR)):null],JSON_THROW_ON_ERROR)) ?>">
 <thead><tr>

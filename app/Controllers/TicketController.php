@@ -139,7 +139,20 @@ final class TicketController
             [$field => $_POST['value'] ?? ''],
         );
         Ticket::update((int) $id, $data, (int) $u['id'], (int) ($_POST['version'] ?? 0));
-        json_response(['ok' => true, 'ticket' => Ticket::find((int) $id)]);
+        $reply = ['ok' => true, 'ticket' => Ticket::find((int) $id)];
+        // The list sends its effective filters so it can drop a row that no longer matches them.
+        // The edit is already saved: unreadable filters only leave the answer unknown (null).
+        if (isset($_POST['filters'])) {
+            try {
+                $filters = json_decode((string) $_POST['filters'], true, 32, JSON_THROW_ON_ERROR);
+                $reply['matches_filters'] = is_array($filters)
+                    ? \App\Services\Query::matches(max(0, (int) ($_POST['filter_project'] ?? 0)), $filters, (int) $id)
+                    : null;
+            } catch (\JsonException | \InvalidArgumentException | \TypeError | \ValueError) {
+                $reply['matches_filters'] = null;
+            }
+        }
+        json_response($reply);
     }
     /** Updates only the start and due dates of the ticket. JSON reply. */
     public function schedule(string $id): void
@@ -229,7 +242,7 @@ final class TicketController
         redirect(ticket_url((int)$id));
     }
     /**
-     * Applies one change (status, priority, assignee or flag) to 1–200 selected
+     * Applies one change (status, priority, assignee, team or flag) to 1–200 selected
      * tickets in a single transaction: one invalid ticket cancels the whole batch.
      */
     public function bulk(): void
@@ -240,7 +253,7 @@ final class TicketController
             throw new \InvalidArgumentException('Sélectionnez entre 1 et 200 tickets.');
         }
         $field = (string) ($_POST['field'] ?? '');
-        if (!in_array($field, ['status', 'priority', 'assignee_id', 'flagged'], true)) {
+        if (!in_array($field, ['status', 'priority', 'assignee_id', 'team_id', 'flagged'], true)) {
             throw new \InvalidArgumentException('Champ non modifiable en groupe.');
         }
         DB::transaction(function () use ($ids, $field, $u) {
@@ -249,7 +262,8 @@ final class TicketController
                 $data = array_replace(
                     $t,
                     ['labels' => $t['labels_array']],
-                    [$field => $field==='assignee_id' && ($_POST['value']??'')==='none'?'':($_POST['value'] ?? '')],
+                    // "none" clears the assignee or the team.
+                    [$field => in_array($field,['assignee_id','team_id'],true) && ($_POST['value']??'')==='none'?'':($_POST['value'] ?? '')],
                 );
                 Ticket::update($id, $data, (int) $u['id'], (int) $t['version']);
             }
