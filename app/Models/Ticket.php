@@ -395,11 +395,19 @@ final class Ticket
             if ((bool)$t['archived']!==$archived) \App\Services\Notifications::enqueue(self::find($id),['archived'],$actor);
         });
     }
-    /** Adds a plain-text or sanitized HTML comment, queues notifications (mentions included), and returns the comment id. */
-    public static function comment(int $id, string $body, int $actor, string $format = 'text'): int
+    /** Deepest nesting level of a reply; a reply to a comment at this level joins that comment's own thread level. */
+    public const COMMENT_REPLY_DEPTH = 4;
+
+    /**
+     * Adds a plain-text or sanitized HTML comment, queues notifications (mentions included), and returns the comment id.
+     * $parent makes it a reply: the parent must belong to the same ticket; past COMMENT_REPLY_DEPTH the reply is
+     * attached to the parent's own parent so threads never grow deeper than the display can indent.
+     */
+    public static function comment(int $id, string $body, int $actor, string $format = 'text', ?int $parent = null): int
     {
-        return DB::transaction(function () use ($id, $body, $actor, $format) {
+        return DB::transaction(function () use ($id, $body, $actor, $format, $parent) {
             $t = Ticket::find((int) $id);
+            $parent = $parent ? self::replyParent($id, $parent) : null;
             $body = trim($body);
             if (!in_array($format, ['text', 'html'], true)) {
                 throw new \InvalidArgumentException('Format de commentaire invalide.');
@@ -414,8 +422,9 @@ final class Ticket
             }
             $mentions=\App\Services\Mentions::ids($body,$format);
             \App\Services\Mentions::people($mentions);
-            $comment = DB::insert('INSERT INTO comments(ticket_id,user_id,body,body_format) VALUES(?,?,?,?)', [
+            $comment = DB::insert('INSERT INTO comments(ticket_id,parent_id,user_id,body,body_format) VALUES(?,?,?,?,?)', [
                 $id,
+                $parent,
                 $actor,
                 $body,
                 $format,
@@ -424,12 +433,49 @@ final class Ticket
                 (int) $t['project_id'],
                 (int) $id,
                 (int) $actor,
-                'a ajouté un commentaire',
+                $parent ? 'a répondu à un commentaire' : 'a ajouté un commentaire',
             );
             \App\Services\Notifications::enqueue(self::find($id),['commented'],$actor,[],null,$mentions,$comment);
             return $comment;
         });
     }
+    /** Resolves the comment a reply is attached to, checking it belongs to the ticket and capping the depth. */
+    private static function replyParent(int $ticket, int $parent): int
+    {
+        $chain = [];
+        for ($current = $parent; $current && count($chain) <= self::COMMENT_REPLY_DEPTH; ) {
+            $row = DB::one('SELECT id,parent_id FROM comments WHERE id=? AND ticket_id=?', [$current, $ticket]);
+            if (!$row) {
+                throw new \InvalidArgumentException('Le commentaire auquel vous répondez n’existe plus sur ce ticket.');
+            }
+            $chain[] = (int) $row['id'];
+            $current = $row['parent_id'] === null ? 0 : (int) $row['parent_id'];
+        }
+        // $chain[0] is the parent, then its ancestors: count($chain) is the depth the reply would get.
+        return count($chain) > self::COMMENT_REPLY_DEPTH ? $chain[1] : $chain[0];
+    }
+
+    /**
+     * Groups comments (ordered by id) into threads: returns [roots, replies by parent id]. Roots follow the
+     * project order ("asc" or "desc"); replies stay chronological under their parent. A reply whose parent is
+     * missing from the list is shown as a root.
+     */
+    public static function commentThreads(array $comments, string $order = 'asc'): array
+    {
+        $ids = array_flip(array_map(fn($c) => (int) $c['id'], $comments));
+        $roots = [];
+        $replies = [];
+        foreach ($comments as $c) {
+            $parent = (int) ($c['parent_id'] ?? 0);
+            if ($parent && isset($ids[$parent])) {
+                $replies[$parent][] = $c;
+            } else {
+                $roots[] = $c;
+            }
+        }
+        return [$order === 'desc' ? array_reverse($roots) : $roots, $replies];
+    }
+
     /**
      * Links two tickets of the same project ("relates", "blocks" or "duplicates"); duplicate links
      * are ignored. For "blocks", walks existing blocking links from the target to refuse cycles.

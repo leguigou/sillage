@@ -39,6 +39,7 @@ final class TicketController
             [$project['id'], $ticket['id']],
         );
         $comments = \App\Models\GitConversation::comments((int)$id);
+        [$commentRoots, $commentReplies] = Ticket::commentThreads($comments, (string) ($project['comment_order'] ?? 'asc'));
         $attachments = DB::all(
             'SELECT id,original_name,size_bytes,mime FROM attachments WHERE ticket_id=? ORDER BY id',
             [$id],
@@ -70,6 +71,8 @@ final class TicketController
                 'parents',
                 'parent',
                 'comments',
+                'commentRoots',
+                'commentReplies',
                 'attachments',
                 'links',
                 'children',
@@ -259,8 +262,9 @@ final class TicketController
     public function comment(string $id): void
     {
         $u = Auth::editor();
-        Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'));
-        redirect(ticket_url((int)$id,'#activity'));
+        $parent = (int) ($_POST['parent_id'] ?? 0);
+        $comment = Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'), $parent ?: null);
+        redirect(ticket_url((int)$id,'#comment-'.$comment));
     }
     /** Creates a relation (default "relates") from ticket {id} to target_id. */
     public function link(string $id): void

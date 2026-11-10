@@ -162,6 +162,7 @@ final class Tools
             'repository_connection_id' => $nullableId,
             'team_ids' => ['type'=>'array','items'=>$id,'uniqueItems'=>true],
             'require_ticket_validation'=>$bool,
+            'comment_order'=>$enum(['asc','desc']),
         ];
         $add(
             'projects_create',
@@ -175,7 +176,7 @@ final class Tools
             'Modifier le nom, la description, la couleur ou le dépôt Git principal d’un projet. Une connexion existante peut être partagée.',
             'admin',
             $obj(
-                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId,'team_ids'=>['type'=>'array','items'=>$id,'uniqueItems'=>true],'require_ticket_validation'=>$bool],
+                ['id' => $id, 'name' => $str(), 'description' => $str(2000), 'color' => $str(7), 'repository_connection_id'=>$nullableId,'team_ids'=>['type'=>'array','items'=>$id,'uniqueItems'=>true],'require_ticket_validation'=>$bool,'comment_order'=>$enum(['asc','desc'])],
                 ['id'],
             ),
             fn($a) => Project::find(Project::save($a, $a['id'])),
@@ -332,10 +333,10 @@ final class Tools
         );
         $add(
             'tickets_comment',
-            'Ajouter un commentaire interne au ticket.',
+            'Ajouter un commentaire interne au ticket, ou répondre à un commentaire existant avec parent_id.',
             'write',
-            $obj(['id' => $id, 'body' => $str(100000), 'body_format' => $enum(['text','html'])], ['id', 'body']),
-            fn($a) => ['id' => Ticket::comment($a['id'], $a['body'], (int) $user['id'], $a['body_format'] ?? 'text')],
+            $obj(['id' => $id, 'body' => $str(100000), 'body_format' => $enum(['text','html']), 'parent_id' => $id], ['id', 'body']),
+            fn($a) => ['id' => Ticket::comment($a['id'], $a['body'], (int) $user['id'], $a['body_format'] ?? 'text', $a['parent_id'] ?? null)],
         );
         $add(
             'tickets_comments_list',
@@ -352,7 +353,7 @@ final class Tools
                         $a['id'],
                     ])['n'],
                     'comments' => DB::all(
-                        'SELECT c.id,c.body,c.body_format,c.created_at,COALESCE(u.name,\'Sillage\') name
+                        'SELECT c.id,c.parent_id,c.body,c.body_format,c.created_at,COALESCE(u.name,\'Sillage\') name
                             FROM comments c
                             LEFT JOIN users u ON u.id=c.user_id
                             WHERE ticket_id=?
