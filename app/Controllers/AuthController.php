@@ -103,18 +103,40 @@ final class AuthController
             gmdate('Y-m-d H:i:s', time() + ($purpose === 'verify' ? 86400 : 3600)),
         ]);
         $link = url('/' . ($purpose === 'verify' ? 'verify' : 'reset') . '?token=' . $token);
+        $name = (string) (DB::one('SELECT name FROM users WHERE id=?', [$id])['name'] ?? '');
+        $greeting = $name === '' ? 'Bonjour,' : 'Bonjour ' . $name . ',';
+        $message = $purpose === 'verify'
+            ? [
+                'preheader' => 'Confirmez votre adresse pour activer votre accès à ' . app_name() . '.',
+                'eyebrow' => 'Bienvenue',
+                'title' => 'Confirmez votre adresse e-mail',
+                'greeting' => $greeting,
+                'paragraphs' => [
+                    'Votre compte ' . app_name() . ' est presque prêt. Il ne reste qu’à confirmer que cette adresse est bien la vôtre.',
+                ],
+                'action' => ['label' => 'Confirmer mon adresse', 'url' => $link],
+                'note' => 'Ce lien est valable 24 heures et ne peut servir qu’une fois. Si vous n’êtes pas à l’origine de cette demande, ignorez simplement cet e-mail.',
+            ]
+            : [
+                'preheader' => 'Choisissez un nouveau mot de passe — le lien est valable une heure.',
+                'eyebrow' => 'Sécurité du compte',
+                'title' => 'Réinitialisez votre mot de passe',
+                'greeting' => $greeting,
+                'paragraphs' => [
+                    'Une demande de réinitialisation du mot de passe a été faite pour votre compte ' . app_name() . '.',
+                    'Choisissez un nouveau mot de passe : vous serez ensuite connecté directement, et vos autres sessions seront fermées.',
+                ],
+                'action' => ['label' => 'Choisir un nouveau mot de passe', 'url' => $link],
+                'note' => 'Ce lien est valable 1 heure et ne peut servir qu’une fois. Si vous n’avez rien demandé, ignorez cet e-mail : votre mot de passe actuel reste inchangé.',
+            ];
+        $mail = \App\Services\EmailTemplate::render($message);
         Mailer::send(
             $email,
             $purpose === 'verify'
                 ? Company::name() . ' — validez votre adresse dans ' . app_name()
                 : Company::name() . ' — votre lien de réinitialisation ' . app_name(),
-            "Bonjour,\n\nOuvrez ce lien pour " .
-                ($purpose === 'verify'
-                    ? 'valider votre adresse'
-                    : 'choisir un nouveau mot de passe') .
-                " :\n$link\n\nSi vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.\nL’équipe " .
-                Company::name() .
-                ' — ' . app_name(),
+            $mail['text'],
+            $mail['html'],
         );
     }
     public function verify(): void
@@ -155,7 +177,7 @@ final class AuthController
     {
         Security::limit('reset', 8);
         $hash = Security::password((string) ($_POST['password'] ?? ''));
-        DB::transaction(function () use ($hash) {
+        $userId = DB::transaction(function () use ($hash) {
             $t = DB::one(
                 "SELECT * FROM auth_tokens WHERE token_hash=? AND purpose='reset' AND expires_at>UTC_TIMESTAMP() FOR UPDATE",
                 [hash('sha256', (string) ($_POST['token'] ?? ''))],
@@ -171,8 +193,22 @@ final class AuthController
             ]);
             DB::run('DELETE FROM auth_tokens WHERE user_id=?', [$t['user_id']]);
             \App\Core\PersistentLogin::revokeAll((int)$t['user_id']);
+            return (int) $t['user_id'];
         });
+        // The single-use link proved control of the mailbox and the new password was just chosen:
+        // open a fresh session (new auth_version, new remember-me cookie) instead of asking to sign
+        // in again. Every other session and device was revoked above.
         Auth::logout();
+        $user = DB::one('SELECT id,email,name,role,verified_at,active,auth_version FROM users WHERE id=?', [$userId]);
+        if ($user && $user['active'] && $user['verified_at']) {
+            try {
+                Auth::login($user);
+                flash('Mot de passe modifié. Vous êtes connecté ; vos autres sessions ont été fermées.');
+                redirect('/');
+            } catch (\InvalidArgumentException) {
+                // The account changed concurrently: fall back to a normal sign-in.
+            }
+        }
         flash('Mot de passe modifié. Reconnectez-vous.');
         redirect('/login');
     }

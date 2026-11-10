@@ -42,7 +42,15 @@ final class NotificationController
     {
         $user=Auth::admin();Security::limit('mail-test-'.$user['id'],3,600);
         try {
-            Mailer::send($user['email'],app_name().' — test de messagerie','Bonjour '.$user['name'].",\n\nCe message confirme que le transport de messagerie configuré a accepté l’envoi depuis ".app_name().".\n\n".url('/settings#notifications'));
+            $mail=\App\Services\EmailTemplate::render([
+                'preheader'=>'Le transport de messagerie fonctionne.',
+                'eyebrow'=>'Test de messagerie',
+                'title'=>'Tout fonctionne !',
+                'greeting'=>'Bonjour '.$user['name'].',',
+                'paragraphs'=>['Ce message confirme que le transport de messagerie configuré a accepté l’envoi depuis '.app_name().'. Les notifications et les e-mails de compte utilisent cette même mise en page.'],
+                'action'=>['label'=>'Retour aux paramètres','url'=>url('/settings#notifications')],
+            ]);
+            Mailer::send($user['email'],app_name().' — test de messagerie',$mail['text'],$mail['html']);
         } catch (\RuntimeException) {
             flash('Le transport n’a pas accepté l’e-mail de test. Vérifiez MAIL_TRANSPORT, MAIL_FROM et la messagerie PHP du serveur.','error');
             redirect('/settings#notifications');

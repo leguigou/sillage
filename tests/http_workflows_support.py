@@ -41,6 +41,15 @@ def mail_for(email):
             return text
     raise AssertionError('Local test mail missing')
 
+def mail_html_for(email):
+    mail_dir = pathlib.Path(__file__).resolve().parents[1]/'storage'/'mail'
+    for path in sorted(mail_dir.glob('*.txt'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
+        if 'To: '+email+'
+' in path.read_text(encoding='utf-8'):
+            html = path.with_suffix('.html')
+            return html.read_text(encoding='utf-8') if html.exists() else ''
+    raise AssertionError('Local test mail missing')
+
 def passed_count():
     return passed
 

@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.31.0",
+  "current_version": "1.32.0",
   "entries": [
+    {
+      "version": "1.32.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "E-mails mis en forme et connexion après réinitialisation",
+      "summary": "Les e-mails envoyés par l’application ont une présentation soignée, et choisir un nouveau mot de passe depuis le lien reçu connecte directement.",
+      "changes": [
+        "Les e-mails de validation d’adresse, de mot de passe perdu, de notification de ticket et de test de messagerie partagent une même mise en page : en-tête aux couleurs de l’entreprise avec son logo ou son initiale, bouton d’action et pied de page.",
+        "Les notifications présentent le ticket dans un encadré (état, responsable, équipe, champs modifiés) et les événements sous forme d’étiquettes ; le contenu des descriptions et des commentaires n’y figure toujours pas.",
+        "Chaque e-mail garde une version texte pour les messageries qui n’affichent pas la mise en forme, et le lien du bouton est repris en clair.",
+        "Après avoir choisi un nouveau mot de passe depuis le lien de réinitialisation, l’utilisateur arrive directement dans l’application, connecté pour 30 jours sur ce navigateur ; ses autres sessions restent fermées.",
+        "En local, une copie HTML de chaque e-mail est enregistrée à côté du fichier texte dans storage/mail pour prévisualiser le rendu."
+      ]
+    },
     {
       "version": "1.31.0",
       "date": "2026-11-10",

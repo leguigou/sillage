@@ -54,7 +54,7 @@ Les équipes regroupent des membres, participent à plusieurs projets et reçoiv
 - Inscription selon `ALLOWED_DOMAINS` et `EMAIL_DOMAIN_RESTRICTION`, sans autoriser implicitement les sous-domaines ou domaines ressemblants.
 - E-mail + mot de passe ; nom prérempli depuis les parties séparées par `.`, `_`, `-` ou `+`, puis modifiable.
 - Validation de possession de l’adresse avant connexion ; lien à usage unique valable 24 heures.
-- Réinitialisation par lien à usage unique valable une heure ; changement du mot de passe actuel depuis le profil. Le changement invalide les autres sessions.
+- Réinitialisation par lien à usage unique valable une heure ; changement du mot de passe actuel depuis le profil. Le changement invalide les autres sessions ; après une réinitialisation par lien, le navigateur utilisé est connecté directement.
 - Rôles **administrateur**, **membre**, **lecture seule**. Les comptes inscrits par le web deviennent membres, jamais administrateurs.
 - Tous les utilisateurs internes autorisés voient les projets de leur installation. Il n’existe pas de cloisonnement privé par projet dans cette version.
 

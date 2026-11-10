@@ -1,7 +1,7 @@
 """End-to-end HTTP checks against the isolated sillage_test Apache host."""
 import http.cookiejar, urllib.request, urllib.parse, re, json, uuid, hashlib
 import http_workflows_support as http_support
-from http_workflows_support import BASE, call, token, upload, signed_webhook, check, get_token, mail_for, passed_count
+from http_workflows_support import BASE, call, token, upload, signed_webhook, check, get_token, mail_for, mail_html_for, passed_count
 status,html,url=call('/list'); check(status==200 and url.endswith('/login'),'private page requires login')
 check(call('/login',{'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})[0]==403,'CSRF required')
 csrf,_=get_token('/login'); status,html,url=call('/login',{'_csrf':csrf,'email':'qa.admin@example.com','password':'Tests-Sillage-2026!'})
@@ -112,7 +112,9 @@ csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':
 check(status==200 and 'Bonjour, Test' in body,'new verified account can sign in')
 csrf=token(body); call('/logout',{'_csrf':csrf}); csrf,_=get_token('/forgot'); status,body,_=call('/forgot',{'_csrf':csrf,'email':auth_email}); check(status==200,'password reset request accepted')
 reset_link=mail_link('reset'); csrf,reset_html=get_token(reset_link); reset_token=re.search(r'name="token" value="([a-f0-9]+)"',reset_html).group(1)
-status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Nouveau-Sillage-2026!'}); check(status==200 and 'Mot de passe modifié' in body,'password reset succeeds')
+status,body,url=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Nouveau-Sillage-2026!'}); check(status==200 and 'Mot de passe modifié' in body,'password reset succeeds')
+check('Bonjour, Test' in body and not url.endswith('/login'),'password reset signs the user in')
+check(re.search(r'<a href="'+re.escape(BASE)+r'/reset\?token=[a-f0-9]{64}"',mail_html_for(auth_email)) is not None,'reset e-mail has an HTML version with its button')
 csrf=token(body); status,body,_=call('/reset',{'_csrf':csrf,'token':reset_token,'password':'Encore-Sillage-2026!'},True); check(status==422,'reset token is single use')
 csrf,_=get_token('/login'); status,body,url=call('/login',{'_csrf':csrf,'email':auth_email,'password':'Nouveau-Sillage-2026!'}); check(status==200 and not url.endswith('/login'),'new password works')
 
