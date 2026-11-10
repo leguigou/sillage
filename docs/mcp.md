@@ -152,7 +152,7 @@ Le téléversement/téléchargement binaire des pièces jointes et la gestion de
 Le MCP expose les métadonnées des fichiers et les événements de développement sans les jetons fournisseurs.
 
 
-Les [équipes](equipes.md) se lient à plusieurs projets. Les tickets acceptent `team_id`, indépendant de `assignee_id`, et les filtres acceptent `team` (identifiant ou `"none"`). `reports_summary` expose les agrégats d’équipe.
+Les [équipes](equipes.md) se lient à plusieurs projets. Les tickets acceptent `team_id`, indépendant de `assignee_id`, et les filtres acceptent `team` et `assignee` (identifiant, `"none"` ou liste de ces valeurs) ; `assignment_match: "any"` relie les deux par OU au lieu de ET. `reports_summary` expose les agrégats d’équipe.
 
 
 `project_notifications_get` et `project_notifications_save` gèrent la politique e-mail de chaque projet avec contrôle de version. La modification des tickets par MCP passe par la même file de notifications que le site. Voir [les événements et la livraison](notifications.md).

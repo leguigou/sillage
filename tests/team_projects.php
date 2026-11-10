@@ -20,6 +20,13 @@ rejects(fn()=>Ticket::create($pb,['title'=>'Mauvaise équipe','team_id'=>$teamB]
 foreach(['invalid',0,-1,[],true] as $badTeam) rejects(fn()=>Ticket::validate(['title'=>'Test','team_id'=>$badTeam],$pa),'identifiant équipe invalide refusé');
 check(Query::count(0,['team'=>$teamA])===2 && Query::count($pa,['team'=>'none'])===1,'filtres équipe et sans équipe sur plusieurs projets');
 check(Filter::active(['team'=>$teamA]) && !Filter::active(['team'=>'']),'réinitialisation uniquement pour un filtre équipe actif');
+$teamless=Ticket::create($pa,['title'=>'Sans équipe ni personne'],$uid);
+check(Query::count($pa,['team'=>[(string)$teamA,'none']])===3 && Query::count($pa,['team'=>$teamA.',none'])===3 && Query::count($pa,['team'=>[(string)$teamB]])===0,'plusieurs équipes, ou équipe et sans équipe, combinées');
+check(Query::count($pa,['assignee'=>[(string)$uid],'team'=>['none']])===0 && Query::count($pa,['assignee'=>[(string)$uid],'team'=>['none'],'assignment_match'=>'any'])===3,'mes tickets OU sans équipe ; ET par défaut');
+check(Query::count($pa,['assignee'=>['none',(string)$uid]])===3 && Query::count($pa,['assignee'=>['none']])===2 && Query::count($pa,['assignee'=>['', ''],'team'=>['']])===Query::count($pa,[]),'non assigné combiné à une personne ; listes vides sans restriction');
+foreach([['assignee'=>['abc']],['team'=>[0]],['team'=>[['nested']]],['assignee'=>['x'=>'1']],['assignment_match'=>'xor']] as $badAssignment) rejects(fn()=>Query::count($pa,$badAssignment),'filtre personne / équipe invalide refusé');
+check(\App\Services\ListLayout::settings($pa,['assignee'=>[(string)$uid,(string)$uid],'team'=>['none',''],'assignment_match'=>'all'])===['assignee'=>(string)$uid,'team'=>'none'],'sélection personne / équipe normalisée pour un rapport');
+check(\App\Services\ListLayout::settings($pa,['team'=>['none',(string)$teamA],'assignment_match'=>'any'])===['team'=>['none',(string)$teamA],'assignment_match'=>'any'],'rapport conserve plusieurs équipes et la combinaison OU');
 check(Query::count($pa,['jql'=>'team = "'.Team::find($teamA)['name'].'"'])===1,'requête avancée par nom d’équipe');
 $work=Query::teamWorkload($pa,['team'=>$teamA])[0];
 check((int)$work['total']===1 && (float)$work['progress']===40.0 && (float)$work['hours']===2.5,'rapport équipe agrège avancement et heures sur tous les tickets filtrés');

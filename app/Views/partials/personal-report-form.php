@@ -1,10 +1,11 @@
 <?php
 /**
- * One personal report (saved view) dialog: name, status filter (status-filter.php), up to
+ * One personal report (saved view) dialog: name, status filter (status-filter.php), assignee/team
+ * conditions (assignment-filter.php), up to
  * three sort criteria, grouping, hierarchy and column selection/order; posts to /views.
  * Included (once or twice) by personal-report.php. Expects $reportDialogId (dialog id),
  * $reportCreate (true = create mode), $activeView (report being edited, or null),
- * $filters, $baseQuery and $project. The current $baseQuery is stored as JSON in the
+ * $filters, $baseQuery, $project, $section, $members, $teams and $projectTeams. The current $baseQuery is stored as JSON in the
  * "settings" field; "revision" (SavedView::revision()) guards against concurrent edits.
  */
 use App\Services\ListLayout; $reportOrder=ListLayout::order($filters);$reportColumns=ListLayout::columns($filters); ?>
@@ -13,6 +14,7 @@ use App\Services\ListLayout; $reportOrder=ListLayout::order($filters);$reportCol
 <header class="dialog-header"><div><h2 id="<?= e($reportDialogId) ?>-title"><?= $reportCreate?'Créer un rapport':'Modifier mon rapport' ?></h2><p class="help-text">Personnel, enregistré dans votre compte pour ce projet.</p></div><button type="button" data-close class="icon-button" aria-label="Fermer"><?= icon('close') ?></button></header>
 <div class="report-options-grid"><div class="stack"><label>Nom du rapport<input name="name" required maxlength="120" value="<?= e($activeView['name']??'') ?>" placeholder="Mes urgences de la semaine"></label>
 <?php $statusFilterProject=(int)$project['id']; require ROOT.'/app/Views/partials/status-filter.php'; ?>
+<?php $assignmentMembers=$members;$assignmentTeams=$section==='all'?$teams:$projectTeams;$assignmentPrefix=$reportDialogId.'-assignment';$assignmentMarker=true; require ROOT.'/app/Views/partials/assignment-filter.php'; ?>
 <p class="help-text">Les autres filtres appliqués dans la liste sont conservés.</p>
 <div class="inline-fields"><label>Trier par<select name="sort"><?php foreach(ListLayout::SORT_LABELS as $key=>$label): ?><option value="<?= e($key) ?>" <?= ($filters['sort']??'rank')===$key?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?></select></label><label>Ordre<select name="direction"><option value="asc" <?= ($filters['direction']??'asc')==='asc'?'selected':'' ?>>Croissant</option><option value="desc" <?= ($filters['direction']??'asc')==='desc'?'selected':'' ?>>Décroissant</option></select></label></div>
 <?php foreach([2,3] as $level): ?><div class="inline-fields"><label>Puis par (<?= $level ?>)<select name="sort<?= $level ?>"><option value="">Aucun critère supplémentaire</option><?php foreach(ListLayout::SORT_LABELS as $key=>$label): ?><option value="<?= e($key) ?>" <?= ($filters['sort'.$level]??'')===$key?'selected':'' ?>><?= e($label) ?></option><?php endforeach; ?></select></label><label>Ordre du tri <?= $level ?><select name="direction<?= $level ?>"><option value="asc" <?= ($filters['direction'.$level]??'asc')==='asc'?'selected':'' ?>>Croissant</option><option value="desc" <?= ($filters['direction'.$level]??'asc')==='desc'?'selected':'' ?>>Décroissant</option></select></label></div><?php endforeach; ?>
