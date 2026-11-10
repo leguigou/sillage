@@ -437,7 +437,7 @@ function updateBulkValues() {
     const selected=$$('[data-select-ticket]:checked').map(input=>JSON.parse(input.closest('[data-ticket-id]').dataset.bulkStatuses));
     if(selected.length) options=Object.fromEntries(Object.entries(selected[0]).filter(([key])=>selected.every(values=>Object.hasOwn(values,key))));
   }
-  const entries=Object.entries(options);if(field==='assignee_id') entries.sort(([a],[b])=>a==='none'?-1:b==='none'?1:0);
+  const entries=Object.entries(options);if(field==='assignee_id'||field==='team_id') entries.sort(([a],[b])=>a==='none'?-1:b==='none'?1:0);
   select.replaceChildren(new Option(entries.length?'Choisir une valeur…':'Aucune valeur commune autorisée',''),...entries.map(([value,label])=>new Option(label,value)));
   if(Object.hasOwn(options,previous)) select.value=previous;
   $('button.primary',form).disabled=!Object.keys(options).length;

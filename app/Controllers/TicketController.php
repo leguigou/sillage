@@ -242,7 +242,7 @@ final class TicketController
         redirect(ticket_url((int)$id));
     }
     /**
-     * Applies one change (status, priority, assignee or flag) to 1–200 selected
+     * Applies one change (status, priority, assignee, team or flag) to 1–200 selected
      * tickets in a single transaction: one invalid ticket cancels the whole batch.
      */
     public function bulk(): void
@@ -253,7 +253,7 @@ final class TicketController
             throw new \InvalidArgumentException('Sélectionnez entre 1 et 200 tickets.');
         }
         $field = (string) ($_POST['field'] ?? '');
-        if (!in_array($field, ['status', 'priority', 'assignee_id', 'flagged'], true)) {
+        if (!in_array($field, ['status', 'priority', 'assignee_id', 'team_id', 'flagged'], true)) {
             throw new \InvalidArgumentException('Champ non modifiable en groupe.');
         }
         DB::transaction(function () use ($ids, $field, $u) {
@@ -262,7 +262,8 @@ final class TicketController
                 $data = array_replace(
                     $t,
                     ['labels' => $t['labels_array']],
-                    [$field => $field==='assignee_id' && ($_POST['value']??'')==='none'?'':($_POST['value'] ?? '')],
+                    // "none" clears the assignee or the team.
+                    [$field => in_array($field,['assignee_id','team_id'],true) && ($_POST['value']??'')==='none'?'':($_POST['value'] ?? '')],
                 );
                 Ticket::update($id, $data, (int) $u['id'], (int) $t['version']);
             }
