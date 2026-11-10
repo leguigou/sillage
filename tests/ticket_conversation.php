@@ -1,6 +1,6 @@
 <?php
 use App\Services\Conversation;
-use App\Models\Ticket;
+use App\Models\{Project,Ticket};
 use App\Core\DB;
 
 $progressTicket = Ticket::create($p, ['title' => 'Avancement manuel', 'progress_percent' => 45], $uid);
@@ -22,3 +22,27 @@ $cid = Ticket::comment($progressTicket,'<ul><li>Livré</li></ul>', $uid, 'html')
 $comment = DB::one('SELECT * FROM comments WHERE id=?',[$cid]);
 check($comment['body_format'] === 'html' && str_contains(Conversation::render($comment), '<li>Livré</li>'), 'commentaire enrichi persiste et se rend');
 check(Conversation::render(['body'=>'<b>texte ancien</b>','body_format'=>'text']) === '&lt;b&gt;texte ancien&lt;/b&gt;', 'anciens commentaires restent du texte échappé');
+$replyRoot = Ticket::comment($progressTicket, 'Question initiale', $uid);
+$reply = Ticket::comment($progressTicket, 'Réponse directe', $uid, 'text', $replyRoot);
+check((int) DB::one('SELECT parent_id FROM comments WHERE id=?', [$reply])['parent_id'] === $replyRoot, 'une réponse est rattachée à son message');
+$otherTicket = Ticket::create($p, ['title' => 'Autre fil'], $uid);
+rejects(fn() => Ticket::comment($otherTicket, 'Réponse égarée', $uid, 'text', $replyRoot), 'réponse à un commentaire d’un autre ticket refusée');
+$deep = $reply;
+for ($level = 2; $level <= Ticket::COMMENT_REPLY_DEPTH + 2; $level++) {
+    $deep = Ticket::comment($progressTicket, 'Niveau ' . $level, $uid, 'text', $deep);
+}
+$depth = 0;
+for ($current = $deep; $current; $depth++) {
+    $current = (int) (DB::one('SELECT parent_id FROM comments WHERE id=?', [$current])['parent_id'] ?? 0);
+}
+check($depth - 1 === Ticket::COMMENT_REPLY_DEPTH, 'la profondeur des réponses est plafonnée');
+$threadRows = \App\Models\GitConversation::comments($progressTicket);
+[$ascRoots, $threadReplies] = Ticket::commentThreads($threadRows, 'asc');
+[$descRoots] = Ticket::commentThreads($threadRows, 'desc');
+check(array_column($ascRoots, 'id') === array_reverse(array_column($descRoots, 'id')), 'l’ordre décroissant inverse les messages principaux');
+check(!in_array($reply, array_map('intval', array_column($ascRoots, 'id')), true) && (int) $threadReplies[$replyRoot][0]['id'] === $reply, 'les réponses sont regroupées sous leur message');
+$orderProject = Project::save(['name' => 'Ordre des commentaires', 'key' => 'ORD' . strtoupper(bin2hex(random_bytes(2))), 'comment_order' => 'desc']);
+check(Project::find($orderProject)['comment_order'] === 'desc', 'ordre des commentaires enregistré à la création du projet');
+Project::save(['name' => 'Ordre des commentaires', 'comment_order' => 'asc'], $orderProject);
+check(Project::find($orderProject)['comment_order'] === 'asc', 'ordre des commentaires modifiable');
+rejects(fn() => Project::save(['name' => 'Ordre des commentaires', 'comment_order' => 'random'], $orderProject), 'ordre des commentaires inconnu refusé');
