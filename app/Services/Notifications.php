@@ -82,7 +82,7 @@ final class Notifications
             $body="Bonjour ".$person['name'].",\n\n".$actorName." a fait évoluer le ticket ".$ticket['key']." dans le projet ".$ticket['project_name'].".\n\n";
             $body.=$ticket['title']."\n".implode(' · ',$eventLabels)."\n";
             if ($allFields) $body.='Champs modifiés : '.implode(', ',array_map(fn($field)=>self::FIELDS[$field],$allFields)).".\n";
-            $body.='État : '.\App\Models\Workflow::label('status',(int)$ticket['project_id'],$ticket['status'])."\nResponsable : ".($ticket['assignee_name']??'Non assigné')."\nÉquipe : ".($ticket['team_name']??'Sans équipe')."\n\nConsulter le ticket (connexion requise) :\n".url('/tickets/'.$ticket['id'])."\n\nVos préférences e-mail : ".url('/settings#email-preferences')."\nL’équipe ".Company::name().' — Sillage';
+            $body.='État : '.\App\Models\Workflow::label('status',(int)$ticket['project_id'],$ticket['status'])."\nResponsable : ".($ticket['assignee_name']??'Non assigné')."\nÉquipe : ".($ticket['team_name']??'Sans équipe')."\n\nConsulter le ticket (connexion requise) :\n".url('/tickets/'.$ticket['id'])."\n\nVos préférences e-mail : ".url('/settings#email-preferences')."\nL’équipe ".Company::name().' — '.app_name();
             if ($old) DB::run('UPDATE notification_outbox
                 SET events_json=?,fields_json=?,subject=?,body=?
                 WHERE id=?',[json_encode($merged,JSON_THROW_ON_ERROR),json_encode($allFields,JSON_THROW_ON_ERROR),$subject,$body,$old['id']]);

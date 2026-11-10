@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.29.0",
+  "current_version": "1.30.0",
   "entries": [
+    {
+      "version": "1.30.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Nom du logiciel configurable",
+      "summary": "Le nom du logiciel affiché aux utilisateurs se choisit avec le paramètre APP_NAME du fichier d’environnement ; sans réglage, il reste « Sillage ».",
+      "changes": [
+        "Les titres des onglets, l’en-tête des pages de connexion, le pied de page, la page d’erreur et les textes d’aide reprennent le nom configuré.",
+        "Les e-mails (validation d’adresse, réinitialisation du mot de passe, notifications, message de test) signent avec ce nom.",
+        "Les commentaires automatiques (pull requests, déploiements) et les informations de connexion MCP portent ce nom.",
+        "Un nom vide, trop long (plus de 60 caractères) ou contenant des caractères de contrôle est ignoré au profit de « Sillage »."
+      ]
+    },
     {
       "version": "1.29.0",
       "date": "2026-11-10",

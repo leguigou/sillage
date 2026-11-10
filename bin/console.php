@@ -30,7 +30,7 @@ if ($command==='logs:prune') {
 }
 if (in_array($command,['version','history:check'],true)) {
     $history=\App\Services\ApplicationHistory::catalog();
-    echo 'Sillage '.$history['current_version'].PHP_EOL;
+    echo app_name().' '.$history['current_version'].PHP_EOL;
     if ($command==='history:check') echo count($history['entries']).' entrées d’historique valides.'.PHP_EOL;
     exit();
 }

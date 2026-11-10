@@ -106,15 +106,15 @@ final class AuthController
         Mailer::send(
             $email,
             $purpose === 'verify'
-                ? Company::name() . ' — validez votre adresse dans Sillage'
-                : Company::name() . ' — votre lien de réinitialisation Sillage',
+                ? Company::name() . ' — validez votre adresse dans ' . app_name()
+                : Company::name() . ' — votre lien de réinitialisation ' . app_name(),
             "Bonjour,\n\nOuvrez ce lien pour " .
                 ($purpose === 'verify'
                     ? 'valider votre adresse'
                     : 'choisir un nouveau mot de passe') .
                 " :\n$link\n\nSi vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail.\nL’équipe " .
                 Company::name() .
-                ' — Sillage',
+                ' — ' . app_name(),
         );
     }
     public function verify(): void

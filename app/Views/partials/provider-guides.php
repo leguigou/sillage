@@ -8,7 +8,7 @@
  <summary id="github-guide-title">Créer un jeton GitHub</summary>
  <ol>
   <li>Ouvrez <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">Fine-grained personal access tokens</a>, puis <strong>Generate new token</strong>.</li>
-  <li>Nommez-le <strong>Sillage</strong>, choisissez une expiration et le <strong>Resource owner</strong> propriétaire du dépôt.</li>
+  <li>Nommez-le <strong><?= e(app_name()) ?></strong>, choisissez une expiration et le <strong>Resource owner</strong> propriétaire du dépôt.</li>
   <li>Dans <strong>Repository access → Only select repositories</strong>, sélectionnez les dépôts à connecter.</li>
   <li>Dans <strong>Repository permissions</strong>, accordez <strong>Pull requests → Read-only</strong>. <strong>Metadata → Read-only</strong> est ajouté automatiquement. Générez le jeton et copiez-le dans le champ ci-dessous.</li>
  </ol>
@@ -20,9 +20,9 @@
  <summary id="bitbucket-guide-title">Créer un jeton Bitbucket Cloud</summary>
  <ol>
   <li>Dans votre compte Atlassian, ouvrez <strong>Security → Create and manage API tokens</strong>, puis <strong>Create API token with scopes</strong>.</li>
-  <li>Nommez-le <strong>Sillage</strong>, choisissez une expiration, puis sélectionnez l’application <strong>Bitbucket</strong>.</li>
+  <li>Nommez-le <strong><?= e(app_name()) ?></strong>, choisissez une expiration, puis sélectionnez l’application <strong>Bitbucket</strong>.</li>
   <li>Accordez <strong>Repositories → Read</strong> (<code>read:repository:bitbucket</code>), <strong>Pull requests → Read</strong> (<code>read:pullrequest:bitbucket</code>) et <strong>Pipelines → Read</strong> (<code>read:pipeline:bitbucket</code>, pour les pipelines, environnements et déploiements).</li>
-  <li>Créez le jeton et copiez-le dans le champ ci-dessous. Sillage l’utilise directement, sans demander votre adresse Atlassian.</li>
+  <li>Créez le jeton et copiez-le dans le champ ci-dessous. <?= e(app_name()) ?> l’utilise directement, sans demander votre adresse Atlassian.</li>
  </ol>
  <p>Aucun droit d’écriture ou d’administration n’est nécessaire au suivi actuel. Pour les mises à jour automatiques, activez les événements webhook de push et de pull requests (création, mise à jour, fusion et refus).</p>
  <p>Dépôt attendu : <code>workspace/nom-du-depot</code>, sans URL complète.</p>

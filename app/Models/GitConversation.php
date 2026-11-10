@@ -80,12 +80,12 @@ final class GitConversation
     /** A ticket's comments (or one of them) with author name and, for Git-generated ones, their message kind and event. */
     public static function comments(int $ticket, ?int $comment = null): array
     {
-        $sql = "SELECT c.*,COALESCE(u.name,'Sillage') name,g.message_kind,g.event_id git_event_id
+        $sql = "SELECT c.*,COALESCE(u.name,?) name,g.message_kind,g.event_id git_event_id
             FROM comments c LEFT JOIN users u ON u.id=c.user_id
             LEFT JOIN ticket_git_messages g ON g.comment_id=c.id WHERE c.ticket_id=?";
         return $comment === null
-            ? DB::all($sql.' ORDER BY c.id', [$ticket])
-            : DB::all($sql.' AND c.id=?', [$ticket, $comment]);
+            ? DB::all($sql.' ORDER BY c.id', [app_name(), $ticket])
+            : DB::all($sql.' AND c.id=?', [app_name(), $ticket, $comment]);
     }
 
     /** Returns the PR a test procedure may be published for; the ticket must be active and the PR merged into staging. */

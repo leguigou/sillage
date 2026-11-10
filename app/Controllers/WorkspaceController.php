@@ -32,7 +32,7 @@ final class WorkspaceController
         if (!$projects && $section !== 'settings') {
             View::render('initial-project', [
                 'guest' => true,
-                'title' => 'Bienvenue dans Sillage',
+                'title' => 'Bienvenue dans ' . app_name(),
                 'user' => $user,
             ]);
             return;

@@ -7,6 +7,7 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_URL: ${APP_URL:-http://127.0.0.1:8088}
       APP_KEY: ${APP_KEY:?Configure APP_KEY in .env}
+      APP_NAME: ${APP_NAME:-Sillage}
       COMPANY_NAME: ${COMPANY_NAME:-Mon entreprise}
       ALLOWED_DOMAINS: ${ALLOWED_DOMAINS-${ALLOWED_DOMAIN:-}}
       EMAIL_DOMAIN_RESTRICTION: ${EMAIL_DOMAIN_RESTRICTION:-true}
