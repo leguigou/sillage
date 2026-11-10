@@ -74,9 +74,46 @@ final class TicketHistory
     public static function page(int $ticket,int $offset=0,int $limit=30,bool $changesOnly=false): array
     {
         Ticket::find($ticket);$limit=max(1,min(100,$limit));$offset=max(0,$offset);
-        $where='ticket_id=?'.($changesOnly?" AND action<>'created' AND JSON_LENGTH(changes_json)>0":'');
+        $where=self::filter($changesOnly);
         $rows=DB::all("SELECT h.*,u.name actor_name FROM ticket_history h LEFT JOIN users u ON u.id=h.actor_id WHERE $where ORDER BY h.id DESC LIMIT $limit OFFSET $offset",[$ticket]);
         foreach($rows as &$row){$row['changes']=json_decode($row['changes_json'],true,64,JSON_THROW_ON_ERROR);unset($row['changes_json']);}
         return ['total'=>(int)DB::one('SELECT COUNT(*) n FROM ticket_history WHERE '.$where,[$ticket])['n'],'offset'=>$offset,'limit'=>$limit,'entries'=>$rows];
+    }
+    /** SQL condition shared by page() and withConversation() so both see the same entries. */
+    private static function filter(bool $changesOnly): string
+    {
+        return 'ticket_id=?'.($changesOnly?" AND action<>'created' AND JSON_LENGTH(changes_json)>0":'');
+    }
+
+    /**
+     * Interleaves the ticket conversation into a history page built by page(): each comment becomes an entry
+     * (kind "comment") with its author, date, depth and the author it answers, never its content. Only the
+     * comments dated inside the page's time window are added, so every comment shows on exactly one page.
+     * History entries get kind "change". Returns $history with the merged entries, newest first.
+     */
+    public static function withConversation(int $ticket,array $history,bool $changesOnly=true): array
+    {
+        $where=self::filter($changesOnly);
+        // Window: below the entry shown just before this page, down to the oldest entry of the page when older pages exist.
+        $upper=$history['offset']>0?(DB::one("SELECT created_at FROM ticket_history WHERE $where ORDER BY id DESC LIMIT 1 OFFSET ".((int)$history['offset']-1),[$ticket])['created_at']??null):null;
+        $lower=$history['offset']+count($history['entries'])<$history['total']?(end($history['entries'])['created_at']??null):null;
+        $comments=DB::all('SELECT c.id,c.parent_id,c.user_id,c.created_at,COALESCE(u.name,?) name
+            FROM comments c LEFT JOIN users u ON u.id=c.user_id
+            WHERE c.ticket_id=? ORDER BY c.id',[app_name(),$ticket]);
+        $byId=array_column($comments,null,'id');
+        $entries=array_map(fn($row)=>$row+['kind'=>'change'],$history['entries']);
+        foreach($comments as $comment){
+            if(($upper!==null && $comment['created_at']>=$upper) || ($lower!==null && $comment['created_at']<$lower)) continue;
+            $depth=0;$root=$comment;
+            for($current=$comment;$current['parent_id']!==null && isset($byId[$current['parent_id']]) && $depth<Ticket::COMMENT_REPLY_DEPTH;$depth++) $current=$root=$byId[$current['parent_id']];
+            $parent=$comment['parent_id']!==null?($byId[$comment['parent_id']]??null):null;
+            $entries[]=['kind'=>'comment','comment_id'=>(int)$comment['id'],'created_at'=>$comment['created_at'],
+                'actor_id'=>$comment['user_id'],'actor_name'=>$comment['name'],'depth'=>$parent?max(1,$depth):0,
+                'parent_name'=>$parent['name']??null,'thread_name'=>$depth>1?$root['name']:null];
+        }
+        // Newest first; on the same second a comment is listed above the field changes of that moment.
+        usort($entries,fn($a,$b)=>[$b['created_at'],$b['kind']==='comment',$b['comment_id']??$b['id']??0]<=>[$a['created_at'],$a['kind']==='comment',$a['comment_id']??$a['id']??0]);
+        $history['entries']=$entries;
+        return $history;
     }
 }

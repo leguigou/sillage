@@ -23,7 +23,7 @@ final class TicketController
     {
         $user = Auth::requireUser();
         $ticket = Ticket::find((int) $id);
-        $history=\App\Models\TicketHistory::page((int)$id,max(0,(int)($_GET['history_offset']??0)),30,true);
+        $history=\App\Models\TicketHistory::withConversation((int)$id,\App\Models\TicketHistory::page((int)$id,max(0,(int)($_GET['history_offset']??0)),30,true));
         $time=\App\Models\TicketTime::page((int)$id,max(0,(int)($_GET['time_offset']??0)),50);
         $targetRelease=$ticket['release_id']?\App\Models\Release::find((int)$ticket['release_id']):null;
         $project = Project::find((int) $ticket['project_id']);
