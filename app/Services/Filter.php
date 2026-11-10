@@ -42,7 +42,7 @@ final class Filter
         return self::where(0, $input)[0] !== self::where(0, [])[0];
     }
     /**
-     * Builds [where SQL joined with AND, bound parameters] for non-archived tickets of $project (0 = all projects).
+     * Builds [where SQL joined with AND, bound parameters] for non-archived tickets of $project (0 = all active projects).
      * Status/type/priority values are checked against the project workflow before being bound.
      */
     public static function where(int $project, array $input): array
@@ -52,6 +52,9 @@ final class Filter
         if ($project) {
             $sql[] = 't.project_id=?';
             $params[] = $project;
+        } else {
+            // "All projects" covers active projects only; an archived project stays reachable on its own.
+            $sql[] = 'p.archived_at IS NULL';
         }
         $q = trim((string) ($input['q'] ?? ''));
         if ($q !== '') {
