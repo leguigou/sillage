@@ -9,13 +9,13 @@
  */
 $applicationHistory=App\Services\ApplicationHistory::catalog();$historyEntries=$applicationHistory['entries'];$oldestHistory=$historyEntries[array_key_last($historyEntries)]; ?>
 <section class="panel" id="application-history">
- <div class="panel-header"><div><h2>Versions et améliorations</h2><p>Les évolutions du logiciel Sillage et les fonctionnalités apportées à votre espace.</p></div><?= icon('clock') ?></div>
+ <div class="panel-header"><div><h2>Versions et améliorations</h2><p>Les évolutions du logiciel <?= e(app_name()) ?> et les fonctionnalités apportées à votre espace.</p></div><?= icon('clock') ?></div>
  <div class="settings-history-summary">
   <div><small>Version du code installé</small><strong><?= e($applicationHistory['current_version']) ?></strong></div>
   <div><small>Mises à jour documentées</small><strong><?= count($historyEntries) ?></strong></div>
   <div><small>Historique depuis le</small><strong><?= e($oldestHistory['date_label']) ?></strong></div>
  </div>
- <p class="help-text">Les évolutions antérieures à la numérotation sont repérées par leur date et leur révision Git. Ce journal concerne Sillage ; les versions de vos projets restent dans « Versions et livraisons ».</p>
+ <p class="help-text">Les évolutions antérieures à la numérotation sont repérées par leur date et leur révision Git. Ce journal concerne <?= e(app_name()) ?> ; les versions de vos projets restent dans « Versions et livraisons ».</p>
  <div class="settings-history-filters">
   <label>Rechercher une amélioration<input type="search" placeholder="Fonctionnalité, version, mot-clé…" data-history-search aria-controls="application-history-list"></label>
   <label>Type de changement<select data-history-category aria-controls="application-history-list"><option value="">Toutes les évolutions</option><?php foreach(App\Services\ApplicationHistory::CATEGORIES as $value=>$label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>

@@ -34,7 +34,7 @@ final class OAuthController
             if ($method!=='GET') { header('Allow: GET');json_response(['error'=>'invalid_request'],405); }
             $scopes=[...array_keys(McpToken::SCOPES),'offline_access'];
             if ($path==='/.well-known/oauth-authorization-server') json_response(['issuer'=>OAuth::issuer(),'authorization_endpoint'=>url('/oauth/authorize'),'token_endpoint'=>url('/oauth/token'),'revocation_endpoint'=>url('/oauth/revoke'),'response_types_supported'=>['code'],'grant_types_supported'=>['authorization_code','refresh_token'],'code_challenge_methods_supported'=>['S256'],'token_endpoint_auth_methods_supported'=>OAuth::METHODS,'revocation_endpoint_auth_methods_supported'=>OAuth::METHODS,'scopes_supported'=>$scopes,'authorization_response_iss_parameter_supported'=>true,'client_id_metadata_document_supported'=>false]);
-            json_response(['resource'=>url('/mcp'),'authorization_servers'=>[OAuth::issuer()],'scopes_supported'=>array_keys(McpToken::SCOPES),'bearer_methods_supported'=>['header'],'resource_name'=>'Sillage MCP']);
+            json_response(['resource'=>url('/mcp'),'authorization_servers'=>[OAuth::issuer()],'scopes_supported'=>array_keys(McpToken::SCOPES),'bearer_methods_supported'=>['header'],'resource_name'=>app_name().' MCP']);
         }
         if ($method!=='POST') { header('Allow: POST');json_response(['error'=>'invalid_request'],405); }
         if ((int)($_SERVER['CONTENT_LENGTH']??0)>16384 || strlen(file_get_contents('php://input',false,null,0,16385))>16384) json_response(['error'=>'invalid_request'],413);

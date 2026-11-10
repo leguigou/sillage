@@ -13,6 +13,7 @@ services:
       - APP_ENV=production
       - APP_URL=${APP_URL:-https://sillage.deloffre.fr}
       - APP_KEY=${APP_KEY}
+      - APP_NAME=${APP_NAME:-Sillage}
       - COMPANY_NAME=${COMPANY_NAME:-Cabesto}
       - ALLOWED_DOMAINS=${ALLOWED_DOMAINS:-cabesto.com}
       - EMAIL_DOMAIN_RESTRICTION=${EMAIL_DOMAIN_RESTRICTION:-true}
@@ -67,6 +68,7 @@ services:
       - APP_ENV=production
       - APP_URL=${APP_URL:-https://sillage.deloffre.fr}
       - APP_KEY=${APP_KEY}
+      - APP_NAME=${APP_NAME:-Sillage}
       - COMPANY_NAME=${COMPANY_NAME:-Cabesto}
       - ALLOWED_DOMAINS=${ALLOWED_DOMAINS:-cabesto.com}
       - EMAIL_DOMAIN_RESTRICTION=${EMAIL_DOMAIN_RESTRICTION:-true}

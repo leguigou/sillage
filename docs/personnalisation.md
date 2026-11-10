@@ -9,6 +9,7 @@ Un changement d’URL ou de clé d’installation peut nécessiter une reconnexi
 ## Configuration dans `.env`
 
 ```dotenv
+APP_NAME=Gobix
 COMPANY_NAME="Atelier Horizon"
 ALLOWED_DOMAINS=atelier-horizon.fr,horizon-services.fr
 EMAIL_DOMAIN_RESTRICTION=true
@@ -16,6 +17,7 @@ APP_URL=https://tickets.atelier-horizon.fr
 MAIL_FROM=sillage@atelier-horizon.fr
 ```
 
+- `APP_NAME` : nom du logiciel présenté aux utilisateurs (« Sillage » par défaut). Il apparaît dans le titre des onglets, l’en-tête des pages de connexion, le pied de page, la page d’erreur, les textes d’aide, la signature des e-mails, l’auteur des commentaires automatiques et les informations de connexion MCP. De 1 à 60 caractères, sans caractère de contrôle ; une valeur invalide est ignorée au profit de « Sillage ». Les identifiants techniques ne changent pas : base de données, noms des fichiers CSS/JS, en-têtes HTTP (`User-Agent`, `realm`), identifiant du serveur MCP et manifeste des exports de site restent « Sillage », pour que deux installations aux noms différents restent compatibles. Les commentaires automatiques déjà enregistrés affichent le nouveau nom, car l’auteur système est calculé à l’affichage.
 - `COMPANY_NAME` : nom initial affiché à la connexion, dans le menu, les paramètres, les formulaires externes et les e-mails.
 - `ALLOWED_DOMAINS` : domaines exacts autorisés pour les nouveaux comptes, séparés par des virgules. Sans `@`, URL ni `*`. Majuscules et espaces sont normalisés. Les sous-domaines doivent être ajoutés explicitement. Pour un domaine internationalisé, utiliser sa forme ASCII/punycode.
 - `EMAIL_DOMAIN_RESTRICTION=true` : limite les inscriptions aux domaines de la liste. Une liste vide ou invalide bloque le démarrage au lieu d’ouvrir les inscriptions.

@@ -7,12 +7,14 @@ Application de ticketing en **PHP natif MVC**, sans framework, **MySQL 8.4** et 
 Dans `.env`, renseigner par exemple :
 
 ```dotenv
+APP_NAME=Gobix
 COMPANY_NAME="Atelier Horizon"
 ALLOWED_DOMAINS=atelier-horizon.fr,horizon-services.fr
 EMAIL_DOMAIN_RESTRICTION=true
 ```
 
-Le nom est utilisé dans les pages de connexion, le menu, les paramètres, les formulaires externes et les e-mails.
+`APP_NAME` renomme le logiciel aux yeux des utilisateurs (titres, en-tête, e-mails, MCP) ; sans valeur, il s’appelle « Sillage ».
+Le nom de la société est utilisé dans les pages de connexion, le menu, les paramètres, les formulaires externes et les e-mails.
 Les domaines sont comparés exactement lors d’une nouvelle inscription. Une liste invalide ou vide en mode restreint est refusée.
 Pour accepter toute adresse valide à l’inscription, définir explicitement `EMAIL_DOMAIN_RESTRICTION=false`.
 Les comptes existants gardent leur accès ; leur désactivation se gère dans les paramètres utilisateurs.

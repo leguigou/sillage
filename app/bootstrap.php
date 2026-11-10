@@ -36,6 +36,31 @@ function env(string $key, string $fallback = ''): string
     $v = getenv($key);
     return $v === false ? $fallback : $v;
 }
+/**
+ * Product name shown to users (titles, header, e-mails, MCP), from APP_NAME. Unset or empty means
+ * "Sillage"; a too long (> 60 characters) or control-character value is logged and falls back to the
+ * default so that error pages can always render. Technical identifiers (HTTP user agent, export manifest, CSS/JS
+ * names, database) deliberately keep the fixed "Sillage" name.
+ */
+function app_name(): string
+{
+    static $name = null;
+    if ($name === null) {
+        $value = trim(env('APP_NAME'));
+        $value = $value === '' ? 'Sillage' : $value;
+        $valid = mb_strlen($value) <= 60 && !preg_match('/[\x00-\x1f\x7f]/', $value);
+        if (!$valid) {
+            error_log('APP_NAME invalide (1 à 60 caractères, sans caractère de contrôle) : nom par défaut utilisé.');
+        }
+        $name = $valid ? $value : 'Sillage';
+    }
+    return $name;
+}
+/** First letter of app_name(), used as the product symbol on pages without company branding. */
+function app_initial(): string
+{
+    return mb_strtoupper(mb_substr(app_name(), 0, 1));
+}
 /** HTML-escape any value for output in element content or a quoted attribute. */
 function e(mixed $value): string
 {

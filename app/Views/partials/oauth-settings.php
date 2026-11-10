@@ -14,7 +14,7 @@ $oauthGrants=App\Models\OAuth::grantsForUser((int)$user['id']);
 $newOAuth=$_SESSION['new_oauth_client']??null; unset($_SESSION['new_oauth_client']);
 ?>
 <section class="panel team-section oauth-settings" id="oauth">
-  <div class="panel-header"><div><h2>Connexions OAuth</h2><p>Reliez ChatGPT à Sillage et gardez le contrôle des accès.</p></div><span class="pill soft"><?= icon('lock') ?>OAuth · PKCE</span></div>
+  <div class="panel-header"><div><h2>Connexions OAuth</h2><p>Reliez ChatGPT à <?= e(app_name()) ?> et gardez le contrôle des accès.</p></div><span class="pill soft"><?= icon('lock') ?>OAuth · PKCE</span></div>
   <?php if($user['role']==='admin'): ?>
   <?php if($newOAuth): ?>
   <div class="oauth-created" role="status"><div><h3><?= icon('check') ?>Client créé</h3><p>Copiez ces identifiants dans les paramètres OAuth de ChatGPT.</p></div>
