@@ -3764,15 +3764,25 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .comment-actions [data-test-procedure]{margin-top:0}
 .comment-reply-button{font-size:11px;padding:2px 0}
 .comment-reply-button svg{width:13px;height:13px}
-/* Replies hang under their message, shifted right with a thread line so the link to the original stays visible. */
-.ticket-conversation .comment-replies{margin-top:10px;padding-left:16px;border-left:2px solid var(--line)}
-.ticket-conversation .comment-replies .comment{border-bottom:0;margin-bottom:0;padding:10px 0 0}
-.ticket-conversation .comment-replies .comment:first-child{padding-top:2px}
-.ticket-conversation .comment-replies:hover{border-left-color:var(--accent)}
+/* Conversation threads drawn like branches: a trunk leaves the message avatar (29px, centre at 14.5px) and a
+   rounded elbow turns towards each reply, so a reply visibly takes its own route away from the timeline. */
+.ticket-conversation{--thread-line:color-mix(in srgb,var(--accent) 35%,var(--line));--thread-indent:28px;--thread-elbow:27px}
+.ticket-conversation .comment{padding:0;margin:0;border-bottom:0;position:relative}
+.ticket-conversation .comment-list>.comment-thread{padding:14px 0;border-bottom:1px solid var(--line)}
+.ticket-conversation .comment-list>.comment-thread:first-child{padding-top:0}
+.ticket-conversation .comment-list>.comment-thread:last-child{padding-bottom:0;border-bottom:0}
+.ticket-conversation .comment-has-replies::before{content:"";position:absolute;left:13.5px;top:33px;bottom:0;border-left:2px solid var(--thread-line)}
+.ticket-conversation .comment-replies{margin-left:13.5px;padding-left:var(--thread-indent)}
+.ticket-conversation .comment-replies>.comment-thread{position:relative;padding-top:12px}
+.ticket-conversation .comment-replies>.comment-thread::after{content:"";position:absolute;left:calc(-1 * var(--thread-indent));top:0;width:calc(var(--thread-indent) - 4px);height:var(--thread-elbow);border-left:2px solid var(--thread-line);border-bottom:2px solid var(--thread-line);border-bottom-left-radius:14px;box-sizing:border-box}
+.ticket-conversation .comment-replies>.comment-thread:not(:last-child)::before{content:"";position:absolute;left:calc(-1 * var(--thread-indent));top:0;bottom:0;border-left:2px solid var(--thread-line)}
+.ticket-conversation .comment-replies>.comment-thread:hover::after{border-color:var(--accent)}
+.comment-reply-to{color:var(--muted)}
+.comment-reply-to::before{content:"↳ "}
 .comment-reply-context{margin:0 0 12px;padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;font-size:12px;display:grid;gap:4px}
 .comment-reply-context[hidden]{display:none}
 .comment-reply-excerpt{color:var(--subtle);overflow-wrap:anywhere}
-@media (max-width:760px){.ticket-conversation .comment-replies{padding-left:10px}}
+@media (max-width:760px){.ticket-conversation{--thread-indent:18px}}
 #test-procedure-dialog{width:min(640px,calc(100vw - 32px))}
 #test-procedure-dialog [data-procedure-status]:empty{display:none}
 
