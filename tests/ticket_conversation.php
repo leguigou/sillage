@@ -46,3 +46,14 @@ check(Project::find($orderProject)['comment_order'] === 'desc', 'ordre des comme
 Project::save(['name' => 'Ordre des commentaires', 'comment_order' => 'asc'], $orderProject);
 check(Project::find($orderProject)['comment_order'] === 'asc', 'ordre des commentaires modifiable');
 rejects(fn() => Project::save(['name' => 'Ordre des commentaires', 'comment_order' => 'random'], $orderProject), 'ordre des commentaires inconnu refusé');
+$historyTicket = Ticket::create($p, ['title' => 'Historique des réponses'], $uid);
+$historyRoot = Ticket::comment($historyTicket, 'Contenu confidentiel du message', $uid);
+$historyReply = Ticket::comment($historyTicket, 'Réponse privée', $uid, 'text', $historyRoot);
+$historyNested = Ticket::comment($historyTicket, 'Sous-réponse', $uid, 'text', $historyReply);
+$historyPage = \App\Models\TicketHistory::withConversation($historyTicket, \App\Models\TicketHistory::page($historyTicket, 0, 30, true));
+$historyComments = array_values(array_filter($historyPage['entries'], fn($entry) => $entry['kind'] === 'comment'));
+check(count($historyComments) === 3, 'les commentaires et réponses apparaissent dans l’historique');
+$historyById = array_column($historyComments, null, 'comment_id');
+check($historyById[$historyRoot]['depth'] === 0 && $historyById[$historyReply]['depth'] === 1 && $historyById[$historyNested]['depth'] === 2, 'l’historique indique la profondeur de chaque réponse');
+check($historyById[$historyReply]['parent_name'] !== null && $historyById[$historyNested]['thread_name'] !== null, 'l’historique indique à qui la réponse s’adresse');
+check(!str_contains(json_encode($historyPage, JSON_UNESCAPED_UNICODE), 'confidentiel'), 'l’historique ne reprend pas le contenu des messages');

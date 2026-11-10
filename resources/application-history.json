@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.30.0",
+  "current_version": "1.31.0",
   "entries": [
+    {
+      "version": "1.31.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Réponses visibles dans l’historique",
+      "summary": "L’onglet Historique d’un ticket montre aussi les commentaires et les réponses, sans leur contenu : qui a écrit, à qui il répond, et un lien vers le message.",
+      "changes": [
+        "Chaque commentaire apparaît dans la frise de l’historique à sa date, avec son auteur et l’étiquette « Commentaire » ou « Réponse ».",
+        "Une réponse indique à qui elle s’adresse (« a répondu à … ») et, plus bas dans une discussion, le fil d’origine (« fil de … »).",
+        "Les réponses quittent la ligne principale par une branche arrondie, plus décalée à chaque niveau, comme dans le suivi des commentaires. Survoler une réponse colore sa branche.",
+        "« Voir le message » ouvre le commentaire dans le suivi ; le texte des messages n’est jamais repris dans l’historique.",
+        "Les commentaires déjà publiés apparaissent aussi, sans action particulière."
+      ]
+    },
     {
       "version": "1.30.0",
       "date": "2026-11-10",
