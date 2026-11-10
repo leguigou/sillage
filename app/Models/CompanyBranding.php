@@ -63,4 +63,30 @@ final class CompanyBranding
         self::resetCache();
     }
 
+
+    /**
+     * Display name put before MAIL_FROM in the From header of every e-mail; null when an
+     * administrator has not chosen one (the software name is then used).
+     */
+    public static function senderName(): ?string
+    {
+        try {
+            $value = DB::one('SELECT mail_from_name FROM company_branding WHERE id=1')['mail_from_name'] ?? null;
+        } catch (\PDOException $error) {
+            // Table or column not migrated yet (42S02/42S22): behave as if nothing was chosen.
+            if (!in_array($error->getCode(), ['42S02', '42S22'], true)) throw $error;
+            return null;
+        }
+        return $value === null || $value === '' ? null : (string) $value;
+    }
+
+    /** Saves the sender display name; an empty value restores the default. */
+    public static function saveSenderName(string $name): void
+    {
+        $name = trim($name);
+        if (mb_strlen($name) > 100 || preg_match('/[\x00-\x1f\x7f"<>]/u', $name)) {
+            throw new \InvalidArgumentException('Le nom de l’expéditeur doit faire au plus 100 caractères, sans guillemets, chevrons ni retour à la ligne.');
+        }
+        DB::run('INSERT INTO company_branding(id,mail_from_name) VALUES(1,?) ON DUPLICATE KEY UPDATE mail_from_name=VALUES(mail_from_name)', [$name === '' ? null : $name]);
+    }
 }

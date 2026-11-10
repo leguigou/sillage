@@ -22,6 +22,7 @@ final class Mailer
         if (preg_match('/[\r\n]/', $to . $subject . env('MAIL_FROM'))) {
             throw new \InvalidArgumentException('Adresse de messagerie invalide.');
         }
+        $from = self::from();
         if (env('MAIL_TRANSPORT') === 'log' && env('APP_ENV') === 'local') {
             $dir = ROOT . '/storage/mail';
             if (!is_dir($dir)) {
@@ -32,11 +33,11 @@ final class Mailer
             if ($html !== null && file_put_contents($base . '.html', $html, LOCK_EX) === false) {
                 throw new \RuntimeException('Impossible d’enregistrer l’e-mail local.');
             }
-            $written=file_put_contents($base . '.txt', "To: $to\nSubject: $subject\n\n$body", LOCK_EX);
+            $written=file_put_contents($base . '.txt', 'From: ' . self::senderName() . ' <' . env('MAIL_FROM') . ">\nTo: $to\nSubject: $subject\n\n$body", LOCK_EX);
             if ($written===false) throw new \RuntimeException('Impossible d’enregistrer l’e-mail local.');
             return;
         }
-        $headers = ['From' => env('MAIL_FROM'), 'MIME-Version' => '1.0'];
+        $headers = ['From' => $from, 'MIME-Version' => '1.0'];
         if ($html === null) {
             $headers['Content-Type'] = 'text/plain; charset=UTF-8';
             $content = $body;
@@ -57,5 +58,17 @@ final class Mailer
                 'L’envoi de l’e-mail est indisponible. Contactez l’administrateur.',
             );
         }
+    }
+    /** Sender display name: the one chosen in the settings, otherwise the software name. */
+    public static function senderName(): string
+    {
+        $name = \App\Models\CompanyBranding::senderName() ?? app_name();
+        // Defence in depth: the name is validated on save, but must never break the header.
+        return preg_match('/[\x00-\x1f\x7f"<>]/u', $name) ? app_name() : $name;
+    }
+    /** "Name <address>" with the name RFC 2047-encoded, so accents and punctuation are safe. */
+    private static function from(): string
+    {
+        return '=?UTF-8?B?' . base64_encode(self::senderName()) . '?= <' . env('MAIL_FROM') . '>';
     }
 }

@@ -28,3 +28,11 @@ try {
 } finally {
     unlink($path);
 }
+check(CompanyBranding::senderName()===null && App\Core\Mailer::senderName()===app_name(),'expéditeur par défaut : nom du logiciel');
+CompanyBranding::saveSenderName('  Équipe Support  ');
+check(CompanyBranding::senderName()==='Équipe Support' && App\Core\Mailer::senderName()==='Équipe Support','nom d’expéditeur enregistré et nettoyé');
+rejects(fn()=>CompanyBranding::saveSenderName("Support\r\nBcc: x@example.com"),'nom d’expéditeur avec retour à la ligne refusé');
+rejects(fn()=>CompanyBranding::saveSenderName('Support <x@example.com>'),'nom d’expéditeur avec chevrons refusé');
+rejects(fn()=>CompanyBranding::saveSenderName(str_repeat('a',101)),'nom d’expéditeur trop long refusé');
+CompanyBranding::saveSenderName('');
+check(CompanyBranding::senderName()===null,'nom d’expéditeur vide restaure la valeur par défaut');
