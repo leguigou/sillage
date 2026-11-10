@@ -23,12 +23,13 @@ check(Project::find($archivePa)['archived_at']===$firstArchivedAt,'modification 
 check(Project::setArchived($archivePa,false)['archived_at']===null,'projet réactivé');
 check(in_array($archivePa,array_map('intval',array_column(Project::all(),'id')),true) && Query::count(0,['q'=>$archiveMarker])===2,'projet réactivé de nouveau proposé partout');
 rejects(fn()=>Project::setArchived(PHP_INT_MAX,true),'archivage d’un projet inconnu refusé');
-// Last active project: simulate every other project archived, inside a transaction rolled back afterwards.
-DB::connection()->beginTransaction();
+// Last active project: simulate every other project archived, then undo only that simulation.
+// The runner already holds a transaction, so nest with a savepoint instead of beginTransaction().
+DB::run('SAVEPOINT project_archive_simulation');
 try {
     DB::run('UPDATE projects SET archived_at=UTC_TIMESTAMP() WHERE archived_at IS NULL AND id<>?',[$archivePb]);
     rejects(fn()=>Project::setArchived($archivePb,true),'dernier projet actif impossible à archiver');
 } finally {
-    DB::connection()->rollBack();
+    DB::run('ROLLBACK TO SAVEPOINT project_archive_simulation');
 }
 check(Project::find($archivePb)['archived_at']===null && count(Project::all())>1,'simulation du dernier projet annulée');
