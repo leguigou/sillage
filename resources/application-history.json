@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.32.1",
+  "current_version": "1.33.0",
   "entries": [
+    {
+      "version": "1.33.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Filtrer sur plusieurs personnes et équipes",
+      "summary": "Le filtre accepte plusieurs personnes assignées et plusieurs équipes, et peut retenir les tickets qui correspondent à l’une ou l’autre condition.",
+      "changes": [
+        "Dans Filtrer, le bloc « Personnes et équipes » remplace les deux listes déroulantes : cochez une ou plusieurs personnes, « Non assigné », une ou plusieurs équipes ou « Sans équipe ».",
+        "« Les deux conditions » garde les tickets qui ont à la fois la personne et l’équipe cochées ; « L’une ou l’autre » ajoute ceux qui correspondent à une seule, par exemple vos tickets et ceux sans équipe.",
+        "Le même bloc est disponible dans « Modifier mon rapport » et la sélection est enregistrée avec le rapport.",
+        "Les raccourcis d’avatars au-dessus de la liste et les rapports existants continuent de fonctionner sans changement."
+      ]
+    },
     {
       "version": "1.32.1",
       "date": "2026-11-10",

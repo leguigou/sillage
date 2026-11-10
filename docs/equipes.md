@@ -8,10 +8,10 @@ La création et l’édition d’un ticket proposent **Équipe responsable**, av
 
 ## Suivre le travail
 
-- **Filtrer → Équipe** : une équipe donnée ou les tickets sans équipe, combinable avec les autres critères sur le tableau, la liste, la chronologie et les rapports.
+- **Filtrer → Personnes et équipes** : une ou plusieurs équipes, avec ou sans « Sans équipe », et une ou plusieurs personnes assignées, avec ou sans « Non assigné ». Plusieurs cases d’une même liste se cumulent (l’une ou l’autre valeur). Entre les deux listes, « Les deux conditions » (par défaut) exige la personne et l’équipe, « L’une ou l’autre » suffit qu’une seule corresponde : par exemple ses propres tickets et ceux sans équipe. Ces critères se combinent avec les autres sur le tableau, la liste, la chronologie et les rapports.
 - **Regrouper → Équipe** : sections par équipe dans le tableau et dans la liste. Les cartes et la colonne de liste affichent l’équipe responsable.
 - **Rapports** et **Vue d’ensemble** : volumes par équipe, nombre de tickets terminés, avancement manuel moyen et total des heures estimées renseignées. Les agrégats portent sur tous les tickets correspondant aux filtres, indépendamment de la pagination.
-- Les vues personnelles enregistrent le filtre d’équipe. Les exports CSV/JSON conservent l’identifiant et le nom de l’équipe. La recherche avancée accepte par exemple `team = "Support"` ou `team IS EMPTY`.
+- Les vues personnelles enregistrent ces sélections et leur combinaison, modifiables aussi dans **Modifier mon rapport**. Les exports CSV/JSON conservent l’identifiant et le nom de l’équipe. La recherche avancée accepte par exemple `team = "Support"` ou `team IS EMPTY`.
 
 Les équipes structurent le travail. Les permissions restent celles des rôles globaux administrateur, membre et lecture seule ; l’appartenance à une équipe ne crée pas de restriction d’accès aux projets.
 

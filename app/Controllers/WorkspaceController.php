@@ -308,7 +308,8 @@ final class WorkspaceController
     /**
      * Creates, updates or copies (mode=copy) a personal saved list view.
      * "settings" is the JSON filter state; with report_options, sort, grouping
-     * and visible columns (only known columns, in the posted order) are added.
+     * and visible columns (only known columns, in the posted order) are added;
+     * with assignment_filter, the posted assignee/team lists and their AND/OR mode replace the saved ones.
      * "revision" lets SavedView::save() detect concurrent edits.
      */
     public function saveView(): void
@@ -341,6 +342,13 @@ final class WorkspaceController
         } elseif (array_key_exists('status', $_POST)) {
             $settings['status'] = $_POST['status'];
             unset($settings['pause']);
+        }
+        // The report dialog always posts its assignee/team block, so unchecked boxes clear the saved selection.
+        if(!isset($view) && isset($_POST['assignment_filter'])) {
+            unset($settings['assignee'],$settings['team'],$settings['assignment_match']);
+            foreach(['assignee','team'] as $key) if(isset($_POST[$key])) $settings[$key]=$_POST[$key];
+            if(($_POST['assignment_match']??'')==='any') $settings['assignment_match']='any';
+            elseif(isset($_POST['assignment_match']) && $_POST['assignment_match']!=='all') throw new \InvalidArgumentException('Combinaison personne / équipe invalide.');
         }
         if(!isset($view) && isset($_POST['report_options'])) {
             foreach(['sort','direction','group','sort2','sort3'] as $key) $settings[$key]=$_POST[$key]??'';

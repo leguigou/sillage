@@ -87,22 +87,22 @@ final class Filter
                 array_push($params, ...$values);
             }
         }
-        if (($input['assignee'] ?? '') !== '') {
-            if ($input['assignee'] === 'none') {
-                $sql[] = 't.assignee_id IS NULL';
-            } else {
-                $sql[] = 't.assignee_id=?';
-                $params[] = (int) $input['assignee'];
-            }
+        // Assignee and team accept several values (ids and/or "none"). Each list is an OR inside itself;
+        // assignment_match=any joins the two lists with OR instead of AND ("my tickets or those without team").
+        $assignment=[];
+        foreach (['assignee'=>'t.assignee_id','team'=>'t.team_id'] as $field=>$column) {
+            $values=self::selectedIds($input,$field);
+            if ($values===[]) continue;
+            $ids=array_values(array_filter($values,static fn($value)=>$value!=='none'));
+            $parts=[];
+            if ($ids) {$parts[]=$column.' IN ('.implode(',',array_fill(0,count($ids),'?')).')';array_push($params,...array_map('intval',$ids));}
+            if (in_array('none',$values,true)) $parts[]=$column.' IS NULL';
+            $assignment[]=count($parts)>1?'('.implode(' OR ',$parts).')':$parts[0];
         }
-        if (($input['team']??'')!=='') {
-            if ($input['team']==='none') $sql[]='t.team_id IS NULL';
-            else {
-                $id=$input['team'];
-                if ((!is_int($id) && !is_string($id)) || !ctype_digit((string)$id) || (int)$id<1) throw new \InvalidArgumentException('Filtre équipe invalide.');
-                $sql[]='t.team_id=?'; $params[]=(int)$id;
-            }
-        }
+        $match=$input['assignment_match']??'';
+        if (!is_string($match) || !in_array($match,['','all','any'],true)) throw new \InvalidArgumentException('Combinaison personne / équipe invalide.');
+        if ($match==='any' && count($assignment)>1) $sql[]='('.implode(' OR ',$assignment).')';
+        else array_push($sql,...$assignment);
         if (!empty($input['hide_done'])) {
             $sql[] = \App\Models\Workflow::categorySql()."<>'done'";
         }
@@ -160,6 +160,28 @@ final class Filter
         $parser=new self();$parser->project=$project;
         if (!empty($input['jql'])) $parser->parse((string)$input['jql']);
         return self::resolvePauseMode($input,$parser->mentionsPaused);
+    }
+    /**
+     * Selected assignee or team values as a list of "none" and/or positive id strings, without duplicates.
+     * Accepts a scalar (single id, "none" or a comma-separated list) or a list; empty entries are ignored.
+     */
+    public static function selectedIds(array $input,string $field): array
+    {
+        $value=$input[$field]??'';
+        if (is_int($value)) $value=(string)$value;
+        $values=is_string($value)?explode(',',$value):$value;
+        $label=$field==='team'?'équipe':'personne assignée';
+        if (!is_array($values) || !array_is_list($values) || count($values)>500) throw new \InvalidArgumentException('Filtre '.$label.' invalide.');
+        $result=[];
+        foreach ($values as $item) {
+            if (is_int($item)) $item=(string)$item;
+            if (!is_string($item)) throw new \InvalidArgumentException('Filtre '.$label.' invalide.');
+            $item=trim($item);
+            if ($item==='') continue;
+            if ($item!=='none' && (!ctype_digit($item) || (int)$item<1)) throw new \InvalidArgumentException('Filtre '.$label.' invalide.');
+            $result[$item==='none'?'none':(string)(int)$item]=true;
+        }
+        return array_map('strval',array_keys($result));
     }
     /** Null means no explicit selection. An empty list means every state was unchecked. */
     public static function selectedStatuses(array $input): ?array
