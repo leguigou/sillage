@@ -2,17 +2,7 @@
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const csrfToken = $('meta[name="csrf-token"]')?.content;
-function initAppearanceMarks(root = document) {
-  $$('[data-project-color],[data-mark-color],[data-status-color]', root).forEach(mark => {
-    const color = mark.dataset.projectColor || mark.dataset.markColor || mark.dataset.statusColor;
-    if (!/^#[a-f0-9]{6}$/i.test(color)) return;
-    mark.style.setProperty(mark.dataset.projectColor ? '--project-color' : (mark.dataset.statusColor?'--status-color':'--mark-color'), color);
-    const channels = [1,3,5].map(offset => parseInt(color.slice(offset,offset+2),16)/255)
-      .map(value => value <= .04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
-    const luminance = channels[0]*.2126 + channels[1]*.7152 + channels[2]*.0722;
-    mark.style.setProperty('--mark-ink', luminance > .179 ? '#000000' : '#ffffff');
-  });
-}
+// initAppearanceMarks() is defined in theme.js so marks are coloured while the page is parsed.
 function updateAppearancePicker(picker) {
   const selected = $('input[type="radio"]:checked',picker), color = $('input[type="color"]',picker)?.value;
   if (!selected || !/^#[a-f0-9]{6}$/i.test(color)) return;

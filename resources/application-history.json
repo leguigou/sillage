@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.33.1",
+  "current_version": "1.33.2",
   "entries": [
+    {
+      "version": "1.33.2",
+      "date": "2026-11-10",
+      "category": "fixes",
+      "title": "Couleur des icônes stable au changement de page",
+      "summary": "Les icônes de projet, de type, de priorité et d’état s’affichent directement dans leur couleur, sans passer brièvement par le violet par défaut.",
+      "changes": [
+        "En cliquant sur un lien, l’icône d’un projet ne clignote plus dans une autre couleur pendant le chargement de la page."
+      ]
+    },
     {
       "version": "1.33.1",
       "date": "2026-11-10",
