@@ -5,7 +5,7 @@ archive_marker='Archive-'+uuid.uuid4().hex[:8]
 _,_,archive_url=call('/projects',{'_csrf':csrf,'name':archive_marker,'key':'HA'+uuid.uuid4().hex[:6].upper()})
 archive_pid=urllib.parse.parse_qs(urllib.parse.urlsplit(archive_url).query)['project'][0]
 _,archive_html,_=call('/settings')
-check('action="/projects/'+archive_pid+'/archive"' in archive_html and 'data-confirm="Archiver le projet' in archive_html,'settings offer a confirmed archive action')
+check('action="/projects/'+archive_pid+'/archive"' in archive_html and 'settings-danger" data-confirm="Archiver le projet' in archive_html,'settings offer a confirmed archive action')
 check(call('/projects/'+archive_pid+'/archive',{'action':'archive'},True)[0]==403,'archiving a project requires CSRF')
 check(call('/projects/'+archive_pid+'/archive',{'_csrf':csrf,'action':'hide'},True)[0]==422,'unknown archive action rejected')
 status,archive_html,archive_return=call('/projects/'+archive_pid+'/archive',{'_csrf':csrf,'action':'archive'})

@@ -90,7 +90,7 @@ Utiliser `window.SillageDialogs` :
 - `commit(dialog)` pour des champs enregistrés immédiatement dans une modale qui reste ouverte.
 - `confirm(message)` et `prompt(options)` renvoient une promesse : attendre le résultat avant d’exécuter l’action.
 
-Les attributs `data-close` et `data-confirm` sont traités centralement, y compris pour les formulaires insérés à la demande. Après un abandon, `sillage:dialog-discarded` permet au producteur de réconcilier ses aperçus et sélections internes. Les brouillons restent uniquement en mémoire dans l’onglet ; ils ne sont ni journalisés ni copiés dans le stockage du navigateur.
+Les attributs `data-close` et `data-confirm` sont traités centralement (`data-confirm` se place de préférence sur le bouton d’envoi ; posé sur un `<form>`, il est vérifié à l’envoi et non au clic), y compris pour les formulaires insérés à la demande. Après un abandon, `sillage:dialog-discarded` permet au producteur de réconcilier ses aperçus et sélections internes. Les brouillons restent uniquement en mémoire dans l’onglet ; ils ne sont ni journalisés ni copiés dans le stockage du navigateur.
 
 
 ### Visibilité locale des colonnes
