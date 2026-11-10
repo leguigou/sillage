@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.32.0",
+  "current_version": "1.33.0",
   "entries": [
+    {
+      "version": "1.33.0",
+      "date": "2026-11-10",
+      "category": "features",
+      "title": "Archivage des projets",
+      "summary": "Un administrateur peut archiver un projet terminé pour qu’il n’apparaisse plus dans l’application, sans perdre ses données.",
+      "changes": [
+        "Paramètres → Projets : chaque projet a un bouton Archiver, réservé aux administrateurs et soumis à confirmation.",
+        "Un projet archivé disparaît du menu des projets, des sélecteurs (notifications, équipes, assistant, import) et des listes « Tous les projets ».",
+        "Ses tickets et ses réglages sont conservés ; il reste consultable par son lien, avec un bandeau qui signale l’archivage.",
+        "Les projets archivés sont regroupés sous « Projets archivés » dans Paramètres → Projets, avec un bouton Réactiver.",
+        "Le dernier projet actif ne peut pas être archivé."
+      ]
+    },
     {
       "version": "1.32.0",
       "date": "2026-11-10",
