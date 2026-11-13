@@ -140,6 +140,7 @@ foreach (
 }
 $r->add('POST', '/projects', [$work, 'project'])
     ->add('POST', '/projects/{id}/update', [$work, 'updateProject'])
+    ->add('POST', '/projects/{id}/archive', [$work, 'archiveProject'])
     ->add('POST', '/views', [$work, 'saveView'])
     ->add('POST', '/views/{id}/delete', [$work, 'deleteView']);
 $r->add('POST', '/rules', [$work, 'rule'])
