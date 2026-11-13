@@ -524,7 +524,8 @@ function applyPreferences() {
       select.title = select.selectedOptions[0]?.textContent || 'Priorité';
     });
   }
-  if (reportOrderSave) {
+  // The column order of a report only exists in the list: board and timeline have no report table.
+  if (reportOrderSave && reportLayout) {
     reportOrderSave.hidden = String(reportColumnOrder()) === String(reportLayout.savedOrder);
   }
   $$('.table-group td').forEach(cell=>cell.colSpan=$$('.ticket-table thead th:not([hidden])').length);
@@ -559,7 +560,7 @@ function columnKeys(table) {
   return $$('thead th[data-column]', table).map(header => header.dataset.column);
 }
 function reportColumnOrder() {
-  const savedOrder = reportLayout.savedOrder;
+  const savedOrder = reportLayout?.savedOrder || [];
   return columnKeys($('.ticket-table')).filter(key => savedOrder.includes(key));
 }
 reportOrderSave?.addEventListener('click', async () => {

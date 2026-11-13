@@ -11,6 +11,7 @@
       "changes": [
         "Un clic sur l’un de « Mes rapports » applique ses filtres à la vue affichée : tableau, chronologie, liste, vue d’ensemble ou graphiques. Depuis « Tous les tickets », le rapport s’ouvre toujours dans la liste du projet.",
         "La chronologie conserve l’échelle et la période affichées quand on change de rapport.",
+        "Avec un rapport actif, la chronologie place correctement les mois, semaines, jours et barres, et le tableau masque de nouveau les tickets terminés selon vos préférences.",
         "Après l’enregistrement ou la modification d’un rapport, vous restez dans la vue où vous l’avez modifié.",
         "Quand un rapport est actif, les liens Vue d’ensemble, Liste, Tableau, Chronologie et Rapports du menu le conservent.",
         "Un rapport sélectionne les mêmes tickets dans chaque vue : états, personnes assignées, équipes et leur combinaison ET/OU, recherche et autres critères sont appliqués de la même façon, sans modifier les filtres mémorisés hors rapport."
