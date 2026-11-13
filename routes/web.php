@@ -156,6 +156,7 @@ $r->add('POST','/tickets/{id}/pause',[$tickets,'pause']);
 $r->add('POST', '/tickets/{id}/schedule', [$tickets, 'schedule']);
 $r->add('POST', '/tickets/{id}/move', [$tickets, 'move']);
 $r->add('POST', '/tickets/{id}/comments', [$tickets, 'comment'])
+    ->add('POST', '/tickets/{id}/comments/{comment}', [$tickets, 'editComment'])
     ->add('POST', '/tickets/{id}/links', [$tickets, 'link'])
     ->add('POST', '/links/{id}/delete', [$tickets, 'unlink']);
 $r->add('POST', '/attachments/{id}/delete', [$files, 'delete']);

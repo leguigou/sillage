@@ -280,6 +280,13 @@ final class TicketController
         $comment = Ticket::comment((int) $id, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'), $parent ?: null);
         redirect(ticket_url((int)$id,'#comment-'.$comment));
     }
+    /** Replaces the content of the author's own comment {comment} on ticket {id}; logged with a diff in the history. */
+    public function editComment(string $id, string $comment): void
+    {
+        $u = Auth::editor();
+        Ticket::editComment((int) $id, (int) $comment, (string) ($_POST['body'] ?? ''), (int) $u['id'], (string) ($_POST['body_format'] ?? 'text'));
+        redirect(ticket_url((int) $id, '#comment-' . (int) $comment));
+    }
     /** Creates a relation (default "relates") from ticket {id} to target_id. */
     public function link(string $id): void
     {

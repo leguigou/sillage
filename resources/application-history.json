@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.35.0",
+  "current_version": "1.36.0",
   "entries": [
+    {
+      "version": "1.36.0",
+      "date": "2026-11-13",
+      "category": "features",
+      "title": "Modifier ses propres messages dans un ticket",
+      "summary": "L’auteur d’un message peut le corriger ; chaque modification apparaît dans l’historique détaillé avec les lignes ajoutées et retirées.",
+      "changes": [
+        "Un bouton « Modifier » apparaît sous vos propres messages et réponses. Il ouvre la fenêtre de rédaction avec le contenu actuel du message.",
+        "Seul l’auteur d’un message peut le modifier : les messages des autres personnes et les messages automatiques ne proposent pas ce bouton et toute tentative est refusée.",
+        "Un message modifié porte la mention « modifié » à côté de sa date.",
+        "L’historique détaillé du ticket ajoute une entrée « Message modifié » qui montre les lignes ajoutées en vert (+) et les lignes retirées en rouge (−), avec un lien vers le message.",
+        "La modification d’un message n’envoie pas de nouvelle notification."
+      ]
+    },
     {
       "version": "1.35.0",
       "date": "2026-11-10",
@@ -27,7 +41,7 @@
       ]
     },
     {
-      "version": "1.33.3",
+      "version": "1.33.0",
       "date": "2026-11-10",
       "category": "features",
       "title": "Filtrer sur plusieurs personnes et équipes",
@@ -40,38 +54,13 @@
       ]
     },
     {
-      "version": "1.33.2",
+      "version": "1.32.1",
       "date": "2026-11-10",
       "category": "fixes",
       "title": "Couleur des icônes stable au changement de page",
       "summary": "Les icônes de projet, de type, de priorité et d’état s’affichent directement dans leur couleur, sans passer brièvement par le violet par défaut.",
       "changes": [
         "En cliquant sur un lien, l’icône d’un projet ne clignote plus dans une autre couleur pendant le chargement de la page."
-      ]
-    },
-    {
-      "version": "1.33.1",
-      "date": "2026-11-10",
-      "category": "fixes",
-      "title": "Archivage des projets réparé",
-      "summary": "Le bouton Archiver des paramètres archive de nouveau le projet après confirmation.",
-      "changes": [
-        "Après la confirmation, le projet est bien archivé ; auparavant, le clic restait sans effet.",
-        "Les confirmations placées sur un formulaire entier ne bloquent plus son envoi."
-      ]
-    },
-    {
-      "version": "1.33.0",
-      "date": "2026-11-10",
-      "category": "features",
-      "title": "Archivage des projets",
-      "summary": "Un administrateur peut archiver un projet terminé pour qu’il n’apparaisse plus dans l’application, sans perdre ses données.",
-      "changes": [
-        "Paramètres → Projets : chaque projet a un bouton Archiver, réservé aux administrateurs et soumis à confirmation.",
-        "Un projet archivé disparaît du menu des projets, des sélecteurs (notifications, équipes, assistant, import) et des listes « Tous les projets ».",
-        "Ses tickets et ses réglages sont conservés ; il reste consultable par son lien, avec un bandeau qui signale l’archivage.",
-        "Les projets archivés sont regroupés sous « Projets archivés » dans Paramètres → Projets, avec un bouton Réactiver.",
-        "Le dernier projet actif ne peut pas être archivé."
       ]
     },
     {

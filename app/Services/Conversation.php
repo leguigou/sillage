@@ -90,6 +90,28 @@ final class Conversation
         return $result;
     }
 
+    /**
+     * Readable plain text of a stored comment, one line per paragraph, list item or line break, used to
+     * compare two versions of a message in the ticket history. Mentions keep their "@Name" text and images
+     * become "[image : nom]"; no markup survives.
+     */
+    public static function plainText(array $comment): string
+    {
+        $body = (string) $comment['body'];
+        if (($comment['body_format'] ?? 'text') !== 'html') {
+            $people = Mentions::people(Mentions::ids($body, 'text'), false);
+            $text = preg_replace_callback('/@\[user:([1-9][0-9]{0,18})\]/', fn($m) => isset($people[(int) $m[1]]) ? '@' . $people[(int) $m[1]] : $m[0], $body) ?? $body;
+        } else {
+            $html = preg_replace_callback('/<img\b[^>]*\balt="([^"]*)"[^>]*>/i', fn($m) => '[image : ' . $m[1] . ']', $body) ?? $body;
+            $html = preg_replace('/<li\b[^>]*>/i', '- ', $html) ?? $html;
+            $html = preg_replace('#<br\s*/?>|</(p|li|blockquote|pre|ul|ol)>#i', "\n", $html) ?? $html;
+            $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        $text = str_replace(["\r\n", "\r", "\xC2\xA0"], ["\n", "\n", ' '], $text);
+        $text = preg_replace("/[ \t]+\n/", "\n", $text) ?? $text;
+        return trim(preg_replace("/\n{3,}/", "\n\n", $text) ?? $text);
+    }
+
     /** Display-safe HTML for a stored comment (plain-text or HTML format); unrenderable HTML shows a placeholder. */
     public static function render(array $comment): string
     {

@@ -42,29 +42,44 @@
     });
   });
   const commentDialog=document.getElementById('ticket-comment-dialog');
-  // Prepares the shared comment dialog as a new comment (source=null) or as a reply to a comment article.
-  function openComment(source) {
+  let commentMode='new';
+  // Prepares the shared comment dialog as a new comment (source=null), a reply to a comment article, or (edit=true)
+  // the edition of the user's own message, prefilled with its current content and posted to /comments/{id}.
+  function openComment(source,edit=false) {
     if(!commentDialog) return;
+    const form=commentDialog.querySelector('form');
+    const editor=commentDialog.querySelector('.conversation-editor'),textarea=commentDialog.querySelector('[data-comment-source]');
     const context=commentDialog.querySelector('[data-comment-reply-context]');
     const title=commentDialog.querySelector('#ticket-comment-title');
     title.dataset.defaultTitle??=title.textContent;
-    commentDialog.querySelector('[data-comment-parent]').value=source?source.dataset.commentId:'';
-    context.hidden=!source;
-    if(source) {
+    form.dataset.defaultAction??=form.getAttribute('action');
+    const content=source?.querySelector(':scope > .comment-body > .conversation-content');
+    if(edit) {
+      form.setAttribute('action',form.dataset.defaultAction+'/'+source.dataset.commentId);
+      if(editor) editor.innerHTML=content?.innerHTML||'';
+      if(textarea) textarea.value=content?.innerText||'';
+    } else {
+      form.setAttribute('action',form.dataset.defaultAction);
+      if(commentMode==='edit') {if(editor) editor.innerHTML='';if(textarea) textarea.value='';}
+    }
+    commentMode=edit?'edit':'new';
+    commentDialog.querySelector('[data-comment-parent]').value=source && !edit?source.dataset.commentId:'';
+    context.hidden=!source || edit;
+    if(source && !edit) {
       const author=source.querySelector('[data-comment-author]')?.textContent||'';
-      const text=(source.querySelector(':scope > .comment-body > .conversation-content')?.textContent||'').replace(/\s+/g,' ').trim();
+      const text=(content?.textContent||'').replace(/\s+/g,' ').trim();
       context.querySelector('[data-comment-reply-author]').textContent=author;
       context.querySelector('[data-comment-reply-excerpt]').textContent=text.length>160?text.slice(0,160)+'…':text;
     }
-    title.textContent=source?'Répondre à '+(source.querySelector('[data-comment-author]')?.textContent||'un commentaire'):title.dataset.defaultTitle;
-    commentDialog.querySelector('[data-comment-submit]').textContent=source?'Publier la réponse':'Ajouter un commentaire';
+    title.textContent=edit?'Modifier mon message':source?'Répondre à '+(source.querySelector('[data-comment-author]')?.textContent||'un commentaire'):title.dataset.defaultTitle;
+    commentDialog.querySelector('[data-comment-submit]').textContent=edit?'Enregistrer la modification':source?'Publier la réponse':'Ajouter un commentaire';
     window.SillageDialogs.show(commentDialog);
   }
   root.querySelector('[data-ticket-comment]')?.addEventListener('click',event=>{event.preventDefault();openComment(null);});
   document.addEventListener('click',event=>{
-    const button=event.target.closest('[data-comment-reply]');
+    const button=event.target.closest('[data-comment-reply],[data-comment-edit]');
     if(!button) return;
-    event.preventDefault();openComment(button.closest('[data-comment-id]'));
+    event.preventDefault();openComment(button.closest('[data-comment-id]'),button.hasAttribute('data-comment-edit'));
   });
   window.addEventListener('hashchange',fromHash);fromHash();
 })();
