@@ -80,6 +80,17 @@ function query_url(string $path,array $query,array $changes=[]): string {
     if(isset($changes['sort']) && $changes['sort']!==($query['sort']??'rank')) $changes+=['sort2'=>'','sort3'=>'','direction2'=>'asc','direction3'=>'asc'];
     return $path.'?'.http_build_query(array_replace($query,$changes));
 }
+/**
+ * Link that opens personal report $view in the ticket view being displayed: dashboard, board, timeline and
+ * charts keep their section (the timeline also keeps its scale and start date); the list and the
+ * cross-project "all" page open the project list, since a report belongs to one project.
+ */
+function report_url(string $section,int $project,int $view,array $current=[]): string {
+    $path=match($section){'dashboard'=>'/','board','timeline','charts'=>'/'.$section,default=>'/list'};
+    $query=['project'=>$project,'view'=>$view];
+    if($section==='timeline') foreach(['scale','from'] as $key) if(isset($current[$key]) && is_scalar($current[$key]) && (string)$current[$key]!=='') $query[$key]=(string)$current[$key];
+    return $path.'?'.http_build_query($query);
+}
 function ticket_context(): string
 {
     $source=App\Services\TicketNavigation::current();

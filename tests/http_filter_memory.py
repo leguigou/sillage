@@ -66,6 +66,20 @@ check(status==200,'edit report persists state checkboxes')
 _,filtered_report,_=call(json.loads(updated)['url'])
 check('data-ticket-id="'+review_id+'"' in filtered_report and 'data-ticket-id="'+progress_tickets[0]+'"' not in filtered_report and 'name="status[]" value="review" checked' in filtered_report,'reopened report restores checked states and matching tickets')
 
+# A report opened from the board, the timeline or the list stays in that view and selects the same tickets.
+import re
+report_id=str(json.loads(updated)['id']);report_ids={}
+for route in ['/list','/board','/timeline']:
+ _,view_html,_=call(route+'?project='+pid+'&view='+report_id)
+ report_ids[route]=set(re.findall(r'data-ticket-id="(\d+)"',view_html))
+ check('data-personal-report-link="'+report_id+'" href="'+route+'?project='+pid+'&amp;view='+report_id+'"' in view_html
+       and 'class="saved-view selected"' in view_html,'report link keeps the '+route+' view')
+ check(review_id in report_ids[route] and progress_tickets[0] not in report_ids[route] and done_id not in report_ids[route],'report filters applied server-side on '+route)
+ check('href="/board?project='+pid+'&amp;view='+report_id+'"' in view_html and 'href="/list?project='+pid+'&amp;view='+report_id+'"' in view_html,'menu keeps the active report on '+route)
+check(report_ids['/list']==report_ids['/board']==report_ids['/timeline'],'report selects the same tickets in list, board and timeline')
+_,period_html,_=call('/timeline?project='+pid+'&view='+report_id+'&scale=months&from=2026-11-01')
+check('href="/timeline?project='+pid+'&amp;view='+report_id+'&amp;scale=months&amp;from=2026-11-01"' in period_html,'timeline report link keeps the displayed period')
+
 # Quick order save keeps the report's other settings and checks its revision.
 updated_report=json.loads(updated)
 order_data={'_csrf':token(filtered_report),'project_id':pid,'view_id':updated_report['id'],'revision':updated_report['revision'],'mode':'column_order','column_order':json.dumps(['priority','title']),'status[]':['done']}

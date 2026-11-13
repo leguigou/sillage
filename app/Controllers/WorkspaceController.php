@@ -73,9 +73,13 @@ final class WorkspaceController
         // Invalid filters do not break the page: they are dropped and the error is displayed.
         $error = null;
         try {
-            if ($isList && $activeView) {
-                $filters = ListLayout::settings($pid, $filters) + ['view'=>$reportId];
-            } elseif (in_array($section, ['dashboard','list','all','board','timeline','charts'], true)) {
+            $ticketSection = in_array($section, ['dashboard','list','all','board','timeline','charts'], true);
+            // A report is applied the same way in every ticket view: its normalised settings, without
+            // touching the remembered filters. The timeline keeps its period (scale, from).
+            if ($ticketSection && $activeView) {
+                $period = array_intersect_key($filters, ['scale'=>1,'from'=>1]);
+                $filters = ListLayout::settings($pid, $filters) + ['view'=>$reportId] + $period;
+            } elseif ($ticketSection) {
                 $filters = FilterMemory::resolve($userId, $pid, $filters);
             }
             Filter::where($pid, $filters);
