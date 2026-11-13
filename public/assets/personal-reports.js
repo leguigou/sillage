@@ -3,6 +3,8 @@
   document.querySelectorAll('[data-personal-report]').forEach(form=>{
   const dialog=form.closest('dialog');
   const columns=form.querySelector('[data-report-columns]'),order=form.querySelector('[data-report-order]'),status=form.querySelector('[data-report-status]');
+  // Reports open in the view being displayed (board, timeline…); the server's URL is the list fallback.
+  const reportUrl=result=>{const template=document.querySelector('[data-personal-reports]')?.dataset.reportUrl;if(!template) return result.url;const url=new URL(template,location.href);url.searchParams.set('view',String(result.id));return url.pathname+url.search;};
   const open=form.querySelector('[data-report-open]'),copy=form.querySelector('[data-report-copy]'),remove=form.querySelector('[data-report-delete]');
   let busy=false;
   let savedInDialog=false;
@@ -44,14 +46,14 @@
       if (editing) {
         try { sessionStorage.setItem('sillage.notice', 'Rapport enregistré.'); } catch {}
         window.SillageDialogs.complete(dialog);
-        location.assign(result.url);
+        location.assign(reportUrl(result));
         return;
       }
       form.elements.view_id.value=result.id;form.elements.revision.value=result.revision;form.elements.name.value=result.name;
-      open.hidden=copy.hidden=remove.hidden=false;open.href=result.url;
+      open.hidden=copy.hidden=remove.hidden=false;open.href=reportUrl(result);
       const links=document.querySelector('[data-personal-reports]');let link=links?.querySelector('[data-personal-report-link="'+result.id+'"]');
       if(links && !link){link=document.createElement('a');link.className='saved-view';link.dataset.personalReportLink=result.id;links.insertBefore(link,links.querySelector('[data-report-add]'));}
-      if(link){link.href=result.url;link.textContent=result.name;}
+      if(link){link.href=reportUrl(result);link.textContent=result.name;}
       status.textContent='';
       saved=true;
     }catch(error){status.textContent=error.message;}
