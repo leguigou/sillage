@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "current_version": "1.35.0",
+  "current_version": "1.36.0",
   "entries": [
+    {
+      "version": "1.36.0",
+      "date": "2026-11-13",
+      "category": "features",
+      "title": "Modifier ses propres messages dans un ticket",
+      "summary": "L’auteur d’un message peut le corriger ; chaque modification apparaît dans l’historique détaillé avec les lignes ajoutées et retirées.",
+      "changes": [
+        "Un bouton « Modifier » apparaît sous vos propres messages et réponses. Il ouvre la fenêtre de rédaction avec le contenu actuel du message.",
+        "Seul l’auteur d’un message peut le modifier : les messages des autres personnes et les messages automatiques ne proposent pas ce bouton et toute tentative est refusée.",
+        "Un message modifié porte la mention « modifié » à côté de sa date.",
+        "L’historique détaillé du ticket ajoute une entrée « Message modifié » qui montre les lignes ajoutées en vert (+) et les lignes retirées en rouge (−), avec un lien vers le message.",
+        "La modification d’un message n’envoie pas de nouvelle notification."
+      ]
+    },
     {
       "version": "1.35.0",
       "date": "2026-11-10",

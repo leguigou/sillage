@@ -439,6 +439,52 @@ final class Ticket
             return $comment;
         });
     }
+    /**
+     * Replaces the content of comment $comment of ticket $id. Only its author may edit it: messages of other
+     * people and automatic messages (user_id NULL) are refused. The previous and new readable texts are kept in
+     * the ticket history (action "comment.edited") so the change can be shown as a line diff. No notification is
+     * sent and the ticket version is not changed. Returns false when the content is unchanged.
+     */
+    public static function editComment(int $id, int $comment, string $body, int $actor, string $format = 'text'): bool
+    {
+        return DB::transaction(function () use ($id, $comment, $body, $actor, $format) {
+            $t = Ticket::find($id);
+            $old = DB::one('SELECT * FROM comments WHERE id=? AND ticket_id=? FOR UPDATE', [$comment, $id]);
+            if (!$old) {
+                throw new \InvalidArgumentException('Ce message n’existe plus sur ce ticket.');
+            }
+            if ($old['user_id'] === null || (int) $old['user_id'] !== $actor) {
+                throw new \InvalidArgumentException('Vous ne pouvez modifier que vos propres messages.');
+            }
+            $body = trim($body);
+            if (!in_array($format, ['text', 'html'], true)) {
+                throw new \InvalidArgumentException('Format de commentaire invalide.');
+            }
+            if ($format === 'html') {
+                // Mentions already in the message may target accounts disabled since; new mentions must be active.
+                $body = \App\Services\Conversation::clean($body, $id, false);
+            }
+            if (!$body || ($format === 'text' && mb_strlen($body) > 10000)) {
+                throw new \InvalidArgumentException('Le commentaire doit contenir entre 1 et 10 000 caractères.');
+            }
+            $added = array_diff(\App\Services\Mentions::ids($body, $format), \App\Services\Mentions::ids((string) $old['body'], (string) $old['body_format']));
+            \App\Services\Mentions::people(array_values($added));
+            $new = ['body' => $body, 'body_format' => $format] + $old;
+            if ($body === $old['body'] && $format === $old['body_format']) {
+                return false;
+            }
+            $before = \App\Services\Conversation::plainText($old);
+            $after = \App\Services\Conversation::plainText($new);
+            DB::run('UPDATE comments SET body=?,body_format=?,edited_at=UTC_TIMESTAMP() WHERE id=?', [$body, $format, $comment]);
+            // Logged even when only the formatting changed, so every edit leaves a trace.
+            TicketHistory::event($id, $actor, (int) $t['version'], 'comment.edited', [[
+                'field' => 'comment', 'label' => 'Message', 'comment_id' => $comment,
+                'before' => $before, 'after' => $after, 'before_label' => $before, 'after_label' => $after,
+            ]]);
+            Ticket::activity((int) $t['project_id'], $id, $actor, 'a modifié un commentaire');
+            return true;
+        });
+    }
     /** Resolves the comment a reply is attached to, checking it belongs to the ticket and capping the depth. */
     private static function replyParent(int $ticket, int $parent): int
     {

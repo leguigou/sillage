@@ -3838,3 +3838,17 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .list-advanced-options{border-top:1px solid var(--line);padding-top:10px}
 .list-advanced-options > summary{cursor:pointer;font-weight:600}
 .list-advanced-options > .stack{margin-top:12px}
+/* Edited ticket message: "modifié" marker and line diff in the detailed history (+ green, − red). */
+.comment-edited{font-style:italic;color:var(--subtle)}
+.history-diff-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}
+.history-diff-added{color:#16a34a;font-weight:600}.history-diff-removed{color:#dc2626;font-weight:600}
+.history-diff{border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px;max-height:360px;overflow-y:auto}
+.history-diff-row{display:grid;grid-template-columns:22px minmax(0,1fr);border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.history-diff-row:last-child{border-bottom:0}
+.history-diff-sign{padding:3px 4px;text-align:center;user-select:none;font-weight:600}
+.history-diff-text{padding:3px 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.history-diff-row.add{background:color-mix(in srgb,#22c55e 14%,var(--surface))}.history-diff-row.add .history-diff-sign{color:#16a34a}
+.history-diff-row.del{background:color-mix(in srgb,#ef4444 14%,var(--surface))}.history-diff-row.del .history-diff-sign{color:#dc2626}
+.history-diff-row.add mark{background:color-mix(in srgb,#22c55e 40%,transparent);color:inherit;border-radius:3px}
+.history-diff-row.del mark{background:color-mix(in srgb,#ef4444 40%,transparent);color:inherit;border-radius:3px;text-decoration:line-through}
+.history-diff-row.gap{background:var(--surface-soft);color:var(--subtle);font-style:italic}
