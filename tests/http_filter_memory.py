@@ -75,6 +75,7 @@ for route in ['/list','/board','/timeline']:
  check('data-personal-report-link="'+report_id+'" href="'+route+'?project='+pid+'&amp;view='+report_id+'"' in view_html
        and 'class="saved-view selected"' in view_html,'report link keeps the '+route+' view')
  check(review_id in report_ids[route] and progress_tickets[0] not in report_ids[route] and done_id not in report_ids[route],'report filters applied server-side on '+route)
+ check(('data-report-order-save' in view_html)==(route=='/list'),'column order button only offered in the list on '+route)
  check('href="/board?project='+pid+'&amp;view='+report_id+'"' in view_html and 'href="/list?project='+pid+'&amp;view='+report_id+'"' in view_html,'menu keeps the active report on '+route)
 check(report_ids['/list']==report_ids['/board']==report_ids['/timeline'],'report selects the same tickets in list, board and timeline')
 _,period_html,_=call('/timeline?project='+pid+'&view='+report_id+'&scale=months&from=2026-11-01')
