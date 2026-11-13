@@ -408,6 +408,7 @@ try {
     require __DIR__ . '/git_timeline.php';
     require __DIR__ . '/git_conversation.php';
     require __DIR__ . '/team_projects.php';
+    require __DIR__ . '/project_archive.php';
     require __DIR__ . '/ticket_people.php';
     require __DIR__ . '/llm.php';
     require __DIR__ . '/notifications.php';

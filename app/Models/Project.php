@@ -10,6 +10,7 @@ use App\Core\DB;
  * The project row also serves as the per-project lock: other models take
  * "SELECT ... FROM projects ... FOR UPDATE" before changing tickets, rules, workflows or releases
  * of that project. A project can only be deleted when no other data references it.
+ * A project can also be archived (archived_at): it keeps its data but is hidden from menus and selectors.
  */
 final class Project
 {
@@ -117,9 +118,42 @@ final class Project
             throw $e;
         }
     }
+    /** Active projects, offered in menus and selectors. Archived projects are left out (see archived()). */
     public static function all(): array
     {
-        return DB::all('SELECT * FROM projects ORDER BY id');
+        return DB::all('SELECT * FROM projects WHERE archived_at IS NULL ORDER BY id');
+    }
+    /** Archived projects, only listed in the settings project directory so an admin can reactivate them. */
+    public static function archived(): array
+    {
+        return DB::all('SELECT * FROM projects WHERE archived_at IS NOT NULL ORDER BY name,id');
+    }
+    /**
+     * Archives ($archived true) or reactivates a project. Its tickets and settings are kept;
+     * an archived project only disappears from menus, selectors and "all projects" lists.
+     * The last active project cannot be archived, so the workspace always has one to open.
+     */
+    public static function setArchived(int $id, bool $archived): array
+    {
+        return DB::transaction(function () use ($id, $archived) {
+            // Lock every project row in id order: two admins archiving the last two projects at once
+            // are serialized instead of both seeing another active project.
+            $rows = array_column(DB::all('SELECT id,archived_at FROM projects ORDER BY id FOR UPDATE'), null, 'id');
+            $row = $rows[$id] ?? null;
+            if (!$row) {
+                throw new \InvalidArgumentException('Projet introuvable.');
+            }
+            if ($archived && $row['archived_at'] === null) {
+                $active = array_filter($rows, static fn($r) => $r['archived_at'] === null);
+                if (count($active) <= 1) {
+                    throw new \InvalidArgumentException('Gardez au moins un projet actif : créez ou réactivez un autre projet avant d’archiver celui-ci.');
+                }
+                DB::run('UPDATE projects SET archived_at=UTC_TIMESTAMP() WHERE id=?', [$id]);
+            } elseif (!$archived) {
+                DB::run('UPDATE projects SET archived_at=NULL WHERE id=?', [$id]);
+            }
+            return self::find($id);
+        });
     }
     public static function find(int $id): array
     {

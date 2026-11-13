@@ -11,7 +11,7 @@ use App\Services\{Filter, FilterMemory, ListLayout, Query};
  *   /board, /timeline, /forms, /development, /charts, /settings, /all,
  *   /automation, /releases. Any signed-in user; admin-only data (user
  *   accounts, repository catalog) is only loaded for admins.
- * - POST /projects, /projects/{id}/update, GET /projects/{id}/settings
+ * - POST /projects, /projects/{id}/update, /projects/{id}/archive, GET /projects/{id}/settings
  *   (HTML fragment): project management, admin only.
  * - POST /views, /views/{id}/delete: the user's own saved list views ("rapports").
  * - POST /rules, /rules/{id}/delete: list formatting rules, admin only.
@@ -159,6 +159,8 @@ final class WorkspaceController
                     'SELECT id,name,email,role,active,verified_at FROM users ORDER BY name,id',
                 )
                 : [];
+        // Archived projects are only listed to admins, in the settings directory, to reactivate them.
+        $archivedProjects = $section === 'settings' && $user['role'] === 'admin' ? Project::archived() : [];
         $teams = DB::all('SELECT * FROM teams ORDER BY name,id');
         $projectTeams=\App\Models\Team::forProject((int)$project['id']);
         $teamProjects=[];
@@ -241,6 +243,7 @@ final class WorkspaceController
                 'section',
                 'user',
                 'projects',
+                'archivedProjects',
                 'project',
                 'tickets',
                 'members',
@@ -288,6 +291,26 @@ final class WorkspaceController
         }
         flash('Projet, équipes et dépôt principal enregistrés.');
         redirect('/?project='.(int)$id);
+    }
+    /** Archives (action=archive) or reactivates (action=restore) project {id}; admin only, back to the settings directory. */
+    public function archiveProject(string $id): void
+    {
+        Auth::admin();
+        $action = $_POST['action'] ?? '';
+        if (!in_array($action, ['archive', 'restore'], true)) {
+            throw new \InvalidArgumentException('Action d’archivage invalide.');
+        }
+        $saved = Project::setArchived((int) $id, $action === 'archive');
+        if ($action === 'archive' && (int) ($_SESSION['project_id'] ?? 0) === (int) $id) {
+            unset($_SESSION['project_id']);
+        }
+        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+            json_response(['project' => ['id' => (int) $saved['id'], 'archived' => $saved['archived_at'] !== null]]);
+        }
+        flash($action === 'archive'
+            ? 'Projet « '.$saved['name'].' » archivé. Ses tickets sont conservés.'
+            : 'Projet « '.$saved['name'].' » réactivé.');
+        redirect('/settings#project-directory');
     }
     /** Returns the project settings form as an HTML fragment, fetched by public/assets/app.js to edit a project. */
     public function projectSettings(string $id): void
