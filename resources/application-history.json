@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.36.1",
+  "current_version": "1.36.2",
   "entries": [
+    {
+      "version": "1.36.2",
+      "date": "2026-11-16",
+      "category": "interface",
+      "title": "Nouvelle accroche sur la page de connexion",
+      "summary": "La page de connexion affiche un nouveau message d’accueil.",
+      "changes": [
+        "L’accroche « Les bonnes idées méritent un sillage » devient « Prenez de la hauteur sur vos projets »."
+      ]
+    },
     {
       "version": "1.36.1",
       "date": "2026-11-13",
