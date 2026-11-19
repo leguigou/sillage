@@ -131,7 +131,11 @@ final class DevelopmentEvent
             }
             // History imports only establish observations. Live transitions may run opt-in rules once.
             if ($live && $event['trigger'] && (!$old || $old['state']!==$event['state'])) {
-                foreach($tickets as $ticket) Automation::run($event['trigger'],(int)$ticket,null,false,['development_repository'=>$connection['repository']]);
+                // Branch conditions let one rule target merges to staging and another those to production.
+                $context=['development_repository'=>$connection['repository'],
+                    'development_target_branch'=>$event['metadata']['target_branch']??null,
+                    'development_source_branch'=>$event['metadata']['branch']??null];
+                foreach($tickets as $ticket) Automation::run($event['trigger'],(int)$ticket,null,false,$context);
             }
             return $id;
         });

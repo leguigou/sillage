@@ -1,7 +1,20 @@
 {
   "schema": 1,
-  "current_version": "1.36.2",
+  "current_version": "1.37.0",
   "entries": [
+    {
+      "version": "1.37.0",
+      "date": "2026-11-19",
+      "category": "features",
+      "title": "Automatisations déclenchées par la branche cible",
+      "summary": "Les règles d’automatisation peuvent filtrer les événements Git sur la branche cible ou la branche source de la pull request.",
+      "changes": [
+        "Nouvelle condition « Branche cible (pull request) » : une règle ne s’applique qu’aux pull requests ouvertes, fusionnées ou refusées vers la branche indiquée.",
+        "Nouvelle condition « Branche source (pull request) » : la règle ne s’applique qu’aux pull requests parties de la branche indiquée.",
+        "Les conditions de dépôt, de branche cible et de branche source sont proposées dans l’éditeur d’automatisation et dans l’API MCP.",
+        "Exemple d’usage : « pull request ouverte vers staging » → En cours, « fusion vers staging » → À tester, « fusion vers production » → Terminé."
+      ]
+    },
     {
       "version": "1.36.2",
       "date": "2026-11-16",

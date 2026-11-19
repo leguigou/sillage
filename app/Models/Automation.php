@@ -24,7 +24,7 @@ final class Automation
         'development.pull_request_opened' => 'Pull request ouverte',
         'development.pull_request_merged' => 'Pull request fusionnée',
     ];
-    public const CONDITIONS = ['type', 'status', 'priority', 'assignee_id', 'flagged', 'development_repository'];
+    public const CONDITIONS = ['type', 'status', 'priority', 'assignee_id', 'flagged', 'development_repository', 'development_target_branch', 'development_source_branch'];
     public const ACTIONS = [
         'status',
         'priority',
@@ -98,14 +98,14 @@ final class Automation
             if (isset($conditions['type']) && !isset(Workflow::labels('type',$project,true)[$conditions['type']])) {
                 throw new \InvalidArgumentException('Type de condition invalide.');
             }
-            foreach (['development_repository'=>200] as $field=>$max) {
+            foreach (['development_repository'=>200,'development_target_branch'=>200,'development_source_branch'=>200] as $field=>$max) {
                 if (array_key_exists($field,$conditions) && (!str_starts_with($event,'development.') || !is_string($conditions[$field]) || trim($conditions[$field])==='' || mb_strlen($conditions[$field])>$max)) {
-                    throw new \InvalidArgumentException('La condition de dépôt nécessite un événement de développement et un texte non vide.');
+                    throw new \InvalidArgumentException('La condition de dépôt ou de branche nécessite un événement de développement et un texte non vide.');
                 }
             }
             foreach (
                 [
-                    'conditions' => array_diff_key($conditions, ['type' => true,'development_repository'=>true]),
+                    'conditions' => array_diff_key($conditions, ['type' => true,'development_repository'=>true,'development_target_branch'=>true,'development_source_branch'=>true]),
                     'actions' => array_diff_key($actions, ['comment' => true]),
                 ]
                 as $kind => $fields

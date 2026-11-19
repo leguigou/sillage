@@ -566,7 +566,7 @@ final class Tools
             true,
         );
         // Automation conditions and actions reuse the ticket field schemas, restricted to the fields Automation allows.
-        $conditions = $obj(array_intersect_key($ticketFields, array_flip(Automation::CONDITIONS)) + ['development_repository'=>$str(200)]);
+        $conditions = $obj(array_intersect_key($ticketFields, array_flip(Automation::CONDITIONS)) + ['development_repository'=>$str(200),'development_target_branch'=>$str(200),'development_source_branch'=>$str(200)]);
         $actions = $obj(
             array_intersect_key($ticketFields, array_flip(Automation::ACTIONS)) + [
                 'comment' => $str(10000),

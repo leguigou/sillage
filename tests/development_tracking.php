@@ -36,6 +36,15 @@ $pr['state']='closed';$pr['merged']=true;$pr['updated_at']='2026-10-28T11:00:00Z
 $merged=DevelopmentPayload::object('github','pull_request',$pr,'organisation/projet-tests',true,null,'closed');
 DevelopmentEvent::save($gitC,$merged,true);
 check(Ticket::find($gitA)['status']==='review' && Ticket::find($gitA2)['status']==='review' && Ticket::find($gitB)['status']==='todo','fusion applique les règles des projets concernés sans modifier les autres');
+// Une condition sur la branche cible isole les règles qui partagent le même déclencheur.
+Automation::save(['project_id'=>$gitProject,'name'=>'Tests après fusion vers staging','event'=>'development.pull_request_merged','conditions'=>['development_target_branch'=>'staging'],'actions'=>['status'=>'done']],$uid);
+$toStaging=['number'=>17,'title'=>$gitKey.' Vers staging','state'=>'closed','merged'=>true,'base'=>['ref'=>'staging'],'head'=>['ref'=>'feature/'.$gitKey,'sha'=>$sha],'html_url'=>'https://github.com/organisation/projet-tests/pull/17','updated_at'=>'2026-10-28T12:00:00Z'];
+DevelopmentEvent::save($gitC,DevelopmentPayload::object('github','pull_request',$toStaging,'organisation/projet-tests',true,null,'closed'),true);
+check(Ticket::find($gitA)['status']==='done','règle de fusion limitée à la branche cible appliquée');
+$toProduction=['number'=>18,'title'=>$gitKey2.' Vers production','state'=>'closed','merged'=>true,'base'=>['ref'=>'production'],'head'=>['ref'=>'staging','sha'=>$sha],'html_url'=>'https://github.com/organisation/projet-tests/pull/18','updated_at'=>'2026-10-28T13:00:00Z'];
+DevelopmentEvent::save($gitC,DevelopmentPayload::object('github','pull_request',$toProduction,'organisation/projet-tests',true,null,'closed'),true);
+check(Ticket::find($gitA2)['status']==='review','règle limitée à staging non appliquée à une fusion vers production');
+rejects(fn()=>Automation::save(['project_id'=>$gitProject,'name'=>'Branche sur ticket modifié','event'=>'ticket.updated','conditions'=>['development_target_branch'=>'staging'],'actions'=>['status'=>'todo']],$uid),'condition de branche refusée hors événement de développement');
 $runs=(int)DB::one('SELECT COUNT(*) n FROM automation_runs WHERE event_name=?',['development.pull_request_merged'])['n'];
 DevelopmentEvent::save($gitC,$merged,true);
 check((int)DB::one('SELECT COUNT(*) n FROM automation_runs WHERE event_name=?',['development.pull_request_merged'])['n']===$runs,'fusion répétée idempotente');
