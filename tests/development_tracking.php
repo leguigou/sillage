@@ -21,6 +21,23 @@ $branchId=DevelopmentEvent::save($gitC,$branch,true);
 check(Ticket::find($gitA)['status']==='progress','création de branche signale la règle configurée');
 DevelopmentEvent::save($gitC,$branch,true);
 check((int)DB::one('SELECT COUNT(*) n FROM automation_runs WHERE ticket_id=?',[$gitA])['n']===1,'livraison répétée sans réexécution de la règle Git');
+// Une branche créée sur un ticket déjà démarré ne le modifie pas et le journalise.
+$versionBefore=(int)Ticket::find($gitA)['version'];
+$otherBranch=DevelopmentPayload::object('github','branch',['name'=>'feature/'.$gitKey.'-bis','created'=>true],'organisation/projet-tests',true);
+DevelopmentEvent::save($gitC,$otherBranch,true);
+check((int)Ticket::find($gitA)['version']===$versionBefore,'branche sur un ticket déjà démarré sans nouvelle version');
+check((int)DB::one("SELECT COUNT(*) n FROM automation_runs WHERE ticket_id=? AND message LIKE 'Déjà à jour%'",[$gitA])['n']===1,'saut journalisé quand le ticket est déjà dans l’état demandé');
+// Un commentaire de pull request qui cite un ticket l’associe et déclenche les règles, même après coup.
+Automation::save(['project_id'=>$gitProject,'name'=>'Démarrer sur commentaire','event'=>'development.pull_request_commented','actions'=>['status'=>'progress']],$uid);
+$commentEvents=DevelopmentPayload::webhook('bitbucket','pullrequest:comment_created',[
+    'pullrequest'=>['id'=>21,'title'=>'Correctif sans référence','state'=>'OPEN','source'=>['branch'=>['name'=>'feature/sans-cle']],'destination'=>['branch'=>['name'=>'staging']],'links'=>['html'=>['href'=>'https://bitbucket.org/organisation/projet-tests/pull-requests/21']],'updated_on'=>'2026-10-28T14:00:00Z'],
+    'comment'=>['id'=>777,'content'=>['raw'=>'Finalement c’est '.$gitKey2.' qu’il faut traiter']],
+],'organisation/projet-tests');
+check(count($commentEvents)===1 && $commentEvents[0]['trigger']==='development.pull_request_commented','commentaire de pull request reconnu comme déclencheur');
+DevelopmentEvent::save($gitC,$commentEvents[0],true);
+check(Ticket::find($gitA2)['status']==='progress','commentaire de pull request associe le ticket et applique la règle');
+DevelopmentEvent::save($gitC,$commentEvents[0],true);
+check((int)DB::one("SELECT COUNT(*) n FROM automation_runs WHERE ticket_id=? AND rule_name='Démarrer sur commentaire'",[$gitA2])['n']===1,'commentaire relivré sans réexécution de la règle');
 $sha=str_repeat('a',40);
 $commit=DevelopmentPayload::object('github','commit',['sha'=>$sha,'commit'=>['message'=>$gitKey.' '.$gitKey2.' '.$gitKeyB.' Correction','author'=>['date'=>'2026-10-28T09:00:00Z']]],'organisation/projet-tests');
 $commitId=DevelopmentEvent::save($gitC,$commit);

@@ -130,7 +130,9 @@ final class DevelopmentEvent
                 GitConversation::observe($connection, array_replace($event, ['id'=>$id,'external_url'=>$safe?$event['external_url']:'']), $tickets);
             }
             // History imports only establish observations. Live transitions may run opt-in rules once.
-            if ($live && $event['trigger'] && (!$old || $old['state']!==$event['state'])) {
+            // A new pull request comment is its own trigger even though the pull request state is unchanged.
+            $newComment=!empty($event['metadata']['comment_id']) && (int)$event['metadata']['comment_id']!==(int)($oldMeta['comment_id']??0);
+            if ($live && $event['trigger'] && (!$old || $old['state']!==$event['state'] || $newComment)) {
                 // Branch conditions let one rule target merges to staging and another those to production.
                 $context=['development_repository'=>$connection['repository'],
                     'development_target_branch'=>$event['metadata']['target_branch']??null,

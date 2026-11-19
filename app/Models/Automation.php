@@ -22,6 +22,7 @@ final class Automation
         'development.branch_created' => 'Branche Git créée',
         'development.commit_pushed' => 'Commit reçu',
         'development.pull_request_opened' => 'Pull request ouverte',
+        'development.pull_request_commented' => 'Commentaire sur pull request',
         'development.pull_request_merged' => 'Pull request fusionnée',
     ];
     public const CONDITIONS = ['type', 'status', 'priority', 'assignee_id', 'flagged', 'development_repository', 'development_target_branch', 'development_source_branch'];
@@ -209,6 +210,22 @@ final class Automation
             }
         });
     }
+    /** True when at least one action would actually change the ticket (labels compare as a set, booleans as booleans). */
+    private static function differs(array $ticket,array $changes): bool
+    {
+        foreach($changes as $field=>$value) {
+            if ($field==='labels') {
+                $wanted=array_map('strval',(array)$value);
+                $actual=array_map('strval',$ticket['labels_array']??[]);
+                sort($wanted);sort($actual);
+                if ($wanted!==$actual) return true;
+                continue;
+            }
+            if (is_bool($value)) { if ((bool)($ticket[$field]??false)!==$value) return true; continue; }
+            if ((string)($ticket[$field]??'')!==(string)($value??'')) return true;
+        }
+        return false;
+    }
     /**
      * Applies the project's enabled rules for $event to one ticket, in rule id order.
      *
@@ -257,6 +274,15 @@ final class Automation
                 }
             }
             if (!$matches) {
+                continue;
+            }
+            // "Only when it is not already there": writing identical values would bump the version for nothing.
+            $planned=array_diff_key($r['actions'],['comment'=>true]);
+            if ($planned && !isset($r['actions']['comment']) && !self::differs($current,$planned)) {
+                DB::run(
+                    'INSERT INTO automation_runs(rule_id,ticket_id,rule_name,event_name,succeeded,message) VALUES(?,?,?,?,?,?)',
+                    [$r['id'], $ticket, $r['name'], $event, 1, 'Déjà à jour : aucune modification.'],
+                );
                 continue;
             }
             DB::run('SAVEPOINT sillage_automation');

@@ -53,7 +53,7 @@ final class DevelopmentPayload
             'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger];
         return $event;
     }
-    /** Full title, source branch and normalized description keys used for ticket matching. */
+    /** Full title, source branch and normalized description/comment keys used for ticket matching. */
     public static function references(array $event): string
     {
         $metadata=$event['metadata'];
@@ -61,7 +61,14 @@ final class DevelopmentPayload
             $metadata['full_title']??$event['title'],
             $metadata['branch']??'',
             ...($metadata['description_keys']??[]),
+            ...($metadata['comment_keys']??[]),
         ]);
+    }
+    /** Ticket references (PROJECT-123) found in free text: pull request descriptions and comments. */
+    public static function keys(string $text): array
+    {
+        preg_match_all('/\b[A-Z][A-Z0-9]{1,9}-[1-9][0-9]*\b/i', $text, $matches);
+        return array_values(array_unique(array_map('strtoupper', $matches[0])));
     }
     /**
      * Normalises one branch, commit or pull request item. Field names differ between providers, hence the
@@ -100,8 +107,7 @@ final class DevelopmentPayload
             $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);
             $descriptionField=$github?'body':'description';
             if (array_key_exists($descriptionField,$item) && (is_string($item[$descriptionField]) || $item[$descriptionField]===null)) {
-                preg_match_all('/\b[A-Z][A-Z0-9]{1,9}-[1-9][0-9]*\b/i', $item[$descriptionField]??'', $matches);
-                $event['metadata']['description_keys']=array_values(array_unique(array_map('strtoupper',$matches[0])));
+                $event['metadata']['description_keys']=self::keys((string) ($item[$descriptionField]??''));
             }
             return $event;
         }
@@ -127,7 +133,16 @@ final class DevelopmentPayload
         }
         if ($pr=$data['pull_request']??$data['pullrequest']??null) {
             if (!is_array($pr)) throw new \InvalidArgumentException('Pull request invalide.');
-            $events[]=self::object($provider,'pull_request',$pr,$repository,true,null,$data['action']??$event);
+            $event=self::object($provider,'pull_request',$pr,$repository,true,null,$data['action']??$event);
+            // A pull request comment may reference the ticket after the fact: it links and triggers rules once.
+            $comment=$data['comment']??null;
+            if (is_array($comment) && in_array($data['action']??$event,['created','pullrequest:comment_created'],true)) {
+                $keys=self::keys(self::text($comment['content']['raw']??$comment['body']??'',10000));
+                $event['metadata']['comment_id']=(int)($comment['id']??0);
+                $event['metadata']['comment_keys']=$keys;
+                if ($keys) $event['trigger']='development.pull_request_commented';
+            }
+            $events[]=$event;
         }
         if ($provider==='github') {
             if (($data['ref_type']??'')==='branch' && in_array($event,['create','delete'],true)) $events[]=self::object($provider,'branch',['name'=>$data['ref']??'', 'created'=>$event==='create','deleted'=>$event==='delete'],$repository,true);

@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.37.0",
+  "current_version": "1.38.0",
   "entries": [
+    {
+      "version": "1.38.0",
+      "date": "2026-11-19",
+      "category": "features",
+      "title": "Démarrer un ticket depuis une branche ou un commentaire de pull request",
+      "summary": "Une automatisation peut réagir à la création d’une branche et à un commentaire de pull request, et ne modifie plus un ticket déjà dans l’état demandé.",
+      "changes": [
+        "Nouveau déclencheur « Commentaire sur pull request » : une référence de ticket citée dans un commentaire de pull request associe la demande et applique les règles, même si la pull request n’en parlait pas à sa création.",
+        "Une automatisation dont toutes les actions aboutiraient aux valeurs déjà présentes ne modifie pas le ticket : le journal indique « Déjà à jour : aucune modification. » au lieu d’incrémenter sa version.",
+        "Exemple d’usage : « branche Git créée » ou « commentaire sur pull request » → En cours, sans rouvrir un ticket déjà démarré."
+      ]
+    },
     {
       "version": "1.37.0",
       "date": "2026-11-19",
