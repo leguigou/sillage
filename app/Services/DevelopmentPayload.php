@@ -133,16 +133,17 @@ final class DevelopmentPayload
         }
         if ($pr=$data['pull_request']??$data['pullrequest']??null) {
             if (!is_array($pr)) throw new \InvalidArgumentException('Pull request invalide.');
-            $event=self::object($provider,'pull_request',$pr,$repository,true,null,$data['action']??$event);
+            $action=$data['action']??$event;
+            $prEvent=self::object($provider,'pull_request',$pr,$repository,true,null,$action);
             // A pull request comment may reference the ticket after the fact: it links and triggers rules once.
             $comment=$data['comment']??null;
-            if (is_array($comment) && in_array($data['action']??$event,['created','pullrequest:comment_created'],true)) {
+            if (is_array($comment) && in_array($action,['created','pullrequest:comment_created'],true)) {
                 $keys=self::keys(self::text($comment['content']['raw']??$comment['body']??'',10000));
-                $event['metadata']['comment_id']=(int)($comment['id']??0);
-                $event['metadata']['comment_keys']=$keys;
-                if ($keys) $event['trigger']='development.pull_request_commented';
+                $prEvent['metadata']['comment_id']=(int)($comment['id']??0);
+                $prEvent['metadata']['comment_keys']=$keys;
+                if ($keys) $prEvent['trigger']='development.pull_request_commented';
             }
-            $events[]=$event;
+            $events[]=$prEvent;
         }
         if ($provider==='github') {
             if (($data['ref_type']??'')==='branch' && in_array($event,['create','delete'],true)) $events[]=self::object($provider,'branch',['name'=>$data['ref']??'', 'created'=>$event==='create','deleted'=>$event==='delete'],$repository,true);
