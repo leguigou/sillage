@@ -403,6 +403,7 @@ try {
     require __DIR__ . '/git_branch_catalog.php';
     require __DIR__ . '/git_pull_requests.php';
     require __DIR__ . '/personal_reports.php';
+    require __DIR__ . '/project_report.php';
     require __DIR__ . '/git_monitoring.php';
     require __DIR__ . '/deployment_badges.php';
     require __DIR__ . '/git_timeline.php';

@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.38.0",
+  "current_version": "1.39.0",
   "entries": [
+    {
+      "version": "1.39.0",
+      "date": "2026-11-20",
+      "category": "features",
+      "title": "Suivre les tickets dans le temps avec les rapports de projet",
+      "summary": "L’onglet Rapports affiche l’activité des tickets et leur avancement sur une semaine, un mois ou une plage de dates choisie.",
+      "changes": [
+        "Consultez le nombre de tickets créés, modifiés, traités, clôturés ou rouverts sur la période sélectionnée.",
+        "Suivez le temps passé et l’avancement moyen avec un graphique d’activité et un tableau par intervalle.",
+        "Les filtres de tickets et les rapports personnels s’appliquent aux indicateurs. La page indique la date à partir de laquelle l’historique détaillé est disponible."
+      ]
+    },
     {
       "version": "1.38.0",
       "date": "2026-11-19",
