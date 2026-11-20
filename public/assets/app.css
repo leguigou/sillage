@@ -3604,8 +3604,7 @@ section[aria-busy='true'] { cursor: progress; }
 }
 .report-period-controls,
 .report-period-nav,
-.report-date-form,
-.report-chart-legend {
+.report-date-form {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -3614,8 +3613,10 @@ section[aria-busy='true'] { cursor: progress; }
 .report-period-controls {
   justify-content: space-between;
 }
-.report-date-form label,
-.report-chart-legend span {
+.report-period-controls + .notice {
+  margin-top: 12px;
+}
+.report-date-form label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3625,70 +3626,87 @@ section[aria-busy='true'] { cursor: progress; }
 }
 .report-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
   gap: 8px;
-  margin: 16px 0 8px;
+  margin: 12px 0 8px;
+}
+.report-metrics-primary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+.report-metrics-secondary {
+  grid-template-columns: repeat(auto-fit, minmax(122px, 1fr));
 }
 .report-metrics > div {
   display: flex;
   flex-direction: column-reverse;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 4px;
-  padding: 12px;
+  padding: 12px 16px;
   background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: 12px;
 }
-.report-metrics dt,
-.report-chart small {
+.report-metrics dt {
   color: var(--subtle);
   font-size: 12px;
 }
 .report-metrics dd {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0;
 }
-.report-chart-legend {
-  font-size: 12px;
-  gap: 16px;
-}
-.report-chart-legend i {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-}
-.report-chart-scroll {
-  overflow-x: auto;
-  margin: 12px 0 18px;
-}
-.report-chart {
-  display: flex;
-  min-width: max-content;
-  gap: 6px;
+.report-metrics-primary > div {
+  min-height: 116px;
   text-align: center;
 }
-.report-chart-group {
-  flex: 1 0 44px;
-  border-bottom: 1px solid var(--line);
+.report-metrics-primary dd {
+  font-size: 34px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
-.report-chart-bars {
-  display: block;
-  width: 44px;
-  height: 108px;
-  margin: 0 auto;
+.report-metric-created dd { color: var(--accent); }
+.report-metric-closed dd { color: #18785f; }
+[data-theme='dark'] .report-metric-closed dd { color: #70d2ad; }
+.report-metric-progress dd {
+  display: grid;
+  grid-template-areas: "gauge";
+  justify-items: center;
+  align-items: end;
+  font-size: 18px;
 }
-.report-color-created { background: #527dd0; fill: #527dd0; }
-.report-color-modified { background: var(--accent); fill: var(--accent); }
-.report-color-closed { background: #248064; fill: #248064; }
+.report-metric-progress dd > * {
+  grid-area: gauge;
+}
+.report-gauge {
+  width: 104px;
+  max-width: 100%;
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.report-gauge-track { stroke: var(--line); }
+.report-gauge-value { stroke: var(--accent); }
+.report-metric-progress dd > span { margin-bottom: 5px; }
+@media (max-width: 600px) {
+  .report-metrics-primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-metrics-primary .report-metric-progress { grid-column: 1 / -1; }
+}
+.report-breakdown {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.report-breakdown > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+}
+.report-breakdown > .table-scroll {
+  margin-top: 8px;
+}
 .report-breakdown table {
   width: 100%;
   border-collapse: collapse;
-}
-.report-breakdown caption {
-  text-align: left;
-  font-weight: 600;
-  padding: 0 0 6px;
 }
 .report-breakdown th,
 .report-breakdown td {
@@ -3699,13 +3717,6 @@ section[aria-busy='true'] { cursor: progress; }
 }
 .report-breakdown th:first-child {
   text-align: left;
-}
-.report-breakdown progress {
-  width: 52px;
-  height: 6px;
-  vertical-align: middle;
-  margin-right: 4px;
-  accent-color: var(--accent);
 }
 .report-snapshot-heading {
   margin: 24px 0 12px;
