@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.39.0",
+  "current_version": "1.39.1",
   "entries": [
+    {
+      "version": "1.39.1",
+      "date": "2026-11-20",
+      "category": "interface",
+      "title": "Lire les indicateurs de la période d’un coup d’œil",
+      "summary": "Les rapports mettent en avant les tickets créés et clôturés ainsi que l’avancement moyen en fin de période.",
+      "changes": [
+        "Les totaux de création et de clôture occupent les premières cartes, à côté d’une jauge d’avancement.",
+        "Les tickets traités, modifiés et rouverts ainsi que le temps passé restent visibles. Le détail par intervalle est accessible dans une section repliée.",
+        "Le bandeau d’information est espacé des contrôles de dates."
+      ]
+    },
     {
       "version": "1.39.0",
       "date": "2026-11-20",
