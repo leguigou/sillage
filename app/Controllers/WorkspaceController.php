@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 use App\Core\{Auth, DB, View};
 use App\Models\{Project, Ticket};
-use App\Services\{Filter, FilterMemory, ListLayout, Query};
+use App\Services\{Filter, FilterMemory, ListLayout, ProjectReport, Query, ReportPeriod};
 /**
  * The main workspace screens and project-level settings.
  *
@@ -47,7 +47,7 @@ final class WorkspaceController
         $_SESSION['project_id'] = $project['id'];
         $all = $section === 'all';
         $pid = $all ? 0 : (int) $project['id'];
-        $filters = $_GET;
+        $filters = $section === 'charts' ? array_diff_key($_GET, ReportPeriod::KEYS) : $_GET;
         $activeView = null;
         $userId = (int) $user['id'];
         $projectId = (int) $project['id'];
@@ -67,7 +67,7 @@ final class WorkspaceController
                 $reportId, $userId, $projectId,
             ]);
             if ($activeView) {
-                $filters = array_replace(json_decode($activeView['settings'], true), $_GET, ['view'=>$reportId]);
+                $filters = array_replace(json_decode($activeView['settings'], true), $filters, ['view'=>$reportId]);
             }
         }
         // Invalid filters do not break the page: they are dropped and the error is displayed.
@@ -88,6 +88,17 @@ final class WorkspaceController
             $error = $e->getMessage();
             $filters = [];
             $activeView = null;
+        }
+        $reportPeriod = $projectReport = $reportError = null;
+        if ($section === 'charts') {
+            try {
+                $reportPeriod = new ReportPeriod($_GET);
+            } catch (\InvalidArgumentException $e) {
+                $reportError = $e->getMessage();
+                $reportPeriod = new ReportPeriod([]);
+            }
+            $projectReport = ProjectReport::activity($pid, $filters, $reportPeriod);
+            $filters += $reportPeriod->query();
         }
         if ($isList) {
             $reports = $_SESSION['list_reports'][$userId] ?? [];
@@ -258,6 +269,9 @@ final class WorkspaceController
                 'teamProjects',
                 'projectTeams',
                 'stats',
+                'reportPeriod',
+                'projectReport',
+                'reportError',
                 'activity',
                 'kpis',
                 'count',

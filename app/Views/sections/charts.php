@@ -5,7 +5,10 @@
  * Query::aggregate() over all filtered tickets ($count), using the bars() helper defined in workspace.php.
  * Ends with the team workload partial (partials/team-workload.php).
  */
-use App\Models\Ticket; ?>
+use App\Models\Ticket;
+require ROOT.'/app/Views/partials/project-report.php';
+?>
+<h2 class="report-snapshot-heading">Répartition actuelle des tickets filtrés</h2>
 <div class="dashboard-grid charts-grid"><?php foreach(['status'=>['Par état',\App\Models\Workflow::labels('status',(int)$project['id'],true)],'priority'=>['Par priorité',Ticket::PRIORITIES],'type'=>['Par type',\App\Models\Workflow::labels('type',(int)$project['id'],true)],'assignee'=>['Par personne assignée',[]],'team'=>['Par équipe',[]]] as $key=>[$label,$labels]): ?><section class="panel"><div class="panel-header"><div><h2><?= e($label) ?></h2><p>Répartition des <?= $count ?> tickets correspondant aux filtres.</p></div><?= icon('chart') ?></div><?php bars($stats[$key],$labels,$key); ?></section><?php endforeach; ?></div><p class="help-text">Les rapports sont calculés sur tous les tickets filtrés, indépendamment de la pagination de la liste.</p>
 
 <?php require ROOT.'/app/Views/partials/team-workload.php'; ?>
