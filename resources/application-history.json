@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.39.1",
+  "current_version": "1.39.2",
   "entries": [
+    {
+      "version": "1.39.2",
+      "date": "2026-11-20",
+      "category": "interface",
+      "title": "Distinguer le message initial des commentaires",
+      "summary": "Un fond légèrement teinté et un liseré repèrent le message initial dans la fiche du ticket.",
+      "changes": [
+        "Le message initial se distingue du suivi des commentaires en thème clair et sombre."
+      ]
+    },
     {
       "version": "1.39.1",
       "date": "2026-11-20",
