@@ -2304,6 +2304,10 @@ label small {
 .ticket-main, .ticket-aside, .ticket-thread { display: grid; gap: 16px; min-width: 0; }
 .ticket-main > [hidden] { display: none; }
 [data-ticket-panel], #activity, #attachments, #relations { scroll-margin-top: calc(var(--ticket-navigation-height) + 12px); }
+.ticket-overview {
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--line) 45%, var(--accent)), var(--shadow);
+}
 .ticket-description { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
 .ticket-main .panel { padding: 20px; }
 .ticket-aside .panel { padding: 18px; }
