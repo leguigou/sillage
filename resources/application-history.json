@@ -1,7 +1,19 @@
 {
   "schema": 1,
-  "current_version": "1.39.2",
+  "current_version": "1.40.0",
   "entries": [
+    {
+      "version": "1.40.0",
+      "date": "2026-11-23",
+      "category": "features",
+      "title": "Déclencher l’ouverture de pull request sans webhook",
+      "summary": "Quand le webhook ne peut pas joindre le serveur, la synchronisation reconnaît les pull requests ouvertes récemment et applique les règles d’ouverture.",
+      "changes": [
+        "Une pull request ouverte depuis moins de 24 heures, découverte par la synchronisation, applique les automatisations « Pull request ouverte » et publie le message d’ouverture dans le ticket.",
+        "Le premier rattrapage d’un dépôt et les pull requests plus anciennes restent de l’historique, sans déclenchement.",
+        "Si le webhook arrive aussi, la règle ne s’exécute qu’une seule fois."
+      ]
+    },
     {
       "version": "1.39.2",
       "date": "2026-11-20",

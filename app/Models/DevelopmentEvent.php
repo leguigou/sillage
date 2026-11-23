@@ -39,6 +39,8 @@ final class DevelopmentEvent
      * Upserts one normalized event, recomputes its ticket links and returns its id.
      * $live is true for real-time deliveries (webhooks): only those post Git comments on tickets
      * and run automation rules; history imports and re-saves only record the observation.
+     * Exception: the first polled observation of a recently opened pull request (see discoveredOpening)
+     * is treated as its opening, so rules still run when the webhook cannot reach this server.
      */
     public static function save(array $connection,array $event,bool $live=false): int
     {
@@ -46,6 +48,9 @@ final class DevelopmentEvent
             $projects=self::lockProjects((int)$connection['id']);
             $old=DB::one('SELECT * FROM development_events WHERE connection_id=? AND external_key=? FOR UPDATE',[$connection['id'],$event['external_key']]);
             $oldMeta=$old?json_decode($old['metadata_json']??'{}',true,64,JSON_THROW_ON_ERROR):[];
+            if (!$live && !$old && self::discoveredOpening((int)$connection['id'],$event)) {
+                $event['trigger']='development.pull_request_opened';$live=true;
+            }
             // Out-of-order protection: ignore an older build attempt, and (unless this is a newer build
             // attempt) ignore an event older than the stored one when both dates are known.
             $newAttempt=$event['kind']==='build' && (int)($event['metadata']['attempt']??1)>(int)($oldMeta['attempt']??1);
@@ -141,6 +146,21 @@ final class DevelopmentEvent
             }
             return $id;
         });
+    }
+    /** How far back a pull request may have been created for its first polled observation to count as its opening. */
+    public const DISCOVERY_WINDOW_SECONDS = 86400;
+    /**
+     * True when a polled, never-stored pull request is open and was created within the discovery window,
+     * after this connection's initial catch-up completed (repository watermark set). The first catch-up
+     * and older pull requests remain history and never run rules. A later webhook for the same pull
+     * request finds it stored in the same state, so rules run once whichever source arrives first.
+     */
+    private static function discoveredOpening(int $connection,array $event): bool
+    {
+        $created=$event['metadata']['created_at']??null;
+        if ($event['kind']!=='pull_request' || $event['state']!=='open' || !is_string($created)) return false;
+        if ($created<gmdate('Y-m-d H:i:s',time()-self::DISCOVERY_WINDOW_SECONDS)) return false;
+        return !empty(DB::one('SELECT repository_watermark FROM git_sync_state WHERE connection_id=?',[$connection])['repository_watermark']??null);
     }
     /**
      * Records that deployment $deployment contains pull request $pr, then copies the PR's tickets to

@@ -75,6 +75,28 @@ check(Ticket::find($historyTicket)['status']==='todo','import historique sans d�
 $bb=DevelopmentPayload::webhook('bitbucket','pullrequest:fulfilled',['pullrequest'=>['id'=>3,'title'=>'Correction','state'=>'MERGED','source'=>['branch'=>['name'=>'feature/'.$gitKey]]]],'espace/projet');
 check($bb[0]['state']==='merged' && $bb[0]['trigger']==='development.pull_request_merged','état de fusion Bitbucket reconnu');
 rejects(fn()=>DevelopmentPayload::webhook('github','pull_request',['pull_request'=>'invalid'],'organisation/projet-tests'),'payload de pull request malformé refusé');
+// Sans webhook joignable, la première observation par synchronisation d’une PR ouverte récemment vaut ouverture.
+check(DevelopmentPayload::object('bitbucket','pull_request',['id'=>4,'state'=>'OPEN','created_on'=>'2026-11-20T10:00:00.123456+00:00'],'espace/projet')['metadata']['created_at']==='2026-11-20 10:00:00','date de création Bitbucket normalisée en UTC');
+Automation::save(['project_id'=>$gitProject,'name'=>'En cours à l’ouverture vers staging','event'=>'development.pull_request_opened','conditions'=>['development_target_branch'=>'staging'],'actions'=>['status'=>'progress']],$uid);
+$openRuns=fn(int $ticket)=>(int)DB::one("SELECT COUNT(*) n FROM automation_runs WHERE ticket_id=? AND event_name='development.pull_request_opened'",[$ticket])['n'];
+$polledPr=fn(int $number,int $ticket,int $age)=>DevelopmentPayload::object('github','pull_request',['number'=>$number,'title'=>Ticket::find($ticket)['key'].' Nouvelle PR','state'=>'open','base'=>['ref'=>'staging'],'head'=>['ref'=>'feature/x','sha'=>str_repeat('c',40)],'html_url'=>'https://github.com/organisation/projet-tests/pull/'.$number,'created_at'=>gmdate('Y-m-d\TH:i:s\Z',time()-$age),'updated_at'=>gmdate('Y-m-d\TH:i:s\Z',time()-$age)],'organisation/projet-tests');
+DB::run('INSERT INTO git_sync_state(connection_id,repository_watermark) VALUES(?,NULL) ON DUPLICATE KEY UPDATE repository_watermark=NULL',[$gitConnection]);
+$firstSync=Ticket::create($gitProject,['title'=>'Premier rattrapage'],$uid);
+DevelopmentEvent::save($gitC,$polledPr(40,$firstSync,600));
+check(Ticket::find($firstSync)['status']==='todo' && $openRuns($firstSync)===0,'premier rattrapage du dépôt sans déclenchement des règles');
+DB::run('UPDATE git_sync_state SET repository_watermark=UTC_TIMESTAMP() WHERE connection_id=?',[$gitConnection]);
+$polled=Ticket::create($gitProject,['title'=>'PR vue par synchronisation'],$uid);
+$polledEvent=$polledPr(41,$polled,600);DevelopmentEvent::save($gitC,$polledEvent);
+check(Ticket::find($polled)['status']==='progress' && $openRuns($polled)===1,'PR récente découverte par synchronisation applique la règle d’ouverture');
+check((int)DB::one("SELECT COUNT(*) n FROM ticket_git_messages WHERE ticket_id=? AND message_kind='pr_opened'",[$polled])['n']===1,'PR récente découverte par synchronisation publie le message d’ouverture');
+DevelopmentEvent::save($gitC,$polledEvent);
+$lateHook=DevelopmentPayload::object('github','pull_request',['number'=>41,'title'=>Ticket::find($polled)['key'].' Nouvelle PR','state'=>'open','base'=>['ref'=>'staging'],'head'=>['ref'=>'feature/x','sha'=>str_repeat('c',40)],'html_url'=>'https://github.com/organisation/projet-tests/pull/41','updated_at'=>gmdate('Y-m-d\TH:i:s\Z')],'organisation/projet-tests',true,null,'opened');
+DevelopmentEvent::save($gitC,$lateHook,true);
+check($openRuns($polled)===1 && (int)DB::one("SELECT COUNT(*) n FROM ticket_git_messages WHERE ticket_id=? AND message_kind='pr_opened'",[$polled])['n']===1,'nouvelle synchronisation ou webhook tardif sans second déclenchement');
+$stale=Ticket::create($gitProject,['title'=>'PR ancienne'],$uid);
+DevelopmentEvent::save($gitC,$polledPr(42,$stale,2*86400));
+check(Ticket::find($stale)['status']==='todo' && $openRuns($stale)===0,'PR créée hors de la fenêtre de 24 heures reste un historique');
+DB::run('UPDATE git_sync_state SET repository_watermark=NULL WHERE connection_id=?',[$gitConnection]);
 RepositoryConnection::detach($gitProject,$gitConnection);
 check(DB::one('SELECT id FROM connections WHERE id=?',[$gitConnection])!==null && Project::find($gitProject)['repository_connection_id']===null && count(RepositoryConnection::forProject($otherGitProject))===1,'détacher un projet conserve la connexion des autres projets');
 $emptyOrigin=Project::save(['name'=>'Origine vide','key'=>'GO'.strtoupper(bin2hex(random_bytes(3)))]);
