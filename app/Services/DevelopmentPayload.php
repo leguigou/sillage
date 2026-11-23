@@ -53,6 +53,13 @@ final class DevelopmentPayload
             'metadata'=>['branch'=>$branch,'date_known'=>$known]+(mb_strlen($title)>500?['full_title'=>$title]:[]), 'trigger'=>$trigger];
         return $event;
     }
+    /** Provider date as a UTC "Y-m-d H:i:s" string, or null when absent or unparsable. */
+    private static function utc(mixed $date): ?string
+    {
+        if (!is_string($date) || !preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/D',$date)) return null;
+        try { return (new \DateTimeImmutable($date))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'); }
+        catch (\Exception) { return null; }
+    }
     /** Full title, source branch and normalized description/comment keys used for ticket matching. */
     public static function references(array $event): string
     {
@@ -102,6 +109,8 @@ final class DevelopmentPayload
             $event['metadata']['branch_repository']=self::text($item['head']['repo']['full_name']??$item['source']['repository']['full_name']??'',300)?:null;
             $event['metadata']['target_branch']=self::text($item['base']['ref']??$item['destination']['branch']['name']??'')?:null;
             $event['metadata']['target_sha']=self::sha($item['base']['sha']??$item['destination']['commit']['hash']??null);
+            // Creation time lets a polled first observation count as a recent opening (DevelopmentEvent::save).
+            $event['metadata']['created_at']=self::utc($item['created_at']??$item['created_on']??null);
             // Bitbucket list payloads carry no mergeability; it is checked separately (GitMonitor).
             $event['metadata']['merge_conflict']=$github?DevelopmentRunPayload::conflict('github',$item):null;
             $event['metadata']['merge_sha']=self::sha($item['merge_commit_sha']??$item['merge_commit']['hash']??null);
