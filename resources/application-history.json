@@ -1,7 +1,17 @@
 {
   "schema": 1,
-  "current_version": "1.40.0",
+  "current_version": "1.40.1",
   "entries": [
+    {
+      "version": "1.40.1",
+      "date": "2026-11-24",
+      "category": "interface",
+      "title": "Alléger le résumé des tickets en conflit",
+      "summary": "Le conflit de fusion n’est plus répété à côté du résumé dans la liste des tickets.",
+      "changes": [
+        "Le badge « Conflit Git » disparaît du résumé ; le conflit reste signalé dans la colonne de déploiement."
+      ]
+    },
     {
       "version": "1.40.0",
       "date": "2026-11-23",

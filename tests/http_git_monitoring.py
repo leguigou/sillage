@@ -24,7 +24,7 @@ check('data-git-day' in panel and 'data-git-timeline-search' in panel and 'git-t
 check('git-merge-sha' in panel and 'Commit de fusion' in panel and 'git-event-route' in panel,'merge commit and source-to-target route are explicit')
 check('Pipeline #11' in panel and 'Tests PHP' in panel,'Bitbucket pipelines and commit statuses visible')
 check('staging' in panel and 'production' in panel and 'Déploiement confirmé par le fournisseur' in panel and 'Déploiement non confirmé comme réussi' in panel,'deployment environments distinguish success from pending or running')
-_,listing,_=call('/list?project='+pid);check('Conflit Git' in listing,'ticket list flags confirmed PR merge conflicts')
+_,listing,_=call('/list?project='+pid);check('Conflit de fusion' in listing and 'Conflit Git' not in listing,'ticket list flags confirmed PR merge conflicts in the deployment column only')
 check('Service à démarrer' not in panel and 'Suivi automatique' in panel,'worker heartbeat visible after background processing')
 for provider,cid in connections.items():
     status,body,_=call('/connections/'+str(cid)+'/sync-status?project='+pid,json_accept=True);data=json.loads(body)

@@ -3964,7 +3964,6 @@ select option,select optgroup{background:var(--surface);color:var(--text)}
 .ticket-table .assignee-avatar-display .avatar{width:22px;height:22px}
 .ticket-table .deployment-badge{padding:2px 5px;border-radius:5px;gap:4px}
 .ticket-table .deployment-badge > .icon{width:14px;height:14px}
-.ticket-table .merge-conflict-badge{padding:2px 4px}
 
 .list-advanced-options{border-top:1px solid var(--line);padding-top:10px}
 .list-advanced-options > summary{cursor:pointer;font-weight:600}
